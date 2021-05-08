@@ -23,7 +23,6 @@ package cmd
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"io"
 	"log"
@@ -60,18 +59,7 @@ to quickly create a Cobra application.`,
 		fmt.Println(terraformPath)
 		terraformPath = "/Users/tstraub/tfx/terraform" //debug
 
-		config := &tfe.Config{
-			Address: "https://" + tfeHostname,
-			Token:   tfeToken,
-		}
-
-		var client *tfe.Client
-		client, err = tfe.NewClient(config)
-		if err != nil {
-			log.Fatal(err)
-		}
-		// Create a context
-		ctx := context.Background()
+		client, ctx := getContext()
 
 		var w *tfe.Workspace
 		// Read workspace
@@ -80,8 +68,6 @@ to quickly create a Cobra application.`,
 			log.Fatal(err)
 		}
 
-		// cvId := ""
-		// cvId := "cv-3vW3Q3QbPvfYYcp8"
 		var cv *tfe.ConfigurationVersion
 
 		if configId == "" {

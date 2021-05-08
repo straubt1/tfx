@@ -22,7 +22,6 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"log"
 
@@ -43,18 +42,7 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("list called")
 
-		config := &tfe.Config{
-			Address: "https://" + tfeHostname,
-			Token:   tfeToken,
-		}
-
-		client, err := tfe.NewClient(config)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// Create a context
-		ctx := context.Background()
+		client, ctx := getContext()
 
 		// Read workspace
 		w, err := client.Workspaces.Read(ctx, tfeOrganization, workspaceName)
