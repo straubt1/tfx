@@ -24,6 +24,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+
 	"github.com/spf13/cobra"
 
 	homedir "github.com/mitchellh/go-homedir"
@@ -31,6 +32,9 @@ import (
 )
 
 var cfgFile string
+var tfeHostname string
+var tfeToken string
+var tfeOrganization string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -61,10 +65,13 @@ func init() {
 	// will be global for your application.
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.tfx.yaml)")
+	rootCmd.PersistentFlags().StringVar(&tfeHostname, "tfeHostname", "app.terraform.io", "The hostname of TFE. Defaults to TFC 'app.terraform.io'.")
+	rootCmd.PersistentFlags().StringVar(&tfeToken, "tfeToken", "", "The API Token to interact with TFE or TFC.")
+	rootCmd.PersistentFlags().StringVar(&tfeOrganization, "tfeOrganization", "", "The TFE or TFC Organization.")
 
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// // Cobra also supports local flags, which will only run
+	// // when this action is called directly.
+	// rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -80,6 +87,7 @@ func initConfig() {
 		// Search config in home directory with name ".tfx" (without extension).
 		viper.AddConfigPath(home)
 		viper.SetConfigName(".tfx")
+		// viper.AddConfigPath(".") // Look for config in the working directory
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match
@@ -88,4 +96,6 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
 	}
+	// viper.WriteConfig()
+	// viper.WriteConfigAs("~/test.config")
 }
