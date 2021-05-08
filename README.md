@@ -10,6 +10,11 @@ https://github.com/spf13/cobra#installing
 
 VS Code Plugin -> https://marketplace.visualstudio.com/items?itemName=golang.Go
 
+go install github.com/go-delve/delve/cmd/dlv@latest
+
+https://github.com/golang/vscode-go/blob/master/docs/debugging.md#launch-configuration
+
+
 ```
 go get -u github.com/spf13/cobra
 go get github.com/spf13/cobra/cobra

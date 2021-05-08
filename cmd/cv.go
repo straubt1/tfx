@@ -22,17 +22,16 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"context"
 	"fmt"
-	"log"
 
-	tfe "github.com/hashicorp/go-tfe"
 	"github.com/spf13/cobra"
 )
 
-// listCmd represents the list command
-var listCmd = &cobra.Command{
-	Use:   "list",
+// var workspaceName string
+
+// cvCmd represents the cv command
+var cvCmd = &cobra.Command{
+	Use:   "cv",
 	Short: "A brief description of your command",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
@@ -41,65 +40,22 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("list called")
-		tfeHostName := "https://firefly.tfe.rocks"
-		tfeToken := "8WWd0B9Dqma2KQ.atlasv1.tIyHcx12dm4bWdLjlHbyuXWjNAopC4pquKxKzfm01Ez9SvL7JM1zAtTkPs3wQ98FIVg"
-		// tfeOrganization := "firefly"
-		tfeWorkspaceId := "ws-SNfnd5PLjEPPH2H6" // test-tom
-
-		config := &tfe.Config{
-			Address: tfeHostName,
-			Token:   tfeToken,
-		}
-
-		client, err := tfe.NewClient(config)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// Create a context
-		ctx := context.Background()
-
-		// Get all config versions and show the current config
-		w, err := client.ConfigurationVersions.List(ctx, tfeWorkspaceId, tfe.ConfigurationVersionListOptions{})
-		if err != nil {
-			log.Fatal(err)
-		}
-		for _, i := range w.Items {
-			fmt.Println(i.ID, i.Speculative, i.Status)
-		}
-
-		// // Create a new workspace
-		// w, err := client.Workspaces.Create(ctx, "firefly", tfe.WorkspaceCreateOptions{
-		// 	Name: tfe.String("tfx-test"),
-		// })
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-
-		// // Update the workspace
-		// w, err = client.Workspaces.Update(ctx, "firefly", w.Name, tfe.WorkspaceUpdateOptions{
-		// 	AutoApply:        tfe.Bool(false),
-		// 	TerraformVersion: tfe.String("0.11.1"),
-		// 	WorkingDirectory: tfe.String("my-app/infra"),
-		// })
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-
+		fmt.Println("cv called")
 	},
 }
 
 func init() {
-	cvCmd.AddCommand(listCmd)
+	rootCmd.AddCommand(cvCmd)
+
+	// cvCmd.PersistentFlags().String("workspaceName", "", "Help message for toggle")
 
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	// listCmd.PersistentFlags().String("foo", "", "A help for foo")
+	// cvCmd.PersistentFlags().String("foo", "", "A help for foo")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// listCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// cvCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
