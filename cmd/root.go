@@ -22,19 +22,24 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"os"
 
+	"github.com/hashicorp/go-tfe"
 	"github.com/spf13/cobra"
 
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
 )
 
-var cfgFile string
-var tfeHostname string
-var tfeToken string
-var tfeOrganization string
+var (
+	cfgFile         string
+	tfeHostname     string
+	tfeToken        string
+	tfeOrganization string
+)
 
 // var client tfe.Client
 // var ctx context.Context
@@ -49,27 +54,6 @@ examples and usage of using your application. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) {},
-
-	// PersistentPreRun: func(cmd *cobra.Command, args []string) {
-	// 	fmt.Printf("Inside rootCmd PersistentPreRun with args: %v\n", args)
-	// 	config := &tfe.Config{
-	// 		Address: "https://" + tfeHostname,
-	// 		Token:   tfeToken,
-	// 	}
-
-	// 	client, err := tfe.NewClient(config)
-	// 	if err != nil {
-	// 		log.Fatal(err)
-	// 	}
-
-	// 	// Create a context
-	// 	ctx := context.Background()
-	// 	// fmt.Println(client)
-	// 	// fmt.Println(ctx)
-	// },
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -88,11 +72,13 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.tfx.yaml)")
 	rootCmd.PersistentFlags().StringVar(&tfeHostname, "tfeHostname", "app.terraform.io", "The hostname of TFE. Defaults to TFC 'app.terraform.io'.")
 	rootCmd.PersistentFlags().StringVar(&tfeToken, "tfeToken", "", "The API Token to interact with TFE or TFC.")
+	// rootCmd.MarkPersistentFlagRequired("tfeToken")
 	rootCmd.PersistentFlags().StringVar(&tfeOrganization, "tfeOrganization", "", "The TFE or TFC Organization.")
 
-	// // Cobra also supports local flags, which will only run
-	// // when this action is called directly.
-	// rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// must bind to viper to pick up config file settings
+	viper.BindPFlag("tfeHostname", rootCmd.PersistentFlags().Lookup("tfeHostname"))
+	viper.BindPFlag("tfeToken", rootCmd.PersistentFlags().Lookup("tfeToken"))
+	viper.BindPFlag("tfeOrganization", rootCmd.PersistentFlags().Lookup("tfeOrganization"))
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -108,7 +94,7 @@ func initConfig() {
 		// Search config in home directory with name ".tfx" (without extension).
 		viper.AddConfigPath(home)
 		viper.SetConfigName(".tfx")
-		// viper.AddConfigPath(".") // Look for config in the working directory
+		viper.AddConfigPath(".") // Look for config in the working directory
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match
@@ -117,6 +103,27 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
 	}
-	// viper.WriteConfig()
-	// viper.WriteConfigAs("~/test.config")
+
+	// set the viper config file values
+	tfeHostname = viper.GetString("tfeHostname")
+	tfeToken = viper.GetString("tfeToken")
+	tfeOrganization = viper.GetString("tfeOrganization")
+}
+
+// helper to get context and client
+func getContext() (*tfe.Client, context.Context) {
+	config := &tfe.Config{
+		Address: "https://" + tfeHostname,
+		Token:   tfeToken,
+	}
+
+	client, err := tfe.NewClient(config)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Create a context
+	ctx := context.Background()
+
+	return client, ctx
 }
