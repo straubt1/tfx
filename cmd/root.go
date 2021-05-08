@@ -36,6 +36,9 @@ var tfeHostname string
 var tfeToken string
 var tfeOrganization string
 
+// var client tfe.Client
+// var ctx context.Context
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "tfx",
@@ -48,7 +51,25 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
+	// Run: func(cmd *cobra.Command, args []string) {},
+
+	// PersistentPreRun: func(cmd *cobra.Command, args []string) {
+	// 	fmt.Printf("Inside rootCmd PersistentPreRun with args: %v\n", args)
+	// 	config := &tfe.Config{
+	// 		Address: "https://" + tfeHostname,
+	// 		Token:   tfeToken,
+	// 	}
+
+	// 	client, err := tfe.NewClient(config)
+	// 	if err != nil {
+	// 		log.Fatal(err)
+	// 	}
+
+	// 	// Create a context
+	// 	ctx := context.Background()
+	// 	// fmt.Println(client)
+	// 	// fmt.Println(ctx)
+	// },
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
