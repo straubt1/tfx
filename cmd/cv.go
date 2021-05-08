@@ -27,7 +27,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// var workspaceName string
+var workspaceName string
 
 // cvCmd represents the cv command
 var cvCmd = &cobra.Command{
@@ -40,22 +40,12 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("cv called")
+		fmt.Println("cv called", tfeToken)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(cvCmd)
 
-	// cvCmd.PersistentFlags().String("workspaceName", "", "Help message for toggle")
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// cvCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// cvCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	cvCmd.PersistentFlags().StringVarP(&workspaceName, "workspaceName", "w", "", "Workspace Name")
 }

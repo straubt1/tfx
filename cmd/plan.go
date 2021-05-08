@@ -22,13 +22,20 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"log"
+	"os"
 
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/spf13/cobra"
 )
+
+// var workspaceName string
+var directory string
+var configId string
 
 // planCmd represents the plan command
 var planCmd = &cobra.Command{
@@ -41,50 +48,70 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("plan called")
+		fmt.Println("plan called", directory)
+		var err error
 
-		tfeHostName := "https://firefly.tfe.rocks"
-		tfeToken := "8WWd0B9Dqma2KQ.atlasv1.tIyHcx12dm4bWdLjlHbyuXWjNAopC4pquKxKzfm01Ez9SvL7JM1zAtTkPs3wQ98FIVg"
-		tfeOrganization := "firefly"
-		// tfeWorkspaceId := "test-tom" //"ws-oNdGGThW8gx7Lyg4" // test-tom
-		tfeWorkspaceName := "tfx-test"
-		terraformPath := "/Users/tstraub/Projects/straubt1.github.com/crispy-telegram/terraform/"
+		// terraformPath := "/Users/tstraub/Projects/straubt1.github.com/crispy-telegram/terraform/"
+		var terraformPath string
+		terraformPath, err = os.Getwd()
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(terraformPath)
+		terraformPath = "/Users/tstraub/tfx/terraform" //debug
 
 		config := &tfe.Config{
-			Address: tfeHostName,
+			Address: "https://" + tfeHostname,
 			Token:   tfeToken,
 		}
 
-		client, err := tfe.NewClient(config)
+		var client *tfe.Client
+		client, err = tfe.NewClient(config)
 		if err != nil {
 			log.Fatal(err)
 		}
 		// Create a context
 		ctx := context.Background()
 
+		var w *tfe.Workspace
 		// Read workspace
-		w, err := client.Workspaces.Read(ctx, tfeOrganization, tfeWorkspaceName)
+		w, err = client.Workspaces.Read(ctx, tfeOrganization, workspaceName)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		cv, err := client.ConfigurationVersions.Create(ctx, w.ID, tfe.ConfigurationVersionCreateOptions{
-			AutoQueueRuns: tfe.Bool(true),
-			Speculative:   tfe.Bool(false),
-		})
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Println(cv.ID, cv.Status, cv.UploadURL)
+		// cvId := ""
+		// cvId := "cv-3vW3Q3QbPvfYYcp8"
+		var cv *tfe.ConfigurationVersion
 
-		// upload code
-		err = client.ConfigurationVersions.Upload(ctx, cv.UploadURL, terraformPath)
-		if err != nil {
-			log.Fatal(err)
+		if configId == "" {
+			fmt.Println("Creating new Config Version")
+			// create config version
+			cv, err = client.ConfigurationVersions.Create(ctx, w.ID, tfe.ConfigurationVersionCreateOptions{
+				AutoQueueRuns: tfe.Bool(true),
+				Speculative:   tfe.Bool(true),
+			})
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			// upload code
+			err = client.ConfigurationVersions.Upload(ctx, cv.UploadURL, terraformPath)
+			if err != nil {
+				log.Fatal(err)
+			}
+		} else {
+			fmt.Println("Using existing Config Version", configId)
+			// read config version
+			cv, err = client.ConfigurationVersions.Read(ctx, configId)
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 
 		// create run
-		r, err := client.Runs.Create(ctx, tfe.RunCreateOptions{
+		var r *tfe.Run
+		r, err = client.Runs.Create(ctx, tfe.RunCreateOptions{
 			IsDestroy:            tfe.Bool(false),
 			Message:              tfe.String("TFx is here"),
 			ConfigurationVersion: cv,
@@ -94,27 +121,56 @@ to quickly create a Cobra application.`,
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Println(tfeHostName, "/app/", tfeOrganization, "/workspaces/", tfeWorkspaceName, "/runs/", r.ID)
+		fmt.Println("Plan URL:", "https://"+tfeHostname+"/app/"+tfeOrganization+"/workspaces/"+workspaceName+"/runs/"+r.ID)
+		fmt.Println(" run ID:", r.ID)
+		fmt.Println(" cv ID:", r.ConfigurationVersion.ID)
 
-		// rr, err := client.Runs.Read(ctx, r.ID)
-		// if err != nil {
-		// 	log.Fatal(err)
+		//
+		// for {
+		// 	fmt.Println(r.Status)
+		// 	if r.Status == "planned_and_finished" {
+		// 		break
+		// 	}
+		// 	// get current status
+		// 	r, err = client.Runs.Read(ctx, r.ID)
+		// 	if err != nil {
+		// 		log.Fatal(err)
+		// 		break
+		// 	}
+		// 	time.Sleep(1 * time.Second)
 		// }
-		// fmt.Println(rr)
+		var logs io.Reader
+		logs, err = client.Plans.Logs(ctx, r.Plan.ID)
+		if err != nil {
+			log.Fatal(err)
+		}
+		reader := bufio.NewReaderSize(logs, 64*1024)
+		// https://github.com/hashicorp/terraform/blob/89f986ded6fb07e7d5f27aaf340f69c353860c12/backend/remote/backend_plan.go#L332
+		for next := true; next; {
+			var l, line []byte
 
+			for isPrefix := true; isPrefix; {
+				l, isPrefix, err = reader.ReadLine()
+				if err != nil {
+					if err != io.EOF {
+						log.Fatal(err)
+					}
+					next = false
+				}
+				line = append(line, l...)
+			}
+
+			if next || len(line) > 0 {
+				fmt.Println(string(line))
+			}
+		}
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(planCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// planCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// planCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	planCmd.PersistentFlags().StringVarP(&workspaceName, "workspaceName", "w", "", "Workspace Name")
+	planCmd.PersistentFlags().StringVarP(&configId, "configId", "c", "", "Configuration Version Id (optional)")
+	planCmd.PersistentFlags().StringVarP(&directory, "directory", "d", "", "Directory containing Terraform")
 }
