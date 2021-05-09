@@ -32,9 +32,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// var workspaceName string
-var directory string
-var configId string
+var (
+	directory string
+	configId  string
+	// envs      []string
+)
 
 // planCmd represents the plan command
 var planCmd = &cobra.Command{
@@ -68,8 +70,14 @@ to quickly create a Cobra application.`,
 			log.Fatal(err)
 		}
 
-		var cv *tfe.ConfigurationVersion
+		// Create vars
+		err = createOrUpdateVariable(ctx, client, w.ID, "test", "val")
+		if err != nil {
+			log.Fatal(err)
+		}
+		// fmt.Println(v)
 
+		var cv *tfe.ConfigurationVersion
 		if configId == "" {
 			fmt.Println("Creating new Config Version")
 			// create config version
@@ -159,4 +167,5 @@ func init() {
 	planCmd.PersistentFlags().StringVarP(&workspaceName, "workspaceName", "w", "", "Workspace Name")
 	planCmd.PersistentFlags().StringVarP(&configId, "configId", "c", "", "Configuration Version Id (optional)")
 	planCmd.PersistentFlags().StringVarP(&directory, "directory", "d", "", "Directory containing Terraform")
+	// planCmd.PersistentFlags().StringSliceVarP(&envs, "envs", "e", []string{}, "Array on ENV")
 }

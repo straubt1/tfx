@@ -39,6 +39,8 @@ var (
 	tfeHostname     string
 	tfeToken        string
 	tfeOrganization string
+	// envs            string
+	envs []string
 )
 
 // var client tfe.Client
@@ -74,11 +76,13 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&tfeToken, "tfeToken", "", "The API Token to interact with TFE or TFC.")
 	// rootCmd.MarkPersistentFlagRequired("tfeToken")
 	rootCmd.PersistentFlags().StringVar(&tfeOrganization, "tfeOrganization", "", "The TFE or TFC Organization.")
+	planCmd.PersistentFlags().StringSliceVarP(&envs, "envs", "e", []string{}, "Array on ENV")
 
 	// must bind to viper to pick up config file settings
 	viper.BindPFlag("tfeHostname", rootCmd.PersistentFlags().Lookup("tfeHostname"))
 	viper.BindPFlag("tfeToken", rootCmd.PersistentFlags().Lookup("tfeToken"))
 	viper.BindPFlag("tfeOrganization", rootCmd.PersistentFlags().Lookup("tfeOrganization"))
+	viper.BindPFlag("envs", rootCmd.PersistentFlags().Lookup("envs"))
 }
 
 // initConfig reads in config file and ENV variables if set.
