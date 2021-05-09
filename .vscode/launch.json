@@ -28,6 +28,17 @@
         "--directory=./terraform",
         "--envs=a=b,c=d"
       ]
+    },
+    {
+      "name": "TFX - Apply",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${fileDirname}/../main.go",
+      "args": [
+        "apply",
+        "--runId=run-VCMv2kHVwS4RMVRu",
+      ]
     }
   ]
 }

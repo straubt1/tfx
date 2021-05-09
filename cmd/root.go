@@ -112,6 +112,11 @@ func initConfig() {
 	tfeHostname = viper.GetString("tfeHostname")
 	tfeToken = viper.GetString("tfeToken")
 	tfeOrganization = viper.GetString("tfeOrganization")
+
+	// for _, e := range os.Environ() {
+	// 	pair := strings.SplitN(e, "=", 2)
+	// 	fmt.Println(pair[0])
+	// }
 }
 
 // helper to get context and client
