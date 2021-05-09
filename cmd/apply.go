@@ -36,13 +36,8 @@ var (
 // applyCmd represents the apply command
 var applyCmd = &cobra.Command{
 	Use:   "apply",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Applies a Workspace Run.",
+	Long:  `Creates a Run Apply based on an existing Run Plan and displays its Apply logs.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("apply called")
 		var err error

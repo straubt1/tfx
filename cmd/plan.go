@@ -39,17 +39,14 @@ var (
 // planCmd represents the plan command
 var planCmd = &cobra.Command{
 	Use:   "plan",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Create a Workspace Run to Plan from your local Terraform files.",
+	Long: `Creates a Configuration Version (unless supplied), uploads your Terraform files,
+	creates a run, and display the Run logs.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 
 		client, ctx := getContext()
+		fmt.Println(tfeHostname, workspaceName)
 
 		var w *tfe.Workspace
 		// Read workspace

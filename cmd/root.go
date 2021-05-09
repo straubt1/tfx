@@ -49,13 +49,11 @@ var (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "tfx",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "A CLI to easily interact with TFC/TFE.",
+	Long: `Leveraging the API for TFC/TFE can become a burden for common tasks.
+	TFx aims to ease that challenge for common and repeatable tasks. This application
+	can be used to interact with either Terraform Cloud or Terraform Enterprise.`,
+	Version: "v0.0.1-dev",
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -67,11 +65,7 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.tfx.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file, can be used to store common flags, (default is ./.tfx.hcl).")
 	rootCmd.PersistentFlags().StringVar(&tfeHostname, "tfeHostname", "app.terraform.io", "The hostname of TFE. Defaults to TFC 'app.terraform.io'.")
 	rootCmd.PersistentFlags().StringVar(&tfeToken, "tfeToken", "", "The API Token to interact with TFE or TFC.")
 	// rootCmd.MarkPersistentFlagRequired("tfeToken")
@@ -98,7 +92,8 @@ func initConfig() {
 		// Search config in home directory with name ".tfx" (without extension).
 		viper.AddConfigPath(home)
 		viper.SetConfigName(".tfx")
-		viper.AddConfigPath(".") // Look for config in the working directory
+		// Search config in working directory with name ".tfx" (without extension).
+		viper.AddConfigPath(".")
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match
