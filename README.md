@@ -3,6 +3,18 @@
 CLI to wrap the Terraform Cloud and Terraform Enterprise API for common tasks.
 The primary focus initially is the API-Driven workflow.
 
+## Why does this exist?
+
+As a consumer of TFC/TFE I want to leverage the full capabilities of TFE without having to write curl/python/(insert other) libraries to call the API.
+
+**Challenges:**
+
+- The CLI driven workflow presents several gaps in integrating a Workspace run, specifically the inability to insert a gate check between a plan and apply. (in other words you must run a terraform apply -auto-approve).
+- The CLI driven workflow requires a terraform init that forces a download of plugins before a plan can be called remotely. This requires handling providers in the local host that are never actually used and can be difficult to source in airgap environments.
+- Integrating with the API driven workflow requires several API calls to do basic tasks such as plan/apply.
+- It is unlikely that the full range of features will be built into the Terraform CLI (OSS vs. Enterprise needs)
+- Building API driven "helpers" for every CI/CD system out there is not efficient.
+
 ## Run Workflow
 
 **Create a Plan**
