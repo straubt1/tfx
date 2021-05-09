@@ -1,4 +1,4 @@
-# TFx
+# TFx CLI
 
 CLI to wrap the Terraform Cloud and Terraform Enterprise API for common tasks.
 The primary focus initially is the API-Driven workflow.
