@@ -25,7 +25,8 @@
       "args": [
         "plan",
         "--workspaceName=tfx-test",
-        "--directory=./terraform"
+        "--directory=./terraform",
+        "--envs=a=b,c=d"
       ]
     }
   ]
