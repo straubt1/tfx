@@ -22,19 +22,17 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"bufio"
 	"fmt"
-	"io"
 	"log"
-	"os"
 
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/spf13/cobra"
 )
 
 var (
-	directory string
-	configId  string
+	directory     string
+	configId      string
+	isSpeculative bool
 	// envs      []string
 )
 
@@ -49,17 +47,7 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("plan called", directory)
 		var err error
-
-		// terraformPath := "/Users/tstraub/Projects/straubt1.github.com/crispy-telegram/terraform/"
-		var terraformPath string
-		terraformPath, err = os.Getwd()
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Println(terraformPath)
-		terraformPath = "/Users/tstraub/tfx/terraform" //debug
 
 		client, ctx := getContext()
 
@@ -75,35 +63,14 @@ to quickly create a Cobra application.`,
 		if err != nil {
 			log.Fatal(err)
 		}
-		// fmt.Println(v)
 
-		var cv *tfe.ConfigurationVersion
-		if configId == "" {
-			fmt.Println("Creating new Config Version")
-			// create config version
-			cv, err = client.ConfigurationVersions.Create(ctx, w.ID, tfe.ConfigurationVersionCreateOptions{
-				AutoQueueRuns: tfe.Bool(true),
-				Speculative:   tfe.Bool(true),
-			})
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			// upload code
-			err = client.ConfigurationVersions.Upload(ctx, cv.UploadURL, terraformPath)
-			if err != nil {
-				log.Fatal(err)
-			}
-		} else {
-			fmt.Println("Using existing Config Version", configId)
-			// read config version
-			cv, err = client.ConfigurationVersions.Read(ctx, configId)
-			if err != nil {
-				log.Fatal(err)
-			}
+		// Create config version
+		cv, err := createOrReadConfigurationVersion(ctx, client, w.ID, configId, directory, isSpeculative)
+		if err != nil {
+			log.Fatal(err)
 		}
 
-		// create run
+		// Create run
 		var r *tfe.Run
 		r, err = client.Runs.Create(ctx, tfe.RunCreateOptions{
 			IsDestroy:            tfe.Bool(false),
@@ -115,9 +82,9 @@ to quickly create a Cobra application.`,
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Println("Plan URL:", "https://"+tfeHostname+"/app/"+tfeOrganization+"/workspaces/"+workspaceName+"/runs/"+r.ID)
-		fmt.Println(" run ID:", r.ID)
-		fmt.Println(" cv ID:", r.ConfigurationVersion.ID)
+		fmt.Println("Workspace Run Created, Run Id:", r.ID, "Config Version:", r.ConfigurationVersion.ID)
+		fmt.Println("Navigate:", "https://"+tfeHostname+"/app/"+tfeOrganization+"/workspaces/"+workspaceName+"/runs/"+r.ID)
+		fmt.Println()
 
 		//
 		// for {
@@ -133,31 +100,16 @@ to quickly create a Cobra application.`,
 		// 	}
 		// 	time.Sleep(1 * time.Second)
 		// }
-		var logs io.Reader
-		logs, err = client.Plans.Logs(ctx, r.Plan.ID)
+
+		// Get Run Logs
+		err = getRunLogs(ctx, client, r.Plan.ID)
 		if err != nil {
 			log.Fatal(err)
 		}
-		reader := bufio.NewReaderSize(logs, 64*1024)
-		// https://github.com/hashicorp/terraform/blob/89f986ded6fb07e7d5f27aaf340f69c353860c12/backend/remote/backend_plan.go#L332
-		for next := true; next; {
-			var l, line []byte
 
-			for isPrefix := true; isPrefix; {
-				l, isPrefix, err = reader.ReadLine()
-				if err != nil {
-					if err != io.EOF {
-						log.Fatal(err)
-					}
-					next = false
-				}
-				line = append(line, l...)
-			}
-
-			if next || len(line) > 0 {
-				fmt.Println(string(line))
-			}
-		}
+		// Get Cost Estimation Logs
+		// Get Policy Check Logs: https://github.com/hashicorp/terraform/blob/89f986ded6fb07e7d5f27aaf340f69c353860c12/backend/remote/backend_common.go#L344
+		fmt.Println("Run Complete:", r.ID)
 	},
 }
 
@@ -166,6 +118,7 @@ func init() {
 
 	planCmd.PersistentFlags().StringVarP(&workspaceName, "workspaceName", "w", "", "Workspace Name")
 	planCmd.PersistentFlags().StringVarP(&configId, "configId", "c", "", "Configuration Version Id (optional)")
-	planCmd.PersistentFlags().StringVarP(&directory, "directory", "d", "", "Directory containing Terraform")
+	planCmd.PersistentFlags().StringVarP(&directory, "directory", "d", "./", "Directory containing Terraform, default to working directory.")
+	planCmd.PersistentFlags().BoolVarP(&isSpeculative, "isSpeculative", "s", false, "Is this plan speculative, default to false")
 	// planCmd.PersistentFlags().StringSliceVarP(&envs, "envs", "e", []string{}, "Array on ENV")
 }
