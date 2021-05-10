@@ -33,61 +33,61 @@ import (
 )
 
 var (
-	cvCmd = &cobra.Command{
-		Use:   "cv",
-		Short: "Configuration Versions",
-		Long:  "Work with Configration Versions of a TFx Workspace.",
+	runCmd = &cobra.Command{
+		Use:   "run",
+		Short: "Workspace Runs",
+		Long:  "Work with Runs of a TFx Workspace.",
 	}
 
-	cvListCmd = &cobra.Command{
+	runListCmd = &cobra.Command{
 		Use: "list",
 		// Aliases: []string{"ls"},
-		Short: "List Configuration Versions",
-		Long:  "List Configuration Versions of a TFx Workspace.",
+		Short: "List Runs",
+		Long:  "List Runs of a TFx Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cvList()
+			return runList()
 		},
 		PreRun: bindPFlags,
 	}
 
-	cvCreateCmd = &cobra.Command{
+	runCreateCmd = &cobra.Command{
 		Use:   "create",
-		Short: "Create Configuration Version",
-		Long:  "Create Configuration Version for a TFx Workspace.",
+		Short: "Create Run",
+		Long:  "Create Run for a TFx Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cvCreate()
+			return runCreate()
 		},
 		PreRun: bindPFlags,
 	}
 
-	cvShowCmd = &cobra.Command{
+	runShowCmd = &cobra.Command{
 		Use:   "show",
-		Short: "Show Configuration Version",
-		Long:  "Show Configuration Version details for a TFx Workspace.",
+		Short: "Show Run",
+		Long:  "Show Run details for a TFx Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cvShow()
+			return runShow()
 		},
 		PreRun: bindPFlags,
 	}
 )
 
 func init() {
-	// All `tfx cv` commands
-	cvCmd.PersistentFlags().StringP("workspaceName", "w", "", "Workspace name")
+	// All `tfx run` commands
+	runCmd.PersistentFlags().StringP("workspaceName", "w", "", "Workspace name")
 
-	// `tfx cv create`
-	cvCreateCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (defaults to current directory)")
+	// `tfx run create`
+	runCreateCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (defaults to current directory)")
 
-	// `tfx cv show`
-	cvShowCmd.Flags().StringP("configurationId", "i", "", "Configuration Version Id (i.e. cv-*)")
+	// `tfx run show`
+	runShowCmd.Flags().StringP("runId", "i", "", "Run Id (i.e. run-*)")
 
-	rootCmd.AddCommand(cvCmd)
-	cvCmd.AddCommand(cvListCmd)
-	cvCmd.AddCommand(cvCreateCmd)
-	cvCmd.AddCommand(cvShowCmd)
+	rootCmd.AddCommand(runCmd)
+	runCmd.AddCommand(runListCmd)
+	runCmd.AddCommand(runCreateCmd)
+	runCmd.AddCommand(runShowCmd)
 }
 
-func cvList() error {
+func runList() error {
 	// Validate flags
 	orgName := *viperString("tfeOrganization")
 	wsName := *viperString("workspaceName")
@@ -100,10 +100,11 @@ func cvList() error {
 	}
 
 	// Get all config versions and show the current config
-	cv, err := client.ConfigurationVersions.List(ctx, w.ID, tfe.ConfigurationVersionListOptions{
+	run, err := client.Runs.List(ctx, w.ID, tfe.RunListOptions{
 		ListOptions: tfe.ListOptions{
 			PageSize: 10,
 		},
+		Include: tfe.String("workspace"), // To get TF Version
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -111,9 +112,9 @@ func cvList() error {
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"Id", "Speculative", "Status"})
-	for _, i := range cv.Items {
-		t.AppendRow(table.Row{i.ID, i.Speculative, i.Status})
+	t.AppendHeader(table.Row{"Id", "Status", "Terraform Version", "Created"})
+	for _, i := range run.Items {
+		t.AppendRow(table.Row{i.ID, i.Status, i.Workspace.TerraformVersion, i.CreatedAt.String()})
 	}
 	t.SetStyle(table.StyleRounded)
 	t.Render()
@@ -121,11 +122,10 @@ func cvList() error {
 	return nil
 }
 
-func cvCreate() error {
+func runCreate() error {
 	// Validate flags
 	orgName := *viperString("tfeOrganization")
 	wsName := *viperString("workspaceName")
-	dir := *viperString("directory")
 	client, ctx := getClientContext()
 
 	// Read workspace
@@ -137,44 +137,42 @@ func cvCreate() error {
 	fmt.Println(" ID Found:", w.ID)
 
 	// Create Config Version
-	fmt.Print("Creating Configuration Version ...")
-	cv, err := client.ConfigurationVersions.Create(ctx, w.ID, tfe.ConfigurationVersionCreateOptions{
-		AutoQueueRuns: tfe.Bool(false),
-		Speculative:   tfe.Bool(true),
+	fmt.Print("Creating Run ...")
+	run, err := client.Runs.Create(ctx, tfe.RunCreateOptions{
+		Workspace: w,
+		IsDestroy: tfe.Bool(false),
+		Message:   tfe.String("TFx was here"),
+		// ConfigurationVersion: {}
+		// without a CV the run will kick off automatically with the last know CV
+		// this is likely not ideal
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(" ID:", cv.ID)
-
-	// Upload to Config Version
-	fmt.Print("Uploading code from directory ", color.GreenString(dir), "...")
-	err = client.ConfigurationVersions.Upload(ctx, cv.UploadURL, dir)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(" Done")
+	fmt.Println(" ID:", run.ID)
 
 	return nil
 }
 
-func cvShow() error {
+func runShow() error {
 	// Validate flags
-	configId := *viperString("configurationId")
+	runId := *viperString("runId")
 	client, ctx := getClientContext()
 
 	// Read Config Version
-	fmt.Print("Reading Configuration for ID ", color.GreenString(configId), "...")
-	cv, err := client.ConfigurationVersions.Read(ctx, configId)
+	fmt.Print("Reading Configuration for ID ", color.GreenString(runId), "...")
+	run, err := client.Runs.ReadWithOptions(ctx, runId, &tfe.RunReadOptions{
+		Include: "workspace", // To get TF Version
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(" CV Found")
-	fmt.Println(color.BlueString("ID:          "), cv.ID)
-	fmt.Println(color.BlueString("Status:      "), cv.Status)
-	fmt.Println(color.BlueString("Speculative: "), cv.Speculative)
-	fmt.Println(color.BlueString("Source:      "), cv.Source)
-	fmt.Println(color.BlueString("Error:       "), cv.ErrorMessage)
+	fmt.Println(" run Found")
+	fmt.Println(color.BlueString("ID:          "), run.ID)
+	fmt.Println(color.BlueString("Status:      "), run.Status)
+	fmt.Println(color.BlueString("Message:     "), run.Message)
+	fmt.Println(color.BlueString("TF Version:  "), run.Workspace.TerraformVersion)
+	fmt.Println(color.BlueString("Created:     "), run.CreatedAt.String())
 
 	return nil
 }
