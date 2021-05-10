@@ -23,31 +23,157 @@ package cmd
 
 import (
 	"fmt"
+	"log"
+	"os"
 
+	"github.com/fatih/color"
+	tfe "github.com/hashicorp/go-tfe"
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
 )
 
-var workspaceName string
+var (
+	cvCmd = &cobra.Command{
+		Use:   "cv",
+		Short: "Configuration Versions",
+		Long:  "Work with Configration Versions of a TFx Workspace.",
+	}
 
-// cvCmd represents the cv command
-var cvCmd = &cobra.Command{
-	Use:   "cv",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	cvListCmd = &cobra.Command{
+		Use: "list",
+		// Aliases: []string{"ls"},
+		Short: "List Configuration Versions",
+		Long:  "List Configuration Versions of a TFx Workspace.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cvList()
+		},
+		PreRun: bindPFlags,
+	}
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("cv called", tfeHostname)
-		fmt.Println("cv called", tfeOrganization)
-		fmt.Println("cv called", tfeToken)
-	},
-}
+	cvCreateCmd = &cobra.Command{
+		Use:   "create",
+		Short: "Create Configuration Version",
+		Long:  "Create Configuration Version for a TFx Workspace.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cvCreate()
+		},
+		PreRun: bindPFlags,
+	}
+
+	cvShowCmd = &cobra.Command{
+		Use:   "show",
+		Short: "Show Configuration Version",
+		Long:  "Show Configuration Version details for a TFx Workspace.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cvShow()
+		},
+		PreRun: bindPFlags,
+	}
+)
 
 func init() {
-	rootCmd.AddCommand(cvCmd)
+	// All `tfx cv` commands
+	cvCmd.PersistentFlags().StringP("workspaceName", "w", "", "Workspace name")
 
-	cvCmd.PersistentFlags().StringVarP(&workspaceName, "workspaceName", "w", "", "Workspace Name")
+	// `tfx cv create`
+	cvCreateCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (defaults to current directory)")
+
+	// `tfx cv show`
+	cvShowCmd.Flags().StringP("configurationId", "i", "", "Configuration Version Id (i.e. cv-*)")
+
+	rootCmd.AddCommand(cvCmd)
+	cvCmd.AddCommand(cvListCmd)
+	cvCmd.AddCommand(cvCreateCmd)
+	cvCmd.AddCommand(cvShowCmd)
+}
+
+func cvList() error {
+	// Validate flags
+	orgName := *viperString("tfeOrganization")
+	wsName := *viperString("workspaceName")
+	client, ctx := getClientContext()
+
+	// Read workspace
+	w, err := client.Workspaces.Read(ctx, orgName, wsName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Get all config versions and show the current config
+	cv, err := client.ConfigurationVersions.List(ctx, w.ID, tfe.ConfigurationVersionListOptions{
+		ListOptions: tfe.ListOptions{
+			PageSize: 10,
+		},
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{"Id", "Speculative", "Status"})
+	for _, i := range cv.Items {
+		t.AppendRow(table.Row{i.ID, i.Speculative, i.Status})
+	}
+	t.SetStyle(table.StyleRounded)
+	t.Render()
+
+	return nil
+}
+
+func cvCreate() error {
+	// Validate flags
+	orgName := *viperString("tfeOrganization")
+	wsName := *viperString("workspaceName")
+	dir := *viperString("directory")
+	client, ctx := getClientContext()
+
+	// Read workspace
+	fmt.Print("Reading Workspace ", color.GreenString(wsName), " for ID...")
+	w, err := client.Workspaces.Read(ctx, orgName, wsName)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(" ID Found:", w.ID)
+
+	// Create Config Version
+	fmt.Print("Creating Configuration Version ...")
+	cv, err := client.ConfigurationVersions.Create(ctx, w.ID, tfe.ConfigurationVersionCreateOptions{
+		AutoQueueRuns: tfe.Bool(false),
+		Speculative:   tfe.Bool(true),
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(" ID:", cv.ID)
+
+	// Upload to Config Version
+	fmt.Print("Uploading code from directory ", color.GreenString(dir), "...")
+	err = client.ConfigurationVersions.Upload(ctx, cv.UploadURL, dir)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(" Done")
+	return nil
+}
+
+func cvShow() error {
+	// Validate flags
+	configId := *viperString("configurationId")
+	client, ctx := getClientContext()
+
+	// Read Config Version
+	fmt.Print("Reading Configuration for ID ", color.GreenString(configId), "...")
+	cv, err := client.ConfigurationVersions.Read(ctx, configId)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(" CV Found")
+	fmt.Println(color.BlueString("ID:          "), cv.ID)
+	fmt.Println(color.BlueString("Status:      "), cv.Status)
+	fmt.Println(color.BlueString("Speculative: "), cv.Speculative)
+	fmt.Println(color.BlueString("Source:      "), cv.Source)
+	fmt.Println(color.BlueString("Error:       "), cv.ErrorMessage)
+
+	return nil
 }
