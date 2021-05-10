@@ -94,10 +94,12 @@ func cvList() error {
 	client, ctx := getClientContext()
 
 	// Read workspace
+	fmt.Print("Reading Workspace ", color.GreenString(wsName), " for ID...")
 	w, err := client.Workspaces.Read(ctx, orgName, wsName)
 	if err != nil {
 		log.Fatal(err)
 	}
+	fmt.Println(" Found:", w.ID)
 
 	// Get all config versions and show the current config
 	cv, err := client.ConfigurationVersions.List(ctx, w.ID, tfe.ConfigurationVersionListOptions{
@@ -134,7 +136,7 @@ func cvCreate() error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(" ID Found:", w.ID)
+	fmt.Println(" Found:", w.ID)
 
 	// Create Config Version
 	fmt.Print("Creating Configuration Version ...")

@@ -39,10 +39,14 @@ var applyCmd = &cobra.Command{
 	Short: "Applies a Workspace Run.",
 	Long:  `Creates a Run Apply based on an existing Run Plan and displays its Apply logs.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("apply called")
 		var err error
 
-		client, ctx := getContext()
+		// Validate flags
+		hostname := *viperString("tfeHostname")
+		orgName := *viperString("tfeOrganization")
+		wsName := *viperString("workspaceName")
+
+		client, ctx := getClientContext()
 
 		// Verify run can be applied
 		var r *tfe.Run
@@ -66,7 +70,7 @@ var applyCmd = &cobra.Command{
 		}
 
 		fmt.Println("Workspace Apply Created, Apply Id:", r.Apply.ID)
-		fmt.Println("Navigate:", "https://"+tfeHostname+"/app/"+tfeOrganization+"/workspaces/"+workspaceName+"/runs/"+r.ID)
+		fmt.Println("Navigate:", "https://"+hostname+"/app/"+orgName+"/workspaces/"+wsName+"/runs/"+r.ID)
 		fmt.Println()
 
 		getApplyLogs(ctx, client, r.Apply.ID)

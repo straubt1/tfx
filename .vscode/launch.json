@@ -11,9 +11,21 @@
       "mode": "auto",
       "program": "${fileDirname}/../main.go",
       "args": [
-        "cv",
+        "run",
         "list",
         "--workspaceName=tfx-test",
+      ]
+    },
+    {
+      "name": "TFX - Run Show",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${fileDirname}/../main.go",
+      "args": [
+        "run",
+        "show",
+        "-i=run-tVxVKhhZeNn8GpZS",
       ]
     },
     {
@@ -26,7 +38,7 @@
         "plan",
         "--workspaceName=tfx-test",
         "--directory=./terraform",
-        "--envs=a=b,c=d"
+        // "--envs=a=b,c=d"
       ]
     },
     {

@@ -22,12 +22,10 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"os"
 
-	"github.com/hashicorp/go-tfe"
 	"github.com/spf13/cobra"
 
 	homedir "github.com/mitchellh/go-homedir"
@@ -35,16 +33,15 @@ import (
 )
 
 var (
-	cfgFile         string
-	tfeHostname     string
-	tfeToken        string
-	tfeOrganization string
-	// envs            string
-	envs []string
-)
+	cfgFile string
 
-// var client tfe.Client
-// var ctx context.Context
+	bindPFlags = func(cmd *cobra.Command, args []string) {
+		err := viper.BindPFlags(cmd.Flags())
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+	}
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -66,17 +63,6 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file, can be used to store common flags, (default is ./.tfx.hcl).")
-	rootCmd.PersistentFlags().StringVar(&tfeHostname, "tfeHostname", "app.terraform.io", "The hostname of TFE. Defaults to TFC 'app.terraform.io'.")
-	rootCmd.PersistentFlags().StringVar(&tfeToken, "tfeToken", "", "The API Token to interact with TFE or TFC.")
-	// rootCmd.MarkPersistentFlagRequired("tfeToken")
-	rootCmd.PersistentFlags().StringVar(&tfeOrganization, "tfeOrganization", "", "The TFE or TFC Organization.")
-	planCmd.PersistentFlags().StringSliceVarP(&envs, "envs", "e", []string{}, "Array on ENV")
-
-	// must bind to viper to pick up config file settings
-	viper.BindPFlag("tfeHostname", rootCmd.PersistentFlags().Lookup("tfeHostname"))
-	viper.BindPFlag("tfeToken", rootCmd.PersistentFlags().Lookup("tfeToken"))
-	viper.BindPFlag("tfeOrganization", rootCmd.PersistentFlags().Lookup("tfeOrganization"))
-	viper.BindPFlag("envs", rootCmd.PersistentFlags().Lookup("envs"))
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -104,30 +90,12 @@ func initConfig() {
 	}
 
 	// set the viper config file values
-	tfeHostname = viper.GetString("tfeHostname")
-	tfeToken = viper.GetString("tfeToken")
-	tfeOrganization = viper.GetString("tfeOrganization")
+	// tfeHostname = viper.GetString("tfeHostname")
+	// tfeToken = viper.GetString("tfeToken")
+	// tfeOrganization = viper.GetString("tfeOrganization")
 
 	// for _, e := range os.Environ() {
 	// 	pair := strings.SplitN(e, "=", 2)
 	// 	fmt.Println(pair[0])
 	// }
-}
-
-// helper to get context and client
-func getContext() (*tfe.Client, context.Context) {
-	config := &tfe.Config{
-		Address: "https://" + tfeHostname,
-		Token:   tfeToken,
-	}
-
-	client, err := tfe.NewClient(config)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Create a context
-	ctx := context.Background()
-
-	return client, ctx
 }
