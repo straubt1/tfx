@@ -122,3 +122,6 @@ Apply Complete: apply-38E9GEC14FeAJcZv
 https://github.com/hashicorp/go-tfe
 
 https://github.com/spf13/cobra#installing
+
+https://mholt.github.io/json-to-go/
+
