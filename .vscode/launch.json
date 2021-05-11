@@ -53,6 +53,17 @@
       ]
     },
     {
+      "name": "TFX - PMR List",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${fileDirname}/../main.go",
+      "args": [
+        "pmr",
+        "list",
+      ]
+    },
+    {
       "name": "TFX - PMR Create",
       "type": "go",
       "request": "launch",
@@ -60,7 +71,10 @@
       "program": "${fileDirname}/../main.go",
       "args": [
         "pmr",
-        "-d=./module",
+        "createversion",
+        "-n=test1",
+        "-p=aws",
+        "--moduleVersion=0.0.1",
       ]
     },
     {
