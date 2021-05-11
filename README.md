@@ -91,23 +91,32 @@ Apply Complete: apply-38E9GEC14FeAJcZv
 
 ## Future Commands
 
-- `tfx run list`, List all runs for a workspace
-- `tfx cv list`, List all configuration versions for a workspace
-- `tfe tfversions`
-  - `list`, list all Terraform versions in TFE
-  - `disable`, disable a Terraform version, -a flag to disable all
-  - `enable`, enable a Terraform version
-  - `create`, create a new Terraform version, upsert?
-- `tfx pmr`
-  - `list`, list all modules in the PMR
-  - `create`, create a module in the PMR
-  - `publish`, create a version of a module in the PMR, pushes code
-  - `delete`, deletes a module/version from the PMR
-- `tfe sentinel`
-  - `list`, list policy sets
-  - `create`, create a policy set
-  - `delete`, deletes a policy set
-  - `assign`, assigns a WS(s) to the policy set
+- [ ] `tfx run`
+  - [x] `list`, List all runs for a workspace
+  - [x] `create`, Create a Run
+  - [x] `show`, Show a run
+  - [ ] `cancel`, cancel, discard, force cancel a run
+- [x] `tfx cv`
+  - [x] `list`, List all configuration versions for a workspace
+  - [x] `create`, Create a configuration version
+  - [x] `show`, Show a configuration version
+- [ ] `tfe tfversions`
+  - [x] `list`, list all Terraform versions in TFE
+  - [ ] `disable`, disable a Terraform version, -a flag to disable all
+  - [ ] `enable`, enable a Terraform version
+  - [x] `create`, create a new Terraform version, upsert?
+  - [x] `show`, show a version
+  - [x] `delete`, delete a version
+- [ ] `tfx pmr`
+  - [ ] `list`, list all modules in the PMR
+  - [ ] `create`, create a module in the PMR
+  - [ ] `publish`, create a version of a module in the PMR, pushes code
+  - [ ] `delete`, deletes a module/version from the PMR
+- [ ] `tfe sentinel`
+  - [ ] `list`, list policy sets
+  - [ ] `create`, create a policy set
+  - [ ] `delete`, deletes a policy set
+  - [ ] `assign`, assigns a WS(s) to the policy set
 
 
 

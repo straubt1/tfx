@@ -62,6 +62,18 @@
         "pmr",
         "-d=./module",
       ]
+    },
+    {
+      "name": "TFX - TF Versions",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${fileDirname}/../main.go",
+      "args": [
+        "tfv",
+        "list",
+        "--enabled=false"
+      ]
     }
   ]
 }
