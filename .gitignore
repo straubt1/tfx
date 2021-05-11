@@ -16,3 +16,4 @@
 secrets.md
 *.tfx.*
 *.tar.gz
+.DS_Store

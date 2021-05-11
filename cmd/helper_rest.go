@@ -194,7 +194,50 @@ type PMRList struct {
 	} `json:"modules"`
 }
 
-func GetAllPMRModules() (*PMRList, error) {
+func GetAllPMRModules(token string, tfeHostname string, tfeOrganization string) (*PMRList, error) {
+	// https://firefly.tfe.rocks/api/registry/v1/modules/
 
-	return nil, nil
+	// create url
+	url := fmt.Sprintf(
+		"https://%s/api/registry/v1/modules/%s",
+		tfeHostname,
+		tfeOrganization,
+	)
+	// create http Client to make calls
+	client := &http.Client{}
+
+	// create request
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// add headers
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/vnd.api+json")
+	// req.Header.Set("Content-Type", "application/vnd.api+json")
+
+	// make request
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// wait for complete
+	defer resp.Body.Close()
+
+	// read all bytes, convert to object
+	bodyBytes, _ := ioutil.ReadAll(resp.Body)
+
+	// bodyString := string(bodyBytes)
+	// fmt.Println("API Response as String:\n" + bodyString)
+
+	// Convert response body to Todo struct
+	var pmr *PMRList
+	err = json.Unmarshal(bodyBytes, &pmr)
+	if err != nil {
+		return nil, err
+	}
+
+	return pmr, nil
 }

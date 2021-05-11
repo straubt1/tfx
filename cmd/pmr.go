@@ -154,33 +154,21 @@ func init() {
 
 func pmrList() error {
 	// Validate flags
+	hostname := *viperString("tfeHostname")
+	token := *viperString("tfeToken")
 	orgName := *viperString("tfeOrganization")
-	wsName := *viperString("workspaceName")
-	client, ctx := getClientContext()
+	//TODO: can omit the org name to get all orgs??
 
-	// Read workspace
-	fmt.Print("Reading Workspace ", color.GreenString(wsName), " for ID...")
-	w, err := client.Workspaces.Read(ctx, orgName, wsName)
+	pmr, err := GetAllPMRModules(token, hostname, orgName)
 	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(" Found:", w.ID)
-
-	// Get all config versions and show the current config
-	pmr, err := client.ConfigurationVersions.List(ctx, w.ID, tfe.ConfigurationVersionListOptions{
-		ListOptions: tfe.ListOptions{
-			PageSize: 10,
-		},
-	})
-	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"Id", "Speculative", "Status"})
-	for _, i := range pmr.Items {
-		t.AppendRow(table.Row{i.ID, i.Speculative, i.Status})
+	t.AppendHeader(table.Row{"Name", "Provider", "Id", "Published"})
+	for _, i := range pmr.Modules {
+		t.AppendRow(table.Row{i.Name, i.Provider, i.ID, i.PublishedAt})
 	}
 	t.SetStyle(table.StyleRounded)
 	t.Render()
@@ -299,6 +287,20 @@ func pmrShowVersions() error {
 }
 
 func pmrDelete() error {
+	// Validate flags
+	orgName := *viperString("tfeOrganization")
+	moduleName := *viperString("name")
+	// providerName := *viperString("provider")
+	client, ctx := getClientContext()
+
+	// Read Config Version
+	fmt.Print("Deleting Module for ", color.GreenString(moduleName), "...")
+	err := client.RegistryModules.Delete(ctx, orgName, moduleName)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(" Deleted")
+
 	return nil
 }
 
