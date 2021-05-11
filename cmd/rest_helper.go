@@ -26,13 +26,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
-	"mime/multipart"
 	"net/http"
-	"os"
-	"path/filepath"
 	"time"
+
+	"github.com/hashicorp/go-slug"
 )
 
 type RegistryModuleCreateVersionOptions struct {
@@ -135,42 +133,29 @@ func RegistryModulesCreateVersion(token string, tfeHostname string, tfeOrganizat
 	return &rmv.Data.Links.Upload, nil
 }
 
-func RegistryModulesUpload(token string, url string) error {
+func RegistryModulesUpload(token string, url *string, directory string) error {
 	var err error
+
+	// TODO: verify directory exists
 
 	// create http Client to make calls
 	client := &http.Client{}
 
-	file, err := os.Open("/Users/tstraub/tfx/module/module.tar.gz")
-	if err != nil {
-		return err
-	}
-	defer file.Close()
+	// create body to store tar
+	body := bytes.NewBuffer(nil)
 
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-	part, err := writer.CreateFormFile("filetype", filepath.Base(file.Name()))
-	if err != nil {
-		return err
-	}
-	_, err = io.Copy(part, file)
-	if err != nil {
-		return err
-	}
-	err = writer.Close()
-	if err != nil {
+	// pack directory into a slug
+	if _, err := slug.Pack(directory, body, true); err != nil {
 		return err
 	}
 
 	// create request
-	req, err := http.NewRequest("PUT", url, body)
+	req, err := http.NewRequest("PUT", *url, body)
 	if err != nil {
 		return err
 	}
 
-	// add headers
-	req.Header.Set("Authorization", "Bearer "+token)
-	// req.Header.Set("Accept", "application/vnd.api+json")
+	// add headers - no auth needed, its baked into the url
 	req.Header.Set("Content-Type", "application/octet-stream")
 
 	// make request
@@ -186,15 +171,30 @@ func RegistryModulesUpload(token string, url string) error {
 		return errors.New("Non-OK HTTP status:" + string(resp.StatusCode))
 	}
 	return nil
+}
 
-	// // read all bytes, convert to object
-	// bodyBytes, _ := ioutil.ReadAll(resp.Body)
+type PMRList struct {
+	Meta struct {
+		Limit         int `json:"limit"`
+		CurrentOffset int `json:"current_offset"`
+	} `json:"meta"`
+	Modules []struct {
+		ID          string    `json:"id"`
+		Owner       string    `json:"owner"`
+		Namespace   string    `json:"namespace"`
+		Name        string    `json:"name"`
+		Version     string    `json:"version"`
+		Provider    string    `json:"provider"`
+		Description string    `json:"description"`
+		Source      string    `json:"source"`
+		Tag         string    `json:"tag"`
+		PublishedAt time.Time `json:"published_at"`
+		Downloads   int       `json:"downloads"`
+		Verified    bool      `json:"verified"`
+	} `json:"modules"`
+}
 
-	// // Convert response body to Todo struct
-	// var rmv RegistryModuleVersion
-	// json.Unmarshal(bodyBytes, &rmv)
-	// fmt.Println("Create Module Version:", version)
-	// fmt.Println("Upload Link:", rmv.Data.Links.Upload)
+func GetAllPMRModules() (*PMRList, error) {
 
-	// return &rmv.Data.Links.Upload, nil
+	return nil, nil
 }
