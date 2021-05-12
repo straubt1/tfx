@@ -64,6 +64,17 @@
       ]
     },
     {
+      "name": "TFX - Module Download",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${fileDirname}/../main.go",
+      "args": [
+        "pmr",
+        "download",
+      ]
+    },
+    {
       "name": "TFX - PMR Create",
       "type": "go",
       "request": "launch",

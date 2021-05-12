@@ -109,6 +109,16 @@ var (
 		},
 		PreRun: bindPFlags,
 	}
+
+	pmrDownloadCmd = &cobra.Command{
+		Use:   "download",
+		Short: "Download a Module Version",
+		Long:  "Download a Module Version.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return pmrDownload()
+		},
+		PreRun: bindPFlags,
+	}
 )
 
 func init() {
@@ -142,6 +152,11 @@ func init() {
 	pmrDeleteVersionCmd.Flags().StringP("provider", "p", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
 	pmrDeleteVersionCmd.Flags().String("moduleVersion", "", "Version of module (i.e. 0.0.1)")
 
+	// `tfx pmr download`
+	pmrDownloadCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
+	pmrDownloadCmd.Flags().StringP("provider", "p", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
+	pmrDownloadCmd.Flags().String("moduleVersion", "", "Version of module (i.e. 0.0.1)")
+
 	rootCmd.AddCommand(pmrCmd)
 	pmrCmd.AddCommand(pmrListCmd)
 	pmrCmd.AddCommand(pmrCreateCmd)
@@ -150,6 +165,7 @@ func init() {
 	pmrShowCmd.AddCommand(pmrShowVersionsCmd)
 	pmrCmd.AddCommand(pmrDeleteCmd)
 	pmrDeleteCmd.AddCommand(pmrDeleteVersionCmd)
+	pmrCmd.AddCommand(pmrDownloadCmd)
 }
 
 func pmrList() error {
@@ -184,7 +200,7 @@ func pmrCreate() error {
 	client, ctx := getClientContext()
 
 	// Create Module
-	fmt.Print("Creating Private Module ...")
+	fmt.Print("Creating Module ", color.GreenString(moduleName), "/", color.GreenString(providerName), " ... ")
 	pmr, err := client.RegistryModules.Create(ctx, orgName, tfe.RegistryModuleCreateOptions{
 		Name:     tfe.String(moduleName),
 		Provider: tfe.String(providerName),
@@ -192,7 +208,7 @@ func pmrCreate() error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(" ID:", pmr.ID)
+	fmt.Println(" Created with ID: ", color.BlueString(pmr.ID))
 
 	return nil
 }
@@ -206,22 +222,11 @@ func pmrCreateVersion() error {
 	providerName := *viperString("provider")
 	moduleVersion := *viperString("moduleVersion")
 	dir := *viperString("directory")
-	// client, ctx := getClientContext()
 
 	var err error
 
-	// // Read module
-	// var r *tfe.RegistryModule
-	// r, err = client.RegistryModules.Read(ctx, orgName, moduleName, providerName)
-	// _ = r
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// for _, i := range r.VersionStatuses {
-	// 	fmt.Println(i.Version, i.Status, i.Error)
-	// }
-
+	fmt.Print("Creating Module Version ", color.GreenString(moduleName), "/", color.GreenString(providerName),
+		":", color.GreenString(moduleVersion), " ... ")
 	// create module version to get URL
 	var url *string
 	url, err = RegistryModulesCreateVersion(token, hostname, orgName,
@@ -229,10 +234,13 @@ func pmrCreateVersion() error {
 	if err != nil {
 		return err
 	}
-	// fmt.Println(url)
-	RegistryModulesUpload(token, url, dir)
+	fmt.Print(" Uploading ... ")
+	err = RegistryModulesUpload(token, url, dir)
+	if err != nil {
+		return err
+	}
 
-	fmt.Println("Module Version Created", moduleVersion)
+	fmt.Println(" Module Version Created")
 	return nil
 }
 
@@ -243,16 +251,16 @@ func pmrShow() error {
 	providerName := *viperString("provider")
 	client, ctx := getClientContext()
 
-	// Read Config Version
-	fmt.Print("Reading Module for ", color.GreenString(moduleName), "/", color.GreenString(providerName), "...")
+	// Show Module
+	fmt.Print("Showing Module ", color.GreenString(moduleName), "/", color.GreenString(providerName), "...")
 	pmr, err := client.RegistryModules.Read(ctx, orgName, moduleName, providerName)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(" pmr Found")
+	fmt.Println(" Found")
 	fmt.Println(color.BlueString("ID:        "), pmr.ID)
 	fmt.Println(color.BlueString("Status:    "), pmr.Status)
-	fmt.Println(color.BlueString("Version Count:  "), len(pmr.VersionStatuses))
+	fmt.Println(color.BlueString("Versions:  "), len(pmr.VersionStatuses))
 	fmt.Println(color.BlueString("Created:   "), pmr.CreatedAt)
 	fmt.Println(color.BlueString("Updated:   "), pmr.UpdatedAt)
 
@@ -266,13 +274,13 @@ func pmrShowVersions() error {
 	providerName := *viperString("provider")
 	client, ctx := getClientContext()
 
-	// Read Config Version
-	fmt.Print("Reading Module for ", color.GreenString(moduleName), "/", color.GreenString(providerName), "...")
+	// Show Module Versions
+	fmt.Print("Showing Module ", color.GreenString(moduleName), "/", color.GreenString(providerName), "...")
 	pmr, err := client.RegistryModules.Read(ctx, orgName, moduleName, providerName)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(" pmr Found")
+	fmt.Println(" Found")
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
@@ -321,5 +329,24 @@ func pmrDeleteVersion() error {
 	}
 	fmt.Println(" Deleted")
 
+	return nil
+}
+
+func pmrDownload() error {
+	// Validate flags
+	hostname := *viperString("tfeHostname")
+	token := *viperString("tfeToken")
+	orgName := *viperString("tfeOrganization")
+	moduleName := *viperString("name")
+	providerName := *viperString("provider")
+	moduleVersion := *viperString("moduleVersion")
+
+	fmt.Print("Downloading Module Version ", color.GreenString(moduleName), "/", color.GreenString(providerName),
+		":", color.GreenString(moduleVersion), "...")
+	f, err := DownloadModule(token, hostname, orgName, moduleName, providerName, moduleVersion)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(" Downloaded: ", color.BlueString(f))
 	return nil
 }

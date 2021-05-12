@@ -108,10 +108,15 @@ Apply Complete: apply-38E9GEC14FeAJcZv
   - [x] `show`, show a version
   - [x] `delete`, delete a version
 - [ ] `tfx pmr`
-  - [ ] `list`, list all modules in the PMR
-  - [ ] `create`, create a module in the PMR
-  - [ ] `publish`, create a version of a module in the PMR, pushes code
-  - [ ] `delete`, deletes a module/version from the PMR
+  - [x] `list`, list all modules in the PMR
+  - [x] `create`, create a module in the PMR
+  - [x] `create version`, create a version of a module
+  - [x] `show`, show a module
+  - [x] `show versions`, show a modules versions
+  - [x] `delete`, deletes a module from the PMR
+  - [x] `delete version`, deletes a module version from the PMR
+  - [ ] `search` find a module https://www.terraform.io/docs/registry/api.html#search-modules
+  - [ ] `download` download a version of TF code
 - [ ] `tfe sentinel`
   - [ ] `list`, list policy sets
   - [ ] `create`, create a policy set
