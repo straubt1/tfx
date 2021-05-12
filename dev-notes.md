@@ -17,3 +17,24 @@ mkdir tfx && cd tfx
 
 export GOPATH=/usr/local/bin/go
 ```
+
+## PMR
+
+https://www.terraform.io/docs/registry/api.html
+
+
+https://app.terraform.io/api/registry/v1/modules/terraform-tom/
+https://firefly.tfe.rocks/.well-known/terraform.json
+-> 	modules.v1	"/api/registry/v1/modules/"
+https://firefly.tfe.rocks/api/registry/v1/modules/firefly/
+
+
+https://firefly.tfe.rocks/api/v2/registry-modules/show/firefly/test/none
+
+test2-ID:"mod-BAYTcvZTjMZ5dSzk"
+
+
+https://firefly.tfe.rocks/v1/modules
+
+
+Deleting a module via name on the PMR, will delete ALL modules with that name, regardless of provider

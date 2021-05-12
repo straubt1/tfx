@@ -118,8 +118,8 @@ func RegistryModulesCreateVersion(token string, tfeHostname string, tfeOrganizat
 	// read all bytes, convert to object
 	bodyBytes, _ := ioutil.ReadAll(resp.Body)
 
-	bodyString := string(bodyBytes)
-	fmt.Println("API Response as String:\n" + bodyString)
+	// bodyString := string(bodyBytes)
+	// fmt.Println("API Response as String:\n" + bodyString)
 
 	// Convert response body to Todo struct
 	var rmv RegistryModuleVersion
@@ -127,8 +127,8 @@ func RegistryModulesCreateVersion(token string, tfeHostname string, tfeOrganizat
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("Create Module Version:", version)
-	fmt.Println("Upload Link:", rmv.Data.Links.Upload)
+	// fmt.Println("Create Module Version:", version)
+	// fmt.Println("Upload Link:", rmv.Data.Links.Upload)
 
 	return &rmv.Data.Links.Upload, nil
 }
@@ -195,8 +195,6 @@ type PMRList struct {
 }
 
 func GetAllPMRModules(token string, tfeHostname string, tfeOrganization string) (*PMRList, error) {
-	// https://firefly.tfe.rocks/api/registry/v1/modules/
-
 	// create url
 	url := fmt.Sprintf(
 		"https://%s/api/registry/v1/modules/%s",
@@ -240,4 +238,111 @@ func GetAllPMRModules(token string, tfeHostname string, tfeOrganization string) 
 	}
 
 	return pmr, nil
+}
+
+func DownloadModule(token string, tfeHostname string, tfeOrganization string, moduleName string,
+	providerName string, moduleVersion string) (string, error) {
+	//   https://firefly.tfe.rocks/api/registry/v1/modules/firefly/test1/aws/0.0.6/download
+	// create url
+	url := fmt.Sprintf(
+		"https://%s/api/registry/v1/modules/%s/%s/%s/%s/download",
+		tfeHostname,
+		tfeOrganization,
+		moduleName,
+		providerName,
+		moduleVersion,
+	)
+	// create http Client to make calls
+	client := &http.Client{}
+	// fmt.Println(url)
+
+	// create request
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+
+	// add headers
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/vnd.api+json")
+	// req.Header.Set("Content-Type", "application/vnd.api+json")
+
+	// make request
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+
+	// wait for complete
+	defer resp.Body.Close()
+
+	downloadUrl := resp.Header["X-Terraform-Get"][0]
+	if downloadUrl == "" {
+		return "", errors.New("did not get a download Link")
+	}
+	// fmt.Println(downloadUrl)
+	// read all bytes, convert to object
+	// bodyBytes, _ := ioutil.ReadAll(resp.Body)
+
+	// bodyString := string(bodyBytes)
+	// fmt.Println("API Response as String:\n" + bodyString)
+
+	// // Convert response body to Todo struct
+	// var pmr *PMRList
+	// err = json.Unmarshal(bodyBytes, &pmr)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// Build fileName from fullPath
+	// fileURL, err := url.Parse(downloadUrl)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// path := fileURL.Path
+	// segments := strings.Split(path, "/")
+	// fileName := "test.tar" //segments[len(segments)-1]
+
+	// Create blank file
+	// file, err := os.Create(fileName)
+	// if err != nil {
+	// 	return "", err
+	// }
+	client2 := http.Client{
+		CheckRedirect: func(r *http.Request, via []*http.Request) error {
+			r.URL.Opaque = downloadUrl
+			return nil
+		},
+	}
+	// Put content on file
+	resp, err = client2.Get(downloadUrl)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	// size, err := io.Copy(file, resp.Body)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// defer file.Close()
+
+	// fmt.Printf("Downloaded a file %s with size %d", fileName, size)
+
+	// Create a directory to unpack the slug contents into.
+	dst, err := ioutil.TempDir("", "slug")
+	if err != nil {
+		return "", err
+	}
+	// defer os.RemoveAll(dst)
+	// fmt.Println(dst)
+
+	// Unpacking a slug is done by calling the Unpack function with an
+	// io.Reader to read the slug from and a directory path of an existing
+	// directory to store the unpacked configuration files.
+	if err := slug.Unpack(resp.Body, dst); err != nil {
+		return "", err
+	}
+
+	return dst, nil
 }

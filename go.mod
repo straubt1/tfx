@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/hashicorp/go-retryablehttp v0.5.2 // indirect
+	github.com/hashicorp/go-slug v0.7.0 // indirect
 	github.com/hashicorp/go-tfe v0.14.0
 	github.com/jedib0t/go-pretty/v6 v6.2.1
 	github.com/mitchellh/go-homedir v1.1.0
