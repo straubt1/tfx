@@ -22,65 +22,70 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"errors"
 	"fmt"
-	"log"
 
+	"github.com/fatih/color"
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/spf13/cobra"
 )
 
 var (
-	runId string
+	applyCmd = &cobra.Command{
+		Use:   "apply",
+		Short: "Applies a Workspace Run.",
+		Long:  `Creates a Run Apply based on an existing Run Plan and displays its Apply logs.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runApply()
+		},
+		PreRun: bindPFlags,
+	}
 )
 
-// applyCmd represents the apply command
-var applyCmd = &cobra.Command{
-	Use:   "apply",
-	Short: "Applies a Workspace Run.",
-	Long:  `Creates a Run Apply based on an existing Run Plan and displays its Apply logs.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		var err error
+func init() {
+	// All `tfx apply` commands
+	applyCmd.PersistentFlags().StringP("runId", "r", "", "Run Id to apply")
 
-		// Validate flags
-		hostname := *viperString("tfeHostname")
-		orgName := *viperString("tfeOrganization")
-		wsName := *viperString("workspaceName")
-
-		client, ctx := getClientContext()
-
-		// Verify run can be applied
-		var r *tfe.Run
-		r, err = client.Runs.Read(ctx, runId)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		fmt.Println(r.Status)
-		if !runCanBeApplied(string(r.Status)) {
-			fmt.Println("Run Id ", r.ID, "Can not be applied. Status:", r.Status)
-			return
-		}
-
-		// Create Apply
-		err = client.Runs.Apply(ctx, r.ID, tfe.RunApplyOptions{
-			Comment: tfe.String("TFx did the apply"),
-		})
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		fmt.Println("Workspace Apply Created, Apply Id:", r.Apply.ID)
-		fmt.Println("Navigate:", "https://"+hostname+"/app/"+orgName+"/workspaces/"+wsName+"/runs/"+r.ID)
-		fmt.Println()
-
-		getApplyLogs(ctx, client, r.Apply.ID)
-
-		fmt.Println("Apply Complete:", r.Apply.ID)
-	},
+	rootCmd.AddCommand(applyCmd)
 }
 
-func init() {
-	rootCmd.AddCommand(applyCmd)
+func runApply() error {
+	var err error
 
-	applyCmd.PersistentFlags().StringVarP(&runId, "runId", "r", "", "Run Id to apply")
+	// Validate flags
+	hostname := *viperString("tfeHostname")
+	orgName := *viperString("tfeOrganization")
+	wsName := *viperString("workspaceName")
+	runId := *viperString("runId")
+
+	client, ctx := getClientContext()
+
+	// Verify run can be applied
+	var r *tfe.Run
+	r, err = client.Runs.Read(ctx, runId)
+	if err != nil {
+		return err
+	}
+
+	if !runCanBeApplied(string(r.Status)) {
+		// fmt.Println("Run Id ", r.ID, "Can not be applied. Status:", r.Status)
+		return errors.New("run id " + r.ID + " can not be applied. status: " + string(r.Status))
+	}
+
+	// Create Apply
+	err = client.Runs.Apply(ctx, r.ID, tfe.RunApplyOptions{
+		Comment: tfe.String("TFx did the apply"),
+	})
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Workspace Apply Created, Apply Id:", color.BlueString(r.Apply.ID))
+	fmt.Println("Navigate:", "https://"+hostname+"/app/"+orgName+"/workspaces/"+wsName+"/runs/"+r.ID)
+	fmt.Println()
+
+	getApplyLogs(ctx, client, r.Apply.ID)
+
+	fmt.Println("Apply Complete:", r.Apply.ID)
+	return nil
 }

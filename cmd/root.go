@@ -63,6 +63,8 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file, can be used to store common flags, (default is ./.tfx.hcl).")
+	rootCmd.PersistentFlags().String("tfeHostname", "app.terraform.io", ".")
+	rootCmd.PersistentFlags().String("tfeOrganization", "", ".")
 }
 
 // initConfig reads in config file and ENV variables if set.
