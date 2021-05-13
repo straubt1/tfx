@@ -77,6 +77,7 @@ func init() {
 
 	// `tfx cv create`
 	cvCreateCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (defaults to current directory)")
+	cvCreateCmd.Flags().Bool("speculative", false, "Perform a Speculative Plan (optional)")
 
 	// `tfx cv show`
 	cvShowCmd.Flags().StringP("configurationId", "i", "", "Configuration Version Id (i.e. cv-*)")
@@ -128,6 +129,7 @@ func cvCreate() error {
 	orgName := *viperString("tfeOrganization")
 	wsName := *viperString("workspaceName")
 	dir := *viperString("directory")
+	isSpeculative := *viperBool("speculative")
 	client, ctx := getClientContext()
 
 	// Read workspace
@@ -142,7 +144,7 @@ func cvCreate() error {
 	fmt.Print("Creating Configuration Version ...")
 	cv, err := client.ConfigurationVersions.Create(ctx, w.ID, tfe.ConfigurationVersionCreateOptions{
 		AutoQueueRuns: tfe.Bool(false),
-		Speculative:   tfe.Bool(true),
+		Speculative:   tfe.Bool(isSpeculative),
 	})
 	if err != nil {
 		log.Fatal(err)

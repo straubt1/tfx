@@ -24,6 +24,7 @@ package cmd
 import (
 	"fmt"
 	"log"
+	"strconv"
 
 	"github.com/fatih/color"
 	tfe "github.com/hashicorp/go-tfe"
@@ -40,6 +41,15 @@ var (
 		},
 		PreRun: bindPFlags,
 	}
+
+	planTestCmd = &cobra.Command{
+		Use:   "test",
+		Short: "Test params",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runPlanTest()
+		},
+		PreRun: bindPFlags,
+	}
 )
 
 func init() {
@@ -47,13 +57,42 @@ func init() {
 	planCmd.PersistentFlags().StringP("workspaceName", "w", "", "Workspace name")
 	planCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (defaults to current directory)")
 	planCmd.Flags().StringP("configurationId", "i", "", "Configuration Version Id (optional) (i.e. cv-*)")
-	planCmd.Flags().Bool("speculative", false, "Is this plan speculative, default to false")
-	planCmd.Flags().Bool("destroy", false, "Is this plan destroy, default to false")
+	planCmd.Flags().Bool("speculative", false, "Perform a Speculative Plan (optional)")
+	planCmd.Flags().Bool("destroy", false, "Perform a Destroy Plan (optional)")
+	planCmd.Flags().StringSlice("env", []string{}, "Environment variables to write to the Workspace. Can be suplied multiple times. (i.e. '--env='AWS_REGION=us-east1')")
 
-	fmt.Println(planCmd.Flags().GetBool("speculative"))
+	planTestCmd.PersistentFlags().StringP("workspaceName", "w", "", "Workspace name")
+	planTestCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (defaults to current directory)")
+	planTestCmd.Flags().StringP("configurationId", "i", "", "Configuration Version Id (optional) (i.e. cv-*)")
+	planTestCmd.Flags().Bool("speculative", false, "Perform a Speculative Plan (optional)")
+	planTestCmd.Flags().Bool("destroy", false, "Perform a Destroy Plan (optional)")
+	planTestCmd.Flags().StringSlice("env", []string{}, "Environment variables to write to the Workspace. Can be suplied multiple times. (i.e. '--env='AWS_REGION=us-east1')")
+	// planTestCmd.Flags().String("env-file", "", "File containing key/value pairs.")
+
+	// fmt.Println(planCmd.Flags().GetBool("speculative"))
 	// planCmd.PersistentFlags().StringSliceVarP(&envs, "envs", "e", []string{}, "Array on ENV")
 
 	rootCmd.AddCommand(planCmd)
+	planCmd.AddCommand(planTestCmd)
+}
+
+func runPlanTest() error {
+	// Validate flags
+	isSpeculative := *viperBool("speculative")
+	isDestroy := *viperBool("destroy")
+	// envFile := *viperString("env-file")
+	envs, err := viperStringSliceMap("env")
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("isSpeculative:", isSpeculative)
+	fmt.Println("isDestroy:", isDestroy)
+	fmt.Println("envs:", envs)
+
+	client, ctx := getClientContext()
+	createOrUpdateEnvVariables(ctx, client, "ws-sr6nbVudgwchkFYf", envs)
+	return nil
 }
 
 func runPlan() error {
@@ -65,8 +104,15 @@ func runPlan() error {
 	configId := *viperString("configurationId")
 	isSpeculative := *viperBool("speculative")
 	isDestroy := *viperBool("destroy")
+	envs, err := viperStringSliceMap("env")
+	if err != nil {
+		log.Fatal(err)
+	}
 	message := "Tfx is here"
 	client, ctx := getClientContext()
+
+	fmt.Println("Remote Terraform Plan, speculative plan:", color.GreenString(strconv.FormatBool(isSpeculative)),
+		" destroy plan:", color.GreenString(strconv.FormatBool(isDestroy)))
 
 	// Read workspace
 	fmt.Print("Reading Workspace ", color.GreenString(wsName), " for ID...")
@@ -74,7 +120,13 @@ func runPlan() error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(" Found:", w.ID)
+	fmt.Println(" Found:", color.BlueString(w.ID))
+
+	// Update environment variables
+	err = createOrUpdateEnvVariables(ctx, client, w.ID, envs)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// Create config version
 	cv, err := createOrReadConfigurationVersion(ctx, client, w.ID, configId, dir, isSpeculative)
@@ -89,17 +141,29 @@ func runPlan() error {
 		Message:              tfe.String(message),
 		ConfigurationVersion: cv,
 		Workspace:            w,
-		// TargetAddrs: [],
+		// TargetAddrs:          []string{"random_pet.two"},
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("Workspace Run Created, Run Id:", r.ID, "Config Version:", r.ConfigurationVersion.ID)
+	fmt.Println("Workspace Run Created, Run Id:", color.BlueString(r.ID), "Config Version:", color.BlueString(r.ConfigurationVersion.ID))
 	fmt.Println("Navigate:", "https://"+hostname+"/app/"+orgName+"/workspaces/"+wsName+"/runs/"+r.ID)
 	fmt.Println()
 
 	// Get Run Logs
 	err = getRunLogs(ctx, client, r.Plan.ID)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Get Cost Estimation Logs (if any)
+	err = getCostEstimationLogs(ctx, client, r)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Get Policy Logs (if any)
+	err = getPolicyLogs(ctx, client, r)
 	if err != nil {
 		log.Fatal(err)
 	}
