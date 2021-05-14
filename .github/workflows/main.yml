@@ -36,13 +36,14 @@ jobs:
       - name: Cross compile terraform-bundle
         run: |
           gox \
-            -os="linux darwin" \
+            -os="linux darwin windows" \
             -arch="amd64" \
             -output "./pkg/{{.OS}}_{{.Arch}}/tfx" \
             .
+      # Package all binaries together
       - uses: actions/upload-artifact@v2
         with:
           name: tfx-artifact
-          path: ./pkg/darwin_amd64/tfx     
+          path: ./pkg/*     
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
