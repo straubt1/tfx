@@ -158,8 +158,8 @@ func getCostEstimationLogs(ctx context.Context, client *tfe.Client, r *tfe.Run) 
 			deltaRepr := strings.Replace(ce.DeltaMonthlyCost, "-", "", 1)
 
 			fmt.Println(msgPrefix + ":")
-			fmt.Println(fmt.Sprintf("Resources: %d of %d estimated", ce.MatchedResourcesCount, ce.ResourcesCount))
-			fmt.Println(fmt.Sprintf("           $%s/mo %s$%s", ce.ProposedMonthlyCost, sign, deltaRepr))
+			fmt.Printf("Resources: %d of %d estimated", ce.MatchedResourcesCount, ce.ResourcesCount)
+			fmt.Printf("           $%s/mo %s$%s", ce.ProposedMonthlyCost, sign, deltaRepr)
 
 			if len(r.PolicyChecks) == 0 && r.HasChanges {
 				fmt.Println("------------------------------------------------------------------------")

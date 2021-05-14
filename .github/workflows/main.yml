@@ -1,0 +1,48 @@
+name: main
+
+on:
+  push:
+    branches:
+      - main
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+env:
+  GCS_BUCKET: images
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # - name: Lint
+      #   uses: golangci/golangci-lint-action@v2
+      #   with:
+      #     version: v1.32.2
+
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.14.10'
+      - name: Install gox
+        run: go get github.com/mitchellh/gox
+      - name: Install zip
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install zip -q
+
+      - name: Cross compile terraform-bundle
+        run: |
+          gox \
+            -os="linux darwin" \
+            -arch="amd64" \
+            -output "./pkg/{{.OS}}_{{.Arch}}/tfx" \
+            .
+      - uses: actions/upload-artifact@v2
+        with:
+          name: tfx-artifact
+          path: ./pkg/darwin_amd64/tfx     
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

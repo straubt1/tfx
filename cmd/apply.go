@@ -85,6 +85,9 @@ func runApply() error {
 	fmt.Println()
 
 	getApplyLogs(ctx, client, r.Apply.ID)
+	if err != nil {
+		return err
+	}
 
 	fmt.Println("Apply Complete:", r.Apply.ID)
 	return nil
