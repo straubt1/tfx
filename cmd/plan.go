@@ -92,6 +92,9 @@ func runPlanTest() error {
 
 	client, ctx := getClientContext()
 	createOrUpdateEnvVariables(ctx, client, "ws-sr6nbVudgwchkFYf", envs)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
