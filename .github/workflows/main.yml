@@ -43,7 +43,7 @@ jobs:
       # Package all binaries together
       - uses: actions/upload-artifact@v2
         with:
-          name: tfx-artifact
+          name: tfx-artifacts
           path: ./pkg/*     
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

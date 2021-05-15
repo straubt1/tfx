@@ -18,3 +18,5 @@ secrets.md
 *.tar.gz
 .DS_Store
 act.secret.env
+pkg/
+debug/

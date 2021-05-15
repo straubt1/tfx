@@ -1,5 +1,5 @@
 /*
-Copyright © 2021 Tom Straub <tstraub@hashicorp.com>
+Copyright © 2021 Tom Straub <github.com/straubt1>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -72,7 +72,7 @@ func createOrReadConfigurationVersion(ctx context.Context, client *tfe.Client, w
 	return cv, nil
 }
 
-//
+// Get Run logs
 func getRunLogs(ctx context.Context, client *tfe.Client, planId string) error {
 	var err error
 	var logs io.Reader
@@ -107,6 +107,7 @@ func getRunLogs(ctx context.Context, client *tfe.Client, planId string) error {
 	return nil
 }
 
+// Get Cost Estimation logs, if any
 func getCostEstimationLogs(ctx context.Context, client *tfe.Client, r *tfe.Run) error {
 	if r.CostEstimate == nil {
 		return nil
@@ -209,6 +210,7 @@ func getCostEstimationLogs(ctx context.Context, client *tfe.Client, r *tfe.Run) 
 	}
 }
 
+// Get Policy logs, if any
 func getPolicyLogs(ctx context.Context, client *tfe.Client, r *tfe.Run) error {
 	if r.PolicyChecks == nil {
 		return nil
@@ -325,7 +327,7 @@ func getPolicyLogs(ctx context.Context, client *tfe.Client, r *tfe.Run) error {
 	return nil
 }
 
-//
+// Get Apply logs
 func getApplyLogs(ctx context.Context, client *tfe.Client, applyId string) error {
 	var err error
 	var logs io.Reader
