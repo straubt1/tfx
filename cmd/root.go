@@ -1,5 +1,5 @@
 /*
-Copyright © 2021 Tom Straub <tstraub@hashicorp.com>
+Copyright © 2021 Tom Straub <github.com/straubt1>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -27,6 +27,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/straubt1/tfx/version"
 
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
@@ -50,7 +51,7 @@ var rootCmd = &cobra.Command{
 	Long: `Leveraging the API for TFC/TFE can become a burden for common tasks.
 	TFx aims to ease that challenge for common and repeatable tasks. This application
 	can be used to interact with either Terraform Cloud or Terraform Enterprise.`,
-	Version: "v0.0.1-dev",
+	Version: version.String(),
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
