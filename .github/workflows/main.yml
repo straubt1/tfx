@@ -3,12 +3,9 @@ name: main
 on:
   push:
     branches:
-      - tt-initial
+      - main
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
-
-env:
-  GCS_BUCKET: images
 
 jobs:
   build:
@@ -25,7 +22,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v2
         with:
-          go-version: '1.14.10'
+          go-version: 1.14.10
       - name: Install gox
         run: go get github.com/mitchellh/gox
       - name: Install zip
@@ -33,7 +30,7 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install zip -q
 
-      - name: Cross compile terraform-bundle
+      - name: Cross compile
         run: |
           gox \
             -os="linux darwin windows" \
