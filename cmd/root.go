@@ -27,6 +27,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/straubt1/tfx/version"
 
 	homedir "github.com/mitchellh/go-homedir"
@@ -64,8 +65,13 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file, can be used to store common flags, (default is ./.tfx.hcl).")
-	rootCmd.PersistentFlags().String("tfeHostname", "app.terraform.io", ".")
-	rootCmd.PersistentFlags().String("tfeOrganization", "", ".")
+	rootCmd.PersistentFlags().String("tfeHostname", "app.terraform.io", "The hostname of TFE without the schema (defaults to TFE app.terraform.io).")
+	rootCmd.PersistentFlags().String("tfeOrganization", "", "The name of the TFx Organization.")
+	rootCmd.PersistentFlags().String("tfeToken", "", "The API token used to authenticate to TFx.")
+
+	// required
+	rootCmd.MarkPersistentFlagRequired("tfeOrganization")
+	rootCmd.MarkPersistentFlagRequired("tfeToken")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -78,11 +84,10 @@ func initConfig() {
 		home, err := homedir.Dir()
 		cobra.CheckErr(err)
 
-		// Search config in home directory with name ".tfx" (without extension).
+		// Search config in current & home directory with name ".tfx" (without extension).
 		viper.AddConfigPath(home)
-		viper.SetConfigName(".tfx")
-		// Search config in working directory with name ".tfx" (without extension).
 		viper.AddConfigPath(".")
+		viper.SetConfigName(".tfx")
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match
@@ -92,13 +97,28 @@ func initConfig() {
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
 	}
 
-	// set the viper config file values
-	// tfeHostname = viper.GetString("tfeHostname")
-	// tfeToken = viper.GetString("tfeToken")
-	// tfeOrganization = viper.GetString("tfeOrganization")
+	// Some hacking here to let viper use the cobra required flags, simplifies this checking
+	// in one place rather than each command
+	// More info: https://github.com/spf13/viper/issues/397
+	postInitCommands(rootCmd.Commands())
+}
 
-	// for _, e := range os.Environ() {
-	// 	pair := strings.SplitN(e, "=", 2)
-	// 	fmt.Println(pair[0])
-	// }
+// copy.pasta function
+func postInitCommands(commands []*cobra.Command) {
+	for _, cmd := range commands {
+		presetRequiredFlags(cmd)
+		if cmd.HasSubCommands() {
+			postInitCommands(cmd.Commands())
+		}
+	}
+}
+
+// copy.pasta function
+func presetRequiredFlags(cmd *cobra.Command) {
+	viper.BindPFlags(cmd.Flags())
+	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		if viper.IsSet(f.Name) && viper.GetString(f.Name) != "" {
+			cmd.Flags().Set(f.Name, viper.GetString(f.Name))
+		}
+	})
 }

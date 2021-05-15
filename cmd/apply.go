@@ -46,11 +46,13 @@ func init() {
 	// All `tfx apply` commands
 	applyCmd.PersistentFlags().StringP("runId", "r", "", "Run Id to apply")
 
+	applyCmd.MarkPersistentFlagRequired("runId")
+
 	rootCmd.AddCommand(applyCmd)
 }
 
 func runApply() error {
-	var err error
+	// var err error
 
 	// Validate flags
 	hostname := *viperString("tfeHostname")
@@ -62,14 +64,14 @@ func runApply() error {
 
 	// Verify run can be applied
 	var r *tfe.Run
-	r, err = client.Runs.Read(ctx, runId)
+	r, err := client.Runs.Read(ctx, runId)
 	if err != nil {
-		return err
+		logError(err, "failed to read run")
 	}
 
 	if !runCanBeApplied(string(r.Status)) {
-		// fmt.Println("Run Id ", r.ID, "Can not be applied. Status:", r.Status)
-		return errors.New("run id " + r.ID + " can not be applied. status: " + string(r.Status))
+		logError(errors.New("run id "+r.ID+" can not be applied. status: "+string(r.Status)),
+			"Unable to apply run")
 	}
 
 	// Create Apply
@@ -77,7 +79,7 @@ func runApply() error {
 		Comment: tfe.String("TFx did the apply"),
 	})
 	if err != nil {
-		return err
+		logError(err, "failed to create apply")
 	}
 
 	fmt.Println("Workspace Apply Created, Apply Id:", color.BlueString(r.Apply.ID))
@@ -86,7 +88,7 @@ func runApply() error {
 
 	getApplyLogs(ctx, client, r.Apply.ID)
 	if err != nil {
-		return err
+		logError(err, "failed to read apply logs")
 	}
 
 	fmt.Println("Apply Complete:", r.Apply.ID)

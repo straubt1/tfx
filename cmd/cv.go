@@ -23,7 +23,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/fatih/color"
@@ -40,8 +39,7 @@ var (
 	}
 
 	cvListCmd = &cobra.Command{
-		Use: "list",
-		// Aliases: []string{"ls"},
+		Use:   "list",
 		Short: "List Configuration Versions",
 		Long:  "List Configuration Versions of a TFx Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -74,13 +72,15 @@ var (
 func init() {
 	// All `tfx cv` commands
 	cvCmd.PersistentFlags().StringP("workspaceName", "w", "", "Workspace name")
+	cvCmd.MarkPersistentFlagRequired("workspaceName")
 
 	// `tfx cv create`
-	cvCreateCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (defaults to current directory)")
-	cvCreateCmd.Flags().Bool("speculative", false, "Perform a Speculative Plan (optional)")
+	cvCreateCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (optional, defaults to current directory)")
+	cvCreateCmd.Flags().Bool("speculative", false, "Perform a Speculative Plan (optional, defaults to false)")
 
 	// `tfx cv show`
 	cvShowCmd.Flags().StringP("configurationId", "i", "", "Configuration Version Id (i.e. cv-*)")
+	cvShowCmd.MarkPersistentFlagRequired("configurationId")
 
 	rootCmd.AddCommand(cvCmd)
 	cvCmd.AddCommand(cvListCmd)
@@ -95,21 +95,21 @@ func cvList() error {
 	client, ctx := getClientContext()
 
 	// Read workspace
-	fmt.Print("Reading Workspace ", color.GreenString(wsName), " for ID...")
+	fmt.Print("Reading Workspace ID for Name: ", color.GreenString(wsName), " ...")
 	w, err := client.Workspaces.Read(ctx, orgName, wsName)
 	if err != nil {
-		log.Fatal(err)
+		logError(err, "failed to read workspace id")
 	}
-	fmt.Println(" Found:", w.ID)
+	fmt.Println(" Found:", color.BlueString(w.ID))
 
-	// Get all config versions and show the current config
+	// Get all config versions
 	cv, err := client.ConfigurationVersions.List(ctx, w.ID, tfe.ConfigurationVersionListOptions{
 		ListOptions: tfe.ListOptions{
 			PageSize: 10,
 		},
 	})
 	if err != nil {
-		log.Fatal(err)
+		logError(err, "failed to list configuration versions")
 	}
 
 	t := table.NewWriter()
@@ -136,7 +136,7 @@ func cvCreate() error {
 	fmt.Print("Reading Workspace ", color.GreenString(wsName), " for ID...")
 	w, err := client.Workspaces.Read(ctx, orgName, wsName)
 	if err != nil {
-		log.Fatal(err)
+		logError(err, "failed to read workspace id")
 	}
 	fmt.Println(" Found:", w.ID)
 
@@ -147,15 +147,15 @@ func cvCreate() error {
 		Speculative:   tfe.Bool(isSpeculative),
 	})
 	if err != nil {
-		log.Fatal(err)
+		logError(err, "failed to create configuration version")
 	}
 	fmt.Println(" ID:", cv.ID)
 
 	// Upload to Config Version
-	fmt.Print("Uploading code from directory ", color.GreenString(dir), "...")
+	fmt.Print("Uploading code from directory ", color.GreenString(dir), " ...")
 	err = client.ConfigurationVersions.Upload(ctx, cv.UploadURL, dir)
 	if err != nil {
-		log.Fatal(err)
+		logError(err, "failed to upload code")
 	}
 	fmt.Println(" Done")
 
@@ -168,10 +168,10 @@ func cvShow() error {
 	client, ctx := getClientContext()
 
 	// Read Config Version
-	fmt.Print("Reading Configuration for ID ", color.GreenString(configId), "...")
+	fmt.Print("Reading Configuration for ID ", color.GreenString(configId), " ...")
 	cv, err := client.ConfigurationVersions.Read(ctx, configId)
 	if err != nil {
-		log.Fatal(err)
+		logError(err, "failed to read configuration version")
 	}
 	fmt.Println(" CV Found")
 	fmt.Println(color.BlueString("ID:          "), cv.ID)
