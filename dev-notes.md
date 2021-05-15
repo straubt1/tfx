@@ -1,5 +1,15 @@
 # Development
 
+TODO:
+- [x] Update readme
+- [x] create release action
+- [x] add better error handling
+- [x] add better flag checks/requirements
+- [ ] add developer MD
+- [ ] rebase
+
+
+## things
 VS Code Plugin -> https://marketplace.visualstudio.com/items?itemName=golang.Go
 
 go install github.com/go-delve/delve/cmd/dlv@latest

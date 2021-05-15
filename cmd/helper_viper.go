@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/coreos/go-semver/semver"
 	"github.com/spf13/viper"
 )
 
@@ -15,6 +16,14 @@ func viperString(flag string) *string {
 	}
 	value := viper.GetString(flag)
 	return &value
+}
+
+func viperSemanticVersionString(flag string) (string, error) {
+	v, err := semver.NewVersion(viper.GetString(flag))
+	if err != nil {
+		return "", errors.New("invalid semantic version")
+	}
+	return v.String(), nil
 }
 
 func viperBool(flag string) *bool {

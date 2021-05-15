@@ -129,7 +129,7 @@ func init() {
 	// `tfx pmr create version`
 	pmrCreateVersionCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
 	pmrCreateVersionCmd.Flags().StringP("provider", "p", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
-	pmrCreateVersionCmd.Flags().String("moduleVersion", "", "Version of module (i.e. 0.0.1)")
+	pmrCreateVersionCmd.Flags().StringP("moduleVersion", "v", "", "Version of module (i.e. 0.0.1)")
 	pmrCreateVersionCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (optional, defaults to current directory)")
 	pmrCreateVersionCmd.MarkFlagRequired("name")
 	pmrCreateVersionCmd.MarkFlagRequired("provider")
@@ -156,7 +156,7 @@ func init() {
 	// `tfx pmr delete version`
 	pmrDeleteVersionCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
 	pmrDeleteVersionCmd.Flags().StringP("provider", "p", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
-	pmrDeleteVersionCmd.Flags().String("moduleVersion", "", "Version of module (i.e. 0.0.1)")
+	pmrDeleteVersionCmd.Flags().StringP("moduleVersion", "v", "", "Version of module (i.e. 0.0.1)")
 	pmrDeleteVersionCmd.MarkFlagRequired("name")
 	pmrDeleteVersionCmd.MarkFlagRequired("provider")
 	pmrDeleteVersionCmd.MarkFlagRequired("moduleVersion")
@@ -164,7 +164,7 @@ func init() {
 	// `tfx pmr download`
 	pmrDownloadCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
 	pmrDownloadCmd.Flags().StringP("provider", "p", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
-	pmrDownloadCmd.Flags().String("moduleVersion", "", "Version of module (i.e. 0.0.1)")
+	pmrDownloadCmd.Flags().StringP("moduleVersion", "v", "", "Version of module (i.e. 0.0.1)")
 	pmrDownloadCmd.MarkFlagRequired("name")
 	pmrDownloadCmd.MarkFlagRequired("provider")
 	pmrDownloadCmd.MarkFlagRequired("moduleVersion")
@@ -231,10 +231,13 @@ func pmrCreateVersion() error {
 	orgName := *viperString("tfeOrganization")
 	moduleName := *viperString("name")
 	providerName := *viperString("provider")
-	moduleVersion := *viperString("moduleVersion")
 	dir := *viperString("directory")
-
-	var err error
+	// Attempt to prevent a non semantic version from being created
+	// API like would reject anyway, but this will catch before we try
+	moduleVersion, err := viperSemanticVersionString("moduleVersion")
+	if err != nil {
+		logError(err, "failed to parse semantic version")
+	}
 
 	fmt.Print("Creating Module Version ", color.GreenString(moduleName), "/", color.GreenString(providerName),
 		":", color.GreenString(moduleVersion), " ... ")
