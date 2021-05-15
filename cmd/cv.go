@@ -70,17 +70,19 @@ var (
 )
 
 func init() {
-	// All `tfx cv` commands
-	cvCmd.PersistentFlags().StringP("workspaceName", "w", "", "Workspace name")
-	cvCmd.MarkPersistentFlagRequired("workspaceName")
+	// All `tfx cv list` commands
+	cvListCmd.Flags().StringP("workspaceName", "w", "", "Workspace name")
+	cvListCmd.MarkFlagRequired("workspaceName")
 
 	// `tfx cv create`
+	cvCreateCmd.Flags().StringP("workspaceName", "w", "", "Workspace name")
 	cvCreateCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (optional, defaults to current directory)")
 	cvCreateCmd.Flags().Bool("speculative", false, "Perform a Speculative Plan (optional, defaults to false)")
+	cvCreateCmd.MarkFlagRequired("workspaceName")
 
 	// `tfx cv show`
 	cvShowCmd.Flags().StringP("configurationId", "i", "", "Configuration Version Id (i.e. cv-*)")
-	cvShowCmd.MarkPersistentFlagRequired("configurationId")
+	cvShowCmd.MarkFlagRequired("configurationId")
 
 	rootCmd.AddCommand(cvCmd)
 	cvCmd.AddCommand(cvListCmd)
@@ -173,12 +175,14 @@ func cvShow() error {
 	if err != nil {
 		logError(err, "failed to read configuration version")
 	}
-	fmt.Println(" CV Found")
+	fmt.Println(" Found")
 	fmt.Println(color.BlueString("ID:          "), cv.ID)
 	fmt.Println(color.BlueString("Status:      "), cv.Status)
 	fmt.Println(color.BlueString("Speculative: "), cv.Speculative)
 	fmt.Println(color.BlueString("Source:      "), cv.Source)
-	fmt.Println(color.BlueString("Error:       "), cv.ErrorMessage)
+	if cv.ErrorMessage != "" {
+		fmt.Println(color.BlueString("Error:       "), cv.ErrorMessage)
+	}
 
 	return nil
 }

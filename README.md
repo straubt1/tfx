@@ -1,21 +1,72 @@
 # TFx CLI
 
-CLI to wrap the Terraform Cloud and Terraform Enterprise API for common tasks.
-The primary focus initially is the API-Driven workflow.
+_tfx_ is a standalone CLI for Terraform Cloud and Terraform Enterprise.
 
-## Why does this exist?
+The initial focus of _tfx_ is to execute the API-Driven workflow for a workspace, but will expand to other common workflows that, in the past, have required API wrappers.
 
-As a consumer of TFC/TFE I want to leverage the full capabilities of TFE without having to write curl/python/(insert other) libraries to call the API.
+## Why does this CLI exist?
 
-**Challenges:**
+As a consumer of TFC/TFE I want to leverage the full capabilities without having to write curl/python/(insert other) libraries to call the API.
+Often times these tasks are part of my pipeline, but could also be administrative tasks that are done from a local machine.
 
-- The CLI driven workflow presents several gaps in integrating a Workspace run, specifically the inability to insert a gate check between a plan and apply. (in other words you must run a terraform apply -auto-approve).
-- The CLI driven workflow requires a terraform init that forces a download of plugins before a plan can be called remotely. This requires handling providers in the local host that are never actually used and can be difficult to source in airgap environments.
-- Integrating with the API driven workflow requires several API calls to do basic tasks such as plan/apply.
-- It is unlikely that the full range of features will be built into the Terraform CLI (OSS vs. Enterprise needs)
-- Building API driven "helpers" for every CI/CD system out there is not efficient.
+**Common API-Driven Workflow Challenges:**
 
-## Run Workflow
+- The CLI-Driven workflow presents several gaps in creating more advanced pipelines a Workspace run, specifically the inability to insert a gate check between a plan and apply, (in other words you must run a `terraform apply -auto-approve`).
+- The CLI driven workflow requires a `terraform init` that forces a download of providers before a plan can be called remotely, these providers are never actually used on the local host and can be difficult to source in airgap environments.
+- Implementing an API-Driven workflow requires several API calls to perform a plan/apply.
+- It is unlikely that the full range of features will be built into [Terraform](https://github.com/hashicorp/terraform).
+- Developing CI/CD specific plugins for even the most common tools is not feasible, and ignores the ability to run the commands locally.
+
+## Installation
+
+Binaries are created as part of release, check out the [Release Page](https://github.com/straubt1/tfx/releases) for the latest release.
+
+**MacOs Installation**
+```sh
+version="0.0.0"
+curl -L -o tfx "https://github.com/straubt1/tfx/releases/download/${version}/tfx_darwin_amd64"
+chmod +x tfx
+```
+
+**Linux Installation**
+```sh
+version="0.0.0"
+curl -L -o tfx "https://github.com/straubt1/tfx/releases/download/${version}/tfx_linux_amd64"
+chmod +x tfx
+```
+
+**Windows Installation**
+```sh
+version="0.0.0"
+curl -L -o tfx.exe "https://github.com/straubt1/tfx/releases/download/${version}/tfx_windows_amd64"
+```
+
+## Setup
+
+Each command has the ability to pass in parameters via flags.
+
+Example:
+```
+  --tfeHostname string       The hostname of TFE without the schema (defaults to TFE app.terraform.io). (default "app.terraform.io")
+  --tfeOrganization string   The name of the TFx Organization.
+  --tfeToken string          The API token used to authenticate to TFx.
+```
+
+Flags can also be created in a configuration file with the file name ".tfx.hcl".
+For convenience this file will automatically load if it is in the hosts home directory or current working directory.
+
+Example:
+`./.tfx.hcl`
+```hcl
+tfeHostname     = "tfe.rocks" (omit to default to TFC)
+tfeOrganization = "my-awesome-org"
+tfeToken        = "<Generated from TFx>"
+```
+
+You can also specify this file via the `--config` flag.
+
+## Workspace Run Workflow
+
 
 **Create a Plan**
 
@@ -25,68 +76,21 @@ tfx plan -w tfx-test -s
 
 # Create a plan that can be applied
 tfx plan -w tfx-test
+
+# Create a Configuration Version based on terraform in the current directory
+tfx cv create -w tfx-test
+
+# Create a Configuration Version based on terraform in a supplied directory
+tfx cv create -w tfx-test -d ./myterraformfolder/
+
+# Create a plan based on a configuration version
+tfx plan -w tfx-test -i cv-HKE8gevVtGBXapcq
 ```
 
 **Create an Apply**
 
 ```sh
 tfx apply -r <run-id>
-```
-
-### Example
-
-```sh
-$tfx plan -w tfx-test
-Using config file: /Users/tstraub/tfx/.tfx.hcl
-Creating new Config Version
-Workspace Run Created, Run Id: run-pEWkbDy7aNqBztNQ Config Version: cv-J7Apwj3fYojsBeNu
-Navigate: https://firefly.tfe.rocks/app/firefly/workspaces/tfx-test/runs/run-pEWkbDy7aNqBztNQ
-
-------------------------------------------------------------------------
-Terraform v0.14.11
-Configuring remote state backend...
-Initializing Terraform configuration...
-
-An execution plan has been generated and is shown below.
-Resource actions are indicated with the following symbols:
-  + create
-
-Terraform will perform the following actions:
-
-  # random_pet.one will be created
-  + resource "random_pet" "one" {
-      + id        = (known after apply)
-      + length    = 2
-      + separator = "-"
-    }
-
-  # random_pet.two will be created
-  + resource "random_pet" "two" {
-      + id        = (known after apply)
-      + length    = 2
-      + separator = "-"
-    }
-
-Plan: 2 to add, 0 to change, 0 to destroy.
-------------------------------------------------------------------------
-Run Complete: run-pEWkbDy7aNqBztNQ
-```
-
-```sh
-$ tfx apply -r run-pEWkbDy7aNqBztNQ                                                                                                                      
-
-Using config file: /Users/tstraub/tfx/.tfx.hcl
-Workspace Apply Created, Apply Id: apply-38E9GEC14FeAJcZv
-Navigate: https://firefly.tfe.rocks/app/firefly/workspaces//runs/run-pEWkbDy7aNqBztNQ
-
-Terraform v0.14.11
-random_pet.one: Creating...
-random_pet.two: Creating...
-random_pet.one: Creation complete after 0s [id=rational-stud]
-random_pet.two: Creation complete after 0s [id=vast-silkworm]
-
-Apply complete! Resources: 2 added, 0 changed, 0 destroyed.
-Apply Complete: apply-38E9GEC14FeAJcZv
 ```
 
 ## Future Commands
@@ -100,14 +104,14 @@ Apply Complete: apply-38E9GEC14FeAJcZv
   - [x] `list`, List all configuration versions for a workspace
   - [x] `create`, Create a configuration version
   - [x] `show`, Show a configuration version
-- [ ] `tfe tfversions`
-  - [x] `list`, list all Terraform versions in TFE
+- `tfe tfversions`
+  - [ ] `list`, list all Terraform versions in TFE
   - [ ] `disable`, disable a Terraform version, -a flag to disable all
   - [ ] `enable`, enable a Terraform version
-  - [x] `create`, create a new Terraform version, upsert?
-  - [x] `show`, show a version
-  - [x] `delete`, delete a version
-- [ ] `tfx pmr`
+  - [ ] `create`, create a new Terraform version, upsert?
+  - [ ] `show`, show a version
+  - [ ] `delete`, delete a version
+- `tfx pmr`
   - [x] `list`, list all modules in the PMR
   - [x] `create`, create a module in the PMR
   - [x] `create version`, create a version of a module
@@ -115,20 +119,13 @@ Apply Complete: apply-38E9GEC14FeAJcZv
   - [x] `show versions`, show a modules versions
   - [x] `delete`, deletes a module from the PMR
   - [x] `delete version`, deletes a module version from the PMR
+  - [x] `download` download a version of TF code
   - [ ] `search` find a module https://www.terraform.io/docs/registry/api.html#search-modules
-  - [ ] `download` download a version of TF code
 - [ ] `tfe sentinel`
   - [ ] `list`, list policy sets
   - [ ] `create`, create a policy set
   - [ ] `delete`, deletes a policy set
   - [ ] `assign`, assigns a WS(s) to the policy set
-
-
-
-## Feature Thoughts
-
-- `tfx init` could still be valuable, maybe pull state file locally or verify that a Workspace exists and is ready (not locked)
-
 
 
 ## References

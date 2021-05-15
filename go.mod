@@ -3,6 +3,7 @@ module github.com/straubt1/tfx
 go 1.16
 
 require (
+	github.com/coreos/go-semver v0.3.0
 	github.com/fatih/color v1.10.0
 	github.com/hashicorp/go-slug v0.7.0
 	github.com/hashicorp/go-tfe v0.14.0

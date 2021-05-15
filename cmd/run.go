@@ -161,13 +161,13 @@ func runShow() error {
 	runId := *viperString("runId")
 	client, ctx := getClientContext()
 
-	// Read Config Version
-	fmt.Print("Reading Configuration for ID ", color.GreenString(runId), "...")
+	// Read Run
+	fmt.Print("Reading Run for ID ", color.GreenString(runId), "...")
 	run, err := client.Runs.ReadWithOptions(ctx, runId, &tfe.RunReadOptions{
 		Include: "workspace", // To get TF Version
 	})
 	if err != nil {
-		logError(err, "failed to read configuration version")
+		logError(err, "failed to read run")
 	}
 	fmt.Println(" run Found")
 	fmt.Println(color.BlueString("ID:          "), run.ID)
