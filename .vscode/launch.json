@@ -36,8 +36,8 @@
       "program": "${fileDirname}/../main.go",
       "args": [
         "plan",
-        "--workspaceName=tfx-test",
-        "--directory=./terraform",
+        "-w=tfx-test-tfc",
+        "-d=./terraform",
         // "--envs=a=b,c=d"
       ]
     },
@@ -72,6 +72,9 @@
       "args": [
         "pmr",
         "download",
+        "-n=my-module",
+        "-p=aws",
+        "--moduleVersion=0.0.1"
       ]
     },
     {
@@ -82,10 +85,11 @@
       "program": "${fileDirname}/../main.go",
       "args": [
         "pmr",
-        "createversion",
-        "-n=test1",
+        "create",
+        "version",
+        "-n=my-module",
         "-p=aws",
-        "--moduleVersion=0.0.1",
+        "--moduleVersion=0.0.3",
       ]
     },
     {
@@ -98,6 +102,18 @@
         "tfv",
         "list",
         "--enabled=false"
+      ]
+    },
+    {
+      "name": "TFX - Test env",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${fileDirname}/../main.go",
+      "args": [
+        "plan",
+        "test",
+        "--env", "a=14=33",
       ]
     }
   ]
