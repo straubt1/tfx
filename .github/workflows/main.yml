@@ -37,6 +37,9 @@ jobs:
             -arch="amd64" \
             -output "./pkg/{{.OS}}_{{.Arch}}/tfx" \
             .
+      - name: Print version
+        run: ./pkg/linux_amd64/tfx --version
+        
       # Package all binaries together
       - uses: actions/upload-artifact@v2
         with:

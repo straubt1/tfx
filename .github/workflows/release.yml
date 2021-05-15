@@ -40,6 +40,8 @@ jobs:
             -arch="amd64" \
             -output "./pkg/{{.OS}}_{{.Arch}}/tfx" \
             .
+      - name: Print version
+        run: ./pkg/linux_amd64/tfx --version
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1.0.2
