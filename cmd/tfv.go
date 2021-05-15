@@ -99,11 +99,12 @@ func init() {
 	// `tfx tfv delete`
 	tfvDeleteCmd.Flags().StringP("versionId", "i", "", "Terraform Version Id (i.e. tool-*)")
 
-	rootCmd.AddCommand(tfvCmd)
-	tfvCmd.AddCommand(tfvListCmd)
-	tfvCmd.AddCommand(tfvCreateCmd)
-	tfvCmd.AddCommand(tfvShowCmd)
-	tfvCmd.AddCommand(tfvDeleteCmd)
+	// not part of initial release
+	// rootCmd.AddCommand(tfvCmd)
+	// tfvCmd.AddCommand(tfvListCmd)
+	// tfvCmd.AddCommand(tfvCreateCmd)
+	// tfvCmd.AddCommand(tfvShowCmd)
+	// tfvCmd.AddCommand(tfvDeleteCmd)
 }
 
 func tfvList() error {

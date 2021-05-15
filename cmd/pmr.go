@@ -23,7 +23,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/fatih/color"
@@ -40,10 +39,9 @@ var (
 	}
 
 	pmrListCmd = &cobra.Command{
-		Use: "list",
-		// Aliases: []string{"ls"},
-		Short: "List Private Module Registry",
-		Long:  "List Private Module Registry of a TFx Organization.",
+		Use:   "list",
+		Short: "List modules",
+		Long:  "List modules in the Private Module Registry of a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return pmrList()
 		},
@@ -52,8 +50,8 @@ var (
 
 	pmrCreateCmd = &cobra.Command{
 		Use:   "create",
-		Short: "Create Private Module",
-		Long:  "Create Private Module for a TFx Organization.",
+		Short: "Create a module",
+		Long:  "Create a module in the Private Module Registry for a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return pmrCreate()
 		},
@@ -62,8 +60,8 @@ var (
 
 	pmrCreateVersionCmd = &cobra.Command{
 		Use:   "version",
-		Short: "Create Private Module Version",
-		Long:  "Create Private Module Version for a Private Module.",
+		Short: "Create a module version",
+		Long:  "Create a module version of a module in the Private Module Registry for a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return pmrCreateVersion()
 		},
@@ -72,8 +70,8 @@ var (
 
 	pmrShowCmd = &cobra.Command{
 		Use:   "show",
-		Short: "Show Private Module",
-		Long:  "Show Private Module details for a TFx Organization.",
+		Short: "Show a module",
+		Long:  "Show a module details of a module in the Private Module Registry for a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return pmrShow()
 		},
@@ -82,8 +80,8 @@ var (
 
 	pmrShowVersionsCmd = &cobra.Command{
 		Use:   "versions",
-		Short: "Show Private Module Versions",
-		Long:  "Show Private Module Versions for a Module.",
+		Short: "Show a modules versions",
+		Long:  "Show a modules version of a module in the Private Module Registry for a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return pmrShowVersions()
 		},
@@ -92,8 +90,8 @@ var (
 
 	pmrDeleteCmd = &cobra.Command{
 		Use:   "delete",
-		Short: "Delete Private Module",
-		Long:  "Delete Private Module details for a TFx Organization.",
+		Short: "Delete a module",
+		Long:  "Delete a module in the Private Module Registry for a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return pmrDelete()
 		},
@@ -102,8 +100,8 @@ var (
 
 	pmrDeleteVersionCmd = &cobra.Command{
 		Use:   "version",
-		Short: "Delete Private Module Version",
-		Long:  "Delete Private Module Version for a TFx Organization.",
+		Short: "Delete a modules version",
+		Long:  "Delete a module in the Private Module Registry for a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return pmrDeleteVersion()
 		},
@@ -112,8 +110,8 @@ var (
 
 	pmrDownloadCmd = &cobra.Command{
 		Use:   "download",
-		Short: "Download a Module Version",
-		Long:  "Download a Module Version.",
+		Short: "Download a module",
+		Long:  "Download a modules code for a version.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return pmrDownload()
 		},
@@ -122,40 +120,54 @@ var (
 )
 
 func init() {
-	// All `tfx pmr` commands
-	// pmrCmd.PersistentFlags().StringP("workspaceName", "w", "", "Workspace name")
-
 	// `tfx pmr create`
 	pmrCreateCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
 	pmrCreateCmd.Flags().StringP("provider", "p", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
+	pmrCreateCmd.MarkFlagRequired("name")
+	pmrCreateCmd.MarkFlagRequired("provider")
 
 	// `tfx pmr create version`
 	pmrCreateVersionCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
 	pmrCreateVersionCmd.Flags().StringP("provider", "p", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
 	pmrCreateVersionCmd.Flags().String("moduleVersion", "", "Version of module (i.e. 0.0.1)")
-	pmrCreateVersionCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (defaults to current directory)")
+	pmrCreateVersionCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (optional, defaults to current directory)")
+	pmrCreateVersionCmd.MarkFlagRequired("name")
+	pmrCreateVersionCmd.MarkFlagRequired("provider")
+	pmrCreateVersionCmd.MarkFlagRequired("moduleVersion")
 
 	// `tfx pmr show`
 	pmrShowCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
 	pmrShowCmd.Flags().StringP("provider", "p", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
+	pmrShowCmd.MarkFlagRequired("name")
+	pmrShowCmd.MarkFlagRequired("provider")
 
 	// `tfx pmr show versions`
 	pmrShowVersionsCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
 	pmrShowVersionsCmd.Flags().StringP("provider", "p", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
+	pmrShowVersionsCmd.MarkFlagRequired("name")
+	pmrShowVersionsCmd.MarkFlagRequired("provider")
 
 	// `tfx pmr delete`
 	pmrDeleteCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
 	pmrDeleteCmd.Flags().StringP("provider", "p", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
+	pmrDeleteCmd.MarkFlagRequired("name")
+	pmrDeleteCmd.MarkFlagRequired("provider")
 
 	// `tfx pmr delete version`
 	pmrDeleteVersionCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
 	pmrDeleteVersionCmd.Flags().StringP("provider", "p", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
 	pmrDeleteVersionCmd.Flags().String("moduleVersion", "", "Version of module (i.e. 0.0.1)")
+	pmrDeleteVersionCmd.MarkFlagRequired("name")
+	pmrDeleteVersionCmd.MarkFlagRequired("provider")
+	pmrDeleteVersionCmd.MarkFlagRequired("moduleVersion")
 
 	// `tfx pmr download`
 	pmrDownloadCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
 	pmrDownloadCmd.Flags().StringP("provider", "p", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
 	pmrDownloadCmd.Flags().String("moduleVersion", "", "Version of module (i.e. 0.0.1)")
+	pmrDownloadCmd.MarkFlagRequired("name")
+	pmrDownloadCmd.MarkFlagRequired("provider")
+	pmrDownloadCmd.MarkFlagRequired("moduleVersion")
 
 	rootCmd.AddCommand(pmrCmd)
 	pmrCmd.AddCommand(pmrListCmd)
@@ -173,18 +185,17 @@ func pmrList() error {
 	hostname := *viperString("tfeHostname")
 	token := *viperString("tfeToken")
 	orgName := *viperString("tfeOrganization")
-	//TODO: can omit the org name to get all orgs??
 
 	pmr, err := GetAllPMRModules(token, hostname, orgName)
 	if err != nil {
-		return err
+		logError(err, "failed to get pmr modules")
 	}
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"Name", "Provider", "Id", "Published"})
+	t.AppendHeader(table.Row{"Organization", "Name", "Provider", "Id", "Published"})
 	for _, i := range pmr.Modules {
-		t.AppendRow(table.Row{i.Name, i.Provider, i.ID, i.PublishedAt})
+		t.AppendRow(table.Row{i.Namespace, i.Name, i.Provider, i.ID, i.PublishedAt})
 	}
 	t.SetStyle(table.StyleRounded)
 	t.Render()
@@ -206,7 +217,7 @@ func pmrCreate() error {
 		Provider: tfe.String(providerName),
 	})
 	if err != nil {
-		log.Fatal(err)
+		logError(err, "failed to create module")
 	}
 	fmt.Println(" Created with ID: ", color.BlueString(pmr.ID))
 
@@ -227,17 +238,16 @@ func pmrCreateVersion() error {
 
 	fmt.Print("Creating Module Version ", color.GreenString(moduleName), "/", color.GreenString(providerName),
 		":", color.GreenString(moduleVersion), " ... ")
-	// create module version to get URL
 	var url *string
 	url, err = RegistryModulesCreateVersion(token, hostname, orgName,
 		moduleName, providerName, moduleVersion)
 	if err != nil {
-		return err
+		logError(err, "failed to create a version with an upload URL")
 	}
 	fmt.Print(" Uploading ... ")
 	err = RegistryModulesUpload(token, url, dir)
 	if err != nil {
-		return err
+		logError(err, "failed to upload code")
 	}
 
 	fmt.Println(" Module Version Created")
@@ -252,10 +262,10 @@ func pmrShow() error {
 	client, ctx := getClientContext()
 
 	// Show Module
-	fmt.Print("Showing Module ", color.GreenString(moduleName), "/", color.GreenString(providerName), "...")
+	fmt.Print("Showing Module ", color.GreenString(moduleName), "/", color.GreenString(providerName), " ...")
 	pmr, err := client.RegistryModules.Read(ctx, orgName, moduleName, providerName)
 	if err != nil {
-		log.Fatal(err)
+		logError(err, "failed to show module")
 	}
 	fmt.Println(" Found")
 	fmt.Println(color.BlueString("ID:        "), pmr.ID)
@@ -275,10 +285,10 @@ func pmrShowVersions() error {
 	client, ctx := getClientContext()
 
 	// Show Module Versions
-	fmt.Print("Showing Module ", color.GreenString(moduleName), "/", color.GreenString(providerName), "...")
+	fmt.Print("Showing Module ", color.GreenString(moduleName), "/", color.GreenString(providerName), " ...")
 	pmr, err := client.RegistryModules.Read(ctx, orgName, moduleName, providerName)
 	if err != nil {
-		log.Fatal(err)
+		logError(err, "failed to show module version")
 	}
 	fmt.Println(" Found")
 
@@ -298,14 +308,14 @@ func pmrDelete() error {
 	// Validate flags
 	orgName := *viperString("tfeOrganization")
 	moduleName := *viperString("name")
-	// providerName := *viperString("provider")
+	providerName := *viperString("provider")
 	client, ctx := getClientContext()
 
-	// Read Config Version
-	fmt.Print("Deleting Module for ", color.GreenString(moduleName), "...")
-	err := client.RegistryModules.Delete(ctx, orgName, moduleName)
+	// Delete module, require the provider as well (if just the name is used, multiple modules could be deleted)
+	fmt.Print("Deleting Module for ", color.GreenString(moduleName), " ...")
+	err := client.RegistryModules.DeleteProvider(ctx, orgName, moduleName, providerName)
 	if err != nil {
-		log.Fatal(err)
+		logError(err, "failed to delete module")
 	}
 	fmt.Println(" Deleted")
 
@@ -322,10 +332,10 @@ func pmrDeleteVersion() error {
 
 	// Read Config Version
 	fmt.Print("Deleting Module Version for ", color.GreenString(moduleName), "/", color.GreenString(providerName),
-		":", color.GreenString(moduleVersion), "...")
+		":", color.GreenString(moduleVersion), " ...")
 	err := client.RegistryModules.DeleteVersion(ctx, orgName, moduleName, providerName, moduleVersion)
 	if err != nil {
-		log.Fatal(err)
+		logError(err, "failed to delete module version")
 	}
 	fmt.Println(" Deleted")
 
@@ -342,10 +352,10 @@ func pmrDownload() error {
 	moduleVersion := *viperString("moduleVersion")
 
 	fmt.Print("Downloading Module Version ", color.GreenString(moduleName), "/", color.GreenString(providerName),
-		":", color.GreenString(moduleVersion), "...")
+		":", color.GreenString(moduleVersion), " ...")
 	f, err := DownloadModule(token, hostname, orgName, moduleName, providerName, moduleVersion)
 	if err != nil {
-		log.Fatal(err)
+		logError(err, "failed to download module")
 	}
 	fmt.Println(" Downloaded: ", color.BlueString(f))
 	return nil

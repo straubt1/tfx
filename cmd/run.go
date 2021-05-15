@@ -23,7 +23,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/fatih/color"
@@ -40,8 +39,7 @@ var (
 	}
 
 	runListCmd = &cobra.Command{
-		Use: "list",
-		// Aliases: []string{"ls"},
+		Use:   "list",
 		Short: "List Runs",
 		Long:  "List Runs of a TFx Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -74,12 +72,14 @@ var (
 func init() {
 	// All `tfx run` commands
 	runCmd.PersistentFlags().StringP("workspaceName", "w", "", "Workspace name")
+	runCmd.MarkPersistentFlagRequired("workspaceName")
 
 	// `tfx run create`
 	runCreateCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (defaults to current directory)")
 
 	// `tfx run show`
 	runShowCmd.Flags().StringP("runId", "i", "", "Run Id (i.e. run-*)")
+	runShowCmd.MarkFlagRequired("runId")
 
 	rootCmd.AddCommand(runCmd)
 	runCmd.AddCommand(runListCmd)
@@ -94,10 +94,12 @@ func runList() error {
 	client, ctx := getClientContext()
 
 	// Read workspace
+	fmt.Print("Reading Workspace ID for Name: ", color.GreenString(wsName), " ...")
 	w, err := client.Workspaces.Read(ctx, orgName, wsName)
 	if err != nil {
-		log.Fatal(err)
+		logError(err, "failed to read workspace id")
 	}
+	fmt.Println(" Found:", color.BlueString(w.ID))
 
 	// Get all config versions and show the current config
 	run, err := client.Runs.List(ctx, w.ID, tfe.RunListOptions{
@@ -107,7 +109,7 @@ func runList() error {
 		Include: tfe.String("workspace"), // To get TF Version
 	})
 	if err != nil {
-		log.Fatal(err)
+		logError(err, "failed to list runs")
 	}
 
 	t := table.NewWriter()
@@ -132,9 +134,9 @@ func runCreate() error {
 	fmt.Print("Reading Workspace ", color.GreenString(wsName), " for ID...")
 	w, err := client.Workspaces.Read(ctx, orgName, wsName)
 	if err != nil {
-		log.Fatal(err)
+		logError(err, "failed to read workspace id")
 	}
-	fmt.Println(" ID Found:", w.ID)
+	fmt.Println(" Found:", color.BlueString(w.ID))
 
 	// Create Config Version
 	fmt.Print("Creating Run ...")
@@ -147,7 +149,7 @@ func runCreate() error {
 		// this is likely not ideal
 	})
 	if err != nil {
-		log.Fatal(err)
+		logError(err, "failed to create a run")
 	}
 	fmt.Println(" ID:", run.ID)
 
@@ -165,7 +167,7 @@ func runShow() error {
 		Include: "workspace", // To get TF Version
 	})
 	if err != nil {
-		log.Fatal(err)
+		logError(err, "failed to read configuration version")
 	}
 	fmt.Println(" run Found")
 	fmt.Println(color.BlueString("ID:          "), run.ID)
