@@ -1,8 +1,14 @@
+<img src="https://cdn.rawgit.com/hashicorp/terraform-website/master/content/source/assets/images/logo-hashicorp.svg" width="600px">
+
 # TFx CLI
 
 _tfx_ is a standalone CLI for Terraform Cloud and Terraform Enterprise.
 
 The initial focus of _tfx_ is to execute the API-Driven workflow for a workspace, but will expand to other common workflows that, in the past, have required API wrappers.
+
+> Note: This CLI is still under active development, subject to change, and not officially supported by HashiCorp.
+
+![Go Version](https://img.shields.io/badge/go%20version-%3E=1.14-61CFDD.svg?style=flat-square)
 
 ## Why does this CLI exist?
 
@@ -41,9 +47,9 @@ version="0.0.0"
 curl -L -o tfx.exe "https://github.com/straubt1/tfx/releases/download/${version}/tfx_windows_amd64"
 ```
 
-## Setup
+## Usage
 
-Each command has the ability to pass in parameters via flags.
+Each command has the ability to pass in parameters via flags, several are required for every command.
 
 Example:
 ```
@@ -66,7 +72,6 @@ tfeToken        = "<Generated from TFx>"
 You can also specify this file via the `--config` flag.
 
 ## Workspace Run Workflow
-
 
 **Create a Plan**
 
@@ -93,33 +98,63 @@ tfx plan -w tfx-test -i cv-HKE8gevVtGBXapcq
 tfx apply -r <run-id>
 ```
 
-## Future Commands
+## Commands
+
+### `tfx plan`
+
+Create a plan to execute on TFx.
+
+`tfx plan` - Create a workspace plan based on a current directory
+
+### `tfx apply`
+
+Create an apply to execute on TFx.
+
+`tfx apply` - Apply a workspace plan based on a plan
+
+### `tfx run`
+
+Managing workspace Runs.
+
+`tfx run list` - List all Runs for a supplied workspace
+`tfx run create` - Create a Run for a supplied workspace
+`tfx run show` - Show Run details for a supplied Run
+
+### `tfx cv`
+
+Managing workspace Configuration Versions.
+
+`tfx cv list` -  List all Configuration Versions for a supplied workspace
+`tfx cv create` - Create a Configuration Version for a supplied workspace
+`tfx cv show` - Show Configuration Version details for a supplied Configuration
+
+### `tfx pmr`
+
+Managing Private Module Registry modules.
+
+`tfx pmr list` - List all modules in the PMR
+`tfx pmr create` - Create a module in the PMR
+`tfx pmr create version` - Create a version of a module in the PMR
+`tfx pmr show` - Show module details for a supplied module
+`tfx pmr show versions` - Show modules versions for a supplied module
+`tfx pmr delete` - Delete a module from the PMR
+`tfx pmr delete version` - Delete a specific module version from the PMR
+`tfx pmr download` - Download a specific module version of TF code
+
+## Potential Future Commands
+
+Additional commands to implement.
 
 - [ ] `tfx run`
-  - [x] `list`, List all runs for a workspace
-  - [x] `create`, Create a Run
-  - [x] `show`, Show a run
   - [ ] `cancel`, cancel, discard, force cancel a run
-- [x] `tfx cv`
-  - [x] `list`, List all configuration versions for a workspace
-  - [x] `create`, Create a configuration version
-  - [x] `show`, Show a configuration version
-- `tfe tfversions`
+- [ ] `tfe tfv`
   - [ ] `list`, list all Terraform versions in TFE
   - [ ] `disable`, disable a Terraform version, -a flag to disable all
   - [ ] `enable`, enable a Terraform version
   - [ ] `create`, create a new Terraform version, upsert?
   - [ ] `show`, show a version
   - [ ] `delete`, delete a version
-- `tfx pmr`
-  - [x] `list`, list all modules in the PMR
-  - [x] `create`, create a module in the PMR
-  - [x] `create version`, create a version of a module
-  - [x] `show`, show a module
-  - [x] `show versions`, show a modules versions
-  - [x] `delete`, deletes a module from the PMR
-  - [x] `delete version`, deletes a module version from the PMR
-  - [x] `download` download a version of TF code
+- [ ] `tfx pmr`
   - [ ] `search` find a module https://www.terraform.io/docs/registry/api.html#search-modules
 - [ ] `tfe sentinel`
   - [ ] `list`, list policy sets
@@ -127,6 +162,11 @@ tfx apply -r <run-id>
   - [ ] `delete`, deletes a policy set
   - [ ] `assign`, assigns a WS(s) to the policy set
 
+## Contributing
+
+Thank you for your interest in contributing!
+
+_Contributing guide coming soon_
 
 ## References
 
