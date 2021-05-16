@@ -24,6 +24,7 @@ Often times these tasks are part of my pipeline, but could also be administrativ
 - It is unlikely that the full range of features will be built into [Terraform](https://github.com/hashicorp/terraform).
 - Developing CI/CD specific plugins for even the most common tools is not feasible, and ignores the ability to run the commands locally.
 
+![Terminal Example Plan](assets/terminal-example-plan.gif)
 ## Installation
 
 Binaries are created as part of release, check out the [Release Page](https://github.com/straubt1/tfx/releases) for the latest release.
