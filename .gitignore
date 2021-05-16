@@ -20,3 +20,4 @@ secrets.md
 act.secret.env
 pkg/
 debug/
+*notes.md
