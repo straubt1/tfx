@@ -34,9 +34,10 @@ import (
 
 var (
 	tfvCmd = &cobra.Command{
-		Use:   "tfv",
-		Short: "Terraform Versions",
-		Long:  "Work with Terraform Versions of a TFx install.",
+		Use:    "tfv",
+		Short:  "Terraform Versions",
+		Long:   "Work with Terraform Versions of a TFx install.",
+		Hidden: true, // not part of initial release
 	}
 
 	tfvListCmd = &cobra.Command{
@@ -99,12 +100,11 @@ func init() {
 	// `tfx tfv delete`
 	tfvDeleteCmd.Flags().StringP("versionId", "i", "", "Terraform Version Id (i.e. tool-*)")
 
-	// not part of initial release
-	// rootCmd.AddCommand(tfvCmd)
-	// tfvCmd.AddCommand(tfvListCmd)
-	// tfvCmd.AddCommand(tfvCreateCmd)
-	// tfvCmd.AddCommand(tfvShowCmd)
-	// tfvCmd.AddCommand(tfvDeleteCmd)
+	rootCmd.AddCommand(tfvCmd)
+	tfvCmd.AddCommand(tfvListCmd)
+	tfvCmd.AddCommand(tfvCreateCmd)
+	tfvCmd.AddCommand(tfvShowCmd)
+	tfvCmd.AddCommand(tfvDeleteCmd)
 }
 
 func tfvList() error {
