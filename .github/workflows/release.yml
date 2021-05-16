@@ -1,0 +1,73 @@
+name: release
+
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # - name: Lint
+      #   uses: golangci/golangci-lint-action@v2
+      #   with:
+      #     version: v1.32.2
+
+      - name: Make tag
+        run: echo "TAG_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
+
+      - name: Get release
+        id: get_release
+        uses: bruceadams/get-release@v1.2.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.14.10
+      - name: Install gox
+        run: go get github.com/mitchellh/gox
+        
+      - name: Cross compile
+        run: |
+          gox \
+            -os="linux darwin windows" \
+            -arch="amd64" \
+            -output "./pkg/{{.OS}}_{{.Arch}}/tfx" \
+            .
+      - name: Print version
+        run: ./pkg/linux_amd64/tfx --version
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_path: ./pkg/darwin_amd64/tfx
+          asset_name: tfx_darwin_amd64
+          asset_content_type: application/octet-stream
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_path: ./pkg/linux_amd64/tfx
+          asset_name: tfx_linux_amd64
+          asset_content_type: application/octet-stream
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_path: ./pkg/windows_amd64/tfx.exe
+          asset_name: tfx_windows_amd64
+          asset_content_type: application/octet-stream
+
