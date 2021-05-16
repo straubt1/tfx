@@ -37,6 +37,7 @@ jobs:
         run: |
           gox \
             -os="linux darwin windows" \
+            -ldflags="-X 'github.com/straubt1/tfx/version.Build=${{ github.head_ref }}.${{ github.sha }}' -X 'github.com/straubt1/tfx/version.Date=$(date)'" \
             -arch="amd64" \
             -output "./pkg/{{.OS}}_{{.Arch}}/tfx" \
             .

@@ -8,6 +8,7 @@ The initial focus of _tfx_ is to execute the API-Driven workflow for a workspace
 
 > Note: This CLI is still under active development, subject to change, and not officially supported by HashiCorp.
 
+[![main](https://github.com/straubt1/tfx/actions/workflows/main.yml/badge.svg)](https://github.com/straubt1/tfx/actions/workflows/main.yml)
 ![Go Version](https://img.shields.io/badge/go%20version-%3E=1.14-61CFDD.svg?style=flat-square)
 
 ## Why does this CLI exist?

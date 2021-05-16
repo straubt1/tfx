@@ -21,3 +21,4 @@ act.secret.env
 pkg/
 debug/
 *notes.md
+tfx

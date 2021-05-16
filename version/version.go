@@ -1,15 +1,22 @@
 package version
 
-import (
-	"fmt"
+var (
+	Version    = "0.0.0"
+	Prerelease = "dev"
+	Build      = ""
+	Date       = ""
 )
 
-var Version = "0.0.0"
-var Prerelease = "dev"
-
 func String() string {
+	v := Version
 	if Prerelease != "" {
-		return fmt.Sprintf("%s-%s", Version, Prerelease)
+		v += "-" + Prerelease
 	}
-	return Version
+	if Build != "" {
+		v += "\nBuild: " + Build
+	}
+	if Date != "" {
+		v += "\nDate:  " + Date
+	}
+	return v
 }
