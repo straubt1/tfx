@@ -12,8 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * `tfx plan export` command to download sentinel mock data
+* `tfx state` commands
+  * list
+  * show
+  * download
+  * create
 
 ### Changed
+
+* `tfx plan export` added flag to supply a directory
 
 ### Removed
 
