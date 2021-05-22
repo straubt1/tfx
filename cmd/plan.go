@@ -22,10 +22,14 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
+	"path/filepath"
 	"strconv"
 
 	"github.com/fatih/color"
+	"github.com/hashicorp/go-slug"
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/spf13/cobra"
 )
@@ -40,20 +44,34 @@ var (
 		},
 		PreRun: bindPFlags,
 	}
+
+	planExportCmd = &cobra.Command{
+		Use:   "export",
+		Short: "Export plan",
+		Long:  "Export plan details for a Plan.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runPlanExport()
+		},
+		PreRun: bindPFlags,
+	}
 )
 
 func init() {
 	// All `tfx plan` commands
-	planCmd.PersistentFlags().StringP("workspaceName", "w", "", "Workspace name")
+	planCmd.Flags().StringP("workspaceName", "w", "", "Workspace name")
 	planCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (optional, defaults to current directory)")
 	planCmd.Flags().StringP("configurationId", "i", "", "Configuration Version Id (optional, i.e. cv-*)")
 	planCmd.Flags().Bool("speculative", false, "Perform a Speculative Plan (optional)")
 	planCmd.Flags().Bool("destroy", false, "Perform a Destroy Plan (optional)")
 	planCmd.Flags().StringSlice("env", []string{}, "Environment variables to write to the Workspace. Can be suplied multiple times. (optional, i.e. '--env='AWS_REGION=us-east1')")
 
-	planCmd.MarkPersistentFlagRequired("workspaceName")
+	planCmd.MarkFlagRequired("workspaceName")
+
+	planExportCmd.Flags().StringP("planId", "i", "", "Plan Id (i.e. plan-*)")
+	planExportCmd.Flags().StringP("directory", "d", "", "Directory of download to (optional, defaults to a temp directory)")
 
 	rootCmd.AddCommand(planCmd)
+	planCmd.AddCommand(planExportCmd)
 }
 
 func runPlan() error {
@@ -131,6 +149,64 @@ func runPlan() error {
 	}
 
 	fmt.Println("Run Complete:", r.ID)
+
+	return nil
+}
+
+func runPlanExport() error {
+	planId := *viperString("planId")
+	directory := *viperString("directory")
+	client, ctx := getClientContext()
+
+	fmt.Print("Reading Plan Export for Plan ID ", color.GreenString(planId), " ...")
+	plan, err := client.Plans.Read(ctx, planId)
+	if err != nil {
+		logError(err, "failed to read Plan ")
+	}
+	fmt.Println(" Found")
+
+	var planExportId string
+	if plan.Exports == nil {
+		fmt.Print("Creating Plan Export ...")
+		planExport, err := client.PlanExports.Create(ctx, tfe.PlanExportCreateOptions{
+			Plan:     plan,
+			DataType: tfe.PlanExportType(tfe.PlanExportSentinelMockBundleV0),
+		})
+		if err != nil {
+			logError(err, "failed to read Plan ")
+		}
+		planExportId = planExport.ID
+	} else {
+		fmt.Print("Found existing Plan Export ...")
+		planExportId = plan.Exports[0].ID // Just grab the first one?
+	}
+	fmt.Println("ID ", color.BlueString(planExportId))
+	buff, err := client.PlanExports.Download(ctx, planExportId)
+	if err != nil {
+		logError(err, "failed to download plan export")
+	}
+	reader := bytes.NewReader(buff)
+
+	// Create a directory to unpack the slug contents into.
+	if directory != "" {
+		directory, err = filepath.Abs(directory)
+		if err != nil {
+			logError(err, "invalid path")
+		}
+	} else {
+		fmt.Println("Directory not supplied, creating a temp directory")
+		dst, err := ioutil.TempDir("", "slug")
+		if err != nil {
+			logError(err, "failed to create directory")
+		}
+		directory = dst
+	}
+
+	if err := slug.Unpack(reader, directory); err != nil {
+		logError(err, "failed to unpack")
+	}
+
+	fmt.Println("Downloaded: ", color.BlueString(directory))
 
 	return nil
 }

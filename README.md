@@ -119,7 +119,9 @@ Create an apply to execute on TFx.
 Managing workspace Runs.
 
 `tfx run list` - List all Runs for a supplied workspace
+
 `tfx run create` - Create a Run for a supplied workspace
+
 `tfx run show` - Show Run details for a supplied Run
 
 ### `tfx cv`
@@ -127,7 +129,9 @@ Managing workspace Runs.
 Managing workspace Configuration Versions.
 
 `tfx cv list` -  List all Configuration Versions for a supplied workspace
+
 `tfx cv create` - Create a Configuration Version for a supplied workspace
+
 `tfx cv show` - Show Configuration Version details for a supplied Configuration
 
 ### `tfx pmr`
@@ -135,12 +139,19 @@ Managing workspace Configuration Versions.
 Managing Private Module Registry modules.
 
 `tfx pmr list` - List all modules in the PMR
+
 `tfx pmr create` - Create a module in the PMR
+
 `tfx pmr create version` - Create a version of a module in the PMR
+
 `tfx pmr show` - Show module details for a supplied module
+
 `tfx pmr show versions` - Show modules versions for a supplied module
+
 `tfx pmr delete` - Delete a module from the PMR
+
 `tfx pmr delete version` - Delete a specific module version from the PMR
+
 `tfx pmr download` - Download a specific module version of TF code
 
 ## Potential Future Commands
@@ -177,4 +188,3 @@ https://github.com/hashicorp/go-tfe
 https://github.com/spf13/cobra#installing
 
 https://mholt.github.io/json-to-go/
-
