@@ -241,7 +241,7 @@ func GetAllPMRModules(token string, tfeHostname string, tfeOrganization string) 
 }
 
 func DownloadModule(token string, tfeHostname string, tfeOrganization string, moduleName string,
-	providerName string, moduleVersion string) (string, error) {
+	providerName string, moduleVersion string, directory string) (string, error) {
 
 	tfeClient, ctx := getClientContext()
 	pmr, err := tfeClient.RegistryModules.Read(ctx, tfeOrganization, moduleName, providerName)
@@ -298,15 +298,9 @@ func DownloadModule(token string, tfeHostname string, tfeOrganization string, mo
 	}
 	defer resp.Body.Close()
 
-	// Create a directory to unpack the slug contents into.
-	dst, err := ioutil.TempDir("", "slug")
-	if err != nil {
+	if err := slug.Unpack(resp.Body, directory); err != nil {
 		return "", err
 	}
 
-	if err := slug.Unpack(resp.Body, dst); err != nil {
-		return "", err
-	}
-
-	return dst, nil
+	return directory, nil
 }

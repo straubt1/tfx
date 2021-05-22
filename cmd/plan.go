@@ -68,7 +68,7 @@ func init() {
 	planCmd.MarkFlagRequired("workspaceName")
 
 	planExportCmd.Flags().StringP("planId", "i", "", "Plan Id (i.e. plan-*)")
-	planExportCmd.Flags().StringP("directory", "d", "", "Directory of download to (optional, defaults to a temp directory)")
+	planExportCmd.Flags().StringP("directory", "d", "", "Directory to download export to (optional, defaults to a temp directory)")
 
 	rootCmd.AddCommand(planCmd)
 	planCmd.AddCommand(planExportCmd)
@@ -187,7 +187,7 @@ func runPlanExport() error {
 	}
 	reader := bytes.NewReader(buff)
 
-	// Create a directory to unpack the slug contents into.
+	// Determine a directory to unpack the slug contents into.
 	if directory != "" {
 		directory, err = filepath.Abs(directory)
 		if err != nil {

@@ -44,7 +44,7 @@ var (
 
 func init() {
 	// All `tfx apply` commands
-	applyCmd.PersistentFlags().StringP("runId", "r", "", "Run Id to apply")
+	applyCmd.PersistentFlags().StringP("runId", "i", "", "Run Id to apply")
 
 	applyCmd.MarkPersistentFlagRequired("runId")
 

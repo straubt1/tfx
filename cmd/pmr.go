@@ -23,7 +23,9 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"github.com/fatih/color"
 	tfe "github.com/hashicorp/go-tfe"
@@ -165,6 +167,7 @@ func init() {
 	pmrDownloadCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
 	pmrDownloadCmd.Flags().StringP("provider", "p", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
 	pmrDownloadCmd.Flags().StringP("moduleVersion", "v", "", "Version of module (i.e. 0.0.1)")
+	pmrDownloadCmd.Flags().StringP("directory", "d", "", "Directory to download module to (optional, defaults to a temp directory)")
 	pmrDownloadCmd.MarkFlagRequired("name")
 	pmrDownloadCmd.MarkFlagRequired("provider")
 	pmrDownloadCmd.MarkFlagRequired("moduleVersion")
@@ -353,13 +356,30 @@ func pmrDownload() error {
 	moduleName := *viperString("name")
 	providerName := *viperString("provider")
 	moduleVersion := *viperString("moduleVersion")
+	directory := *viperString("directory")
 
-	fmt.Print("Downloading Module Version ", color.GreenString(moduleName), "/", color.GreenString(providerName),
+	var err error
+	// Determine a directory to unpack the slug contents into.
+	if directory != "" {
+		directory, err = filepath.Abs(directory)
+		if err != nil {
+			logError(err, "invalid path")
+		}
+	} else {
+		fmt.Println("Directory not supplied, creating a temp directory")
+		dst, err := ioutil.TempDir("", "slug")
+		if err != nil {
+			logError(err, "failed to create directory")
+		}
+		directory = dst
+	}
+
+	fmt.Println("Downloading Module Version ", color.GreenString(moduleName), "/", color.GreenString(providerName),
 		":", color.GreenString(moduleVersion), " ...")
-	f, err := DownloadModule(token, hostname, orgName, moduleName, providerName, moduleVersion)
+	f, err := DownloadModule(token, hostname, orgName, moduleName, providerName, moduleVersion, directory)
 	if err != nil {
 		logError(err, "failed to download module")
 	}
-	fmt.Println(" Downloaded: ", color.BlueString(f))
+	fmt.Println("Downloaded: ", color.BlueString(f))
 	return nil
 }
