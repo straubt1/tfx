@@ -36,14 +36,13 @@ func viperBool(flag string) *bool {
 	return &value
 }
 
-// func viperStringSlice(flag string) []string {
-// 	value := viper.GetStringSlice(flag)
-// 	if len(value) == 0 {
-// 		return []string{}
-// 		// return nil
-// 	}
-// 	return value
-// }
+func viperStringSlice(flag string) []string {
+	value := viper.GetStringSlice(flag)
+	if len(value) == 0 {
+		return []string{}
+	}
+	return value
+}
 
 func viperStringSliceMap(flag string) (map[string]string, error) {
 	m := make(map[string]string)

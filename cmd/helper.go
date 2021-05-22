@@ -427,3 +427,31 @@ func runCanBeApplied(status string) bool {
 	}
 	return false
 }
+
+// get all TFV
+func getAllTerraformVersions(ctx context.Context, client *tfe.Client) ([]*tfe.AdminTerraformVersion, error) {
+	// Read all versions through pagination
+	var err error
+	var tfv *tfe.AdminTerraformVersionsList
+	var tfvItems []*tfe.AdminTerraformVersion
+	pageNumber := 1
+	for {
+		tfv, err = client.Admin.TerraformVersions.List(ctx, tfe.AdminTerraformVersionsListOptions{
+			ListOptions: tfe.ListOptions{
+				PageSize:   100,
+				PageNumber: pageNumber,
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		tfvItems = append(tfvItems, tfv.Items...)
+		if tfv.NextPage == 0 {
+			break
+		}
+		pageNumber++
+	}
+
+	return tfvItems, nil
+}
