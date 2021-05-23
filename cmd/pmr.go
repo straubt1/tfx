@@ -1,29 +1,30 @@
-/*
-Copyright © 2021 Tom Straub <github.com/straubt1>
+// Copyright © 2021 Tom Straub <github.com/straubt1>
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-*/
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
 package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"github.com/fatih/color"
 	tfe "github.com/hashicorp/go-tfe"
@@ -165,6 +166,7 @@ func init() {
 	pmrDownloadCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
 	pmrDownloadCmd.Flags().StringP("provider", "p", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
 	pmrDownloadCmd.Flags().StringP("moduleVersion", "v", "", "Version of module (i.e. 0.0.1)")
+	pmrDownloadCmd.Flags().StringP("directory", "d", "", "Directory to download module to (optional, defaults to a temp directory)")
 	pmrDownloadCmd.MarkFlagRequired("name")
 	pmrDownloadCmd.MarkFlagRequired("provider")
 	pmrDownloadCmd.MarkFlagRequired("moduleVersion")
@@ -353,13 +355,30 @@ func pmrDownload() error {
 	moduleName := *viperString("name")
 	providerName := *viperString("provider")
 	moduleVersion := *viperString("moduleVersion")
+	directory := *viperString("directory")
 
-	fmt.Print("Downloading Module Version ", color.GreenString(moduleName), "/", color.GreenString(providerName),
+	var err error
+	// Determine a directory to unpack the slug contents into.
+	if directory != "" {
+		directory, err = filepath.Abs(directory)
+		if err != nil {
+			logError(err, "invalid path")
+		}
+	} else {
+		fmt.Println("Directory not supplied, creating a temp directory")
+		dst, err := ioutil.TempDir("", "slug")
+		if err != nil {
+			logError(err, "failed to create directory")
+		}
+		directory = dst
+	}
+
+	fmt.Println("Downloading Module Version ", color.GreenString(moduleName), "/", color.GreenString(providerName),
 		":", color.GreenString(moduleVersion), " ...")
-	f, err := DownloadModule(token, hostname, orgName, moduleName, providerName, moduleVersion)
+	f, err := DownloadModule(token, hostname, orgName, moduleName, providerName, moduleVersion, directory)
 	if err != nil {
 		logError(err, "failed to download module")
 	}
-	fmt.Println(" Downloaded: ", color.BlueString(f))
+	fmt.Println("Downloaded: ", color.BlueString(f))
 	return nil
 }

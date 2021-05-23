@@ -18,6 +18,11 @@ func viperString(flag string) *string {
 	return &value
 }
 
+func viperInt64(flag string) *int64 {
+	value := viper.GetInt64(flag)
+	return &value
+}
+
 func viperSemanticVersionString(flag string) (string, error) {
 	v, err := semver.NewVersion(viper.GetString(flag))
 	if err != nil {
@@ -36,14 +41,13 @@ func viperBool(flag string) *bool {
 	return &value
 }
 
-// func viperStringSlice(flag string) []string {
-// 	value := viper.GetStringSlice(flag)
-// 	if len(value) == 0 {
-// 		return []string{}
-// 		// return nil
-// 	}
-// 	return value
-// }
+func viperStringSlice(flag string) []string {
+	value := viper.GetStringSlice(flag)
+	if len(value) == 0 {
+		return []string{}
+	}
+	return value
+}
 
 func viperStringSliceMap(flag string) (map[string]string, error) {
 	m := make(map[string]string)

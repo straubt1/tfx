@@ -7,15 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.0.1] - 2021.02.02
+## [0.0.1-dev] - 2021.05.23
 
 ### Added
 
+* `tfx plan export` command to download sentinel mock data
+* `tfx state` commands
+  * list
+  * show
+  * download
+  * create
+* `tfx tfv` commands
+  * list
+  * show
+  * create
+  * create official
+  * delete
+  * disable
+  * disable all
+  * enable
+  * enable all
+
 ### Changed
+
+* `tfx plan export` added flag to supply a directory
+* Added "Built By" output on version to help originate a build
 
 ### Removed
 
-## [0.0.0] - 2021.01.01
+## [0.0.0-dev] - 2021.05.16
 
 ### Added
 

@@ -4,7 +4,7 @@
 
 _tfx_ is a standalone CLI for Terraform Cloud and Terraform Enterprise.
 
-The initial focus of _tfx_ is to execute the API-Driven workflow for a workspace, but will expand to other common workflows that, in the past, have required API wrappers.
+The initial focus of _tfx_ is to execute the API-Driven workflow for a Workspace, but will expand to other common workflows that, in the past, have required API wrappers.
 
 > Note: This CLI is still under active development, subject to change, and not officially supported by HashiCorp.
 
@@ -106,28 +106,32 @@ tfx apply -r <run-id>
 
 Create a plan to execute on TFx.
 
-`tfx plan` - Create a workspace plan based on a current directory
+`tfx plan` - Create a Workspace plan based on a current directory
 
 ### `tfx apply`
 
 Create an apply to execute on TFx.
 
-`tfx apply` - Apply a workspace plan based on a plan
+`tfx apply` - Apply a Workspace plan based on a plan
 
 ### `tfx run`
 
-Managing workspace Runs.
+Managing Workspace Runs.
 
-`tfx run list` - List all Runs for a supplied workspace
-`tfx run create` - Create a Run for a supplied workspace
+`tfx run list` - List all Runs for a supplied Workspace
+
+`tfx run create` - Create a Run for a supplied Workspace
+
 `tfx run show` - Show Run details for a supplied Run
 
 ### `tfx cv`
 
-Managing workspace Configuration Versions.
+Managing Workspace Configuration Versions.
 
-`tfx cv list` -  List all Configuration Versions for a supplied workspace
-`tfx cv create` - Create a Configuration Version for a supplied workspace
+`tfx cv list` -  List all Configuration Versions for a supplied Workspace
+
+`tfx cv create` - Create a Configuration Version for a supplied Workspace
+
 `tfx cv show` - Show Configuration Version details for a supplied Configuration
 
 ### `tfx pmr`
@@ -135,13 +139,61 @@ Managing workspace Configuration Versions.
 Managing Private Module Registry modules.
 
 `tfx pmr list` - List all modules in the PMR
+
 `tfx pmr create` - Create a module in the PMR
+
 `tfx pmr create version` - Create a version of a module in the PMR
+
 `tfx pmr show` - Show module details for a supplied module
+
 `tfx pmr show versions` - Show modules versions for a supplied module
+
 `tfx pmr delete` - Delete a module from the PMR
+
 `tfx pmr delete version` - Delete a specific module version from the PMR
+
 `tfx pmr download` - Download a specific module version of TF code
+
+### `tfx state`
+
+Managing Workspace State Files (State Versions).
+
+`tfx state list` - List all State Versions for a supplied Workspace
+
+`tfx state show` - Show state details for a supplied State Version
+
+`tfx state download` - Download a specific State Version
+
+`tfx state create` - Create a new State Version with a supplied state file
+- There is no way to delete State Versions
+- The LAST State Version to be created is the "current" state file that will be used by the Workspace
+- A Workspace must be locked to create new State Versions
+- The "serial" attribute must be incremented
+- The "lineage" attribute must be the same for any newly created State Version
+- The API does not return a state versions lineage, you must download the file and parse to get the lineage
+
+### `tfx tfv`
+
+Managing Terraform Versions in a Terraform Enterprise install (TFE only).
+
+`tfx tfv list` - List all Terraform Versions for a TFE install
+
+`tfx tfv show` - Show version details for a supplied Terraform Version or Version Id
+
+`tfx tfv delete` - Delete a version of a supplied Terraform Version or Version Id
+
+`tfx tfv create` - Create a Terraform Version
+
+`tfx tfv create official` - Create an official Terraform Version from releases.hashicorp.com
+
+`tfx tfv disable` - Disable a Terraform Version(s), accepts comma separated list
+
+`tfx tfv disable all` - Disable all Terraform Versions
+
+`tfx tfv enable` - Enables a Terraform Version(s), accepts comma separated list
+
+`tfx tfv enable all` - Enables all Terraform Versions
+
 
 ## Potential Future Commands
 
@@ -149,13 +201,6 @@ Additional commands to implement.
 
 - [ ] `tfx run`
   - [ ] `cancel`, cancel, discard, force cancel a run
-- [ ] `tfe tfv`
-  - [ ] `list`, list all Terraform versions in TFE
-  - [ ] `disable`, disable a Terraform version, -a flag to disable all
-  - [ ] `enable`, enable a Terraform version
-  - [ ] `create`, create a new Terraform version, upsert?
-  - [ ] `show`, show a version
-  - [ ] `delete`, delete a version
 - [ ] `tfx pmr`
   - [ ] `search` find a module https://www.terraform.io/docs/registry/api.html#search-modules
 - [ ] `tfe sentinel`
@@ -177,4 +222,3 @@ https://github.com/hashicorp/go-tfe
 https://github.com/spf13/cobra#installing
 
 https://mholt.github.io/json-to-go/
-

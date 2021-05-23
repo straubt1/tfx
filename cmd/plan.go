@@ -1,31 +1,34 @@
-/*
-Copyright © 2021 Tom Straub <github.com/straubt1>
+// Copyright © 2021 Tom Straub <github.com/straubt1>
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-*/
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
 package cmd
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
+	"path/filepath"
 	"strconv"
 
 	"github.com/fatih/color"
+	"github.com/hashicorp/go-slug"
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/spf13/cobra"
 )
@@ -40,20 +43,35 @@ var (
 		},
 		PreRun: bindPFlags,
 	}
+
+	planExportCmd = &cobra.Command{
+		Use:   "export",
+		Short: "Export plan",
+		Long:  "Export plan details for a Plan.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runPlanExport()
+		},
+		PreRun: bindPFlags,
+	}
 )
 
 func init() {
 	// All `tfx plan` commands
-	planCmd.PersistentFlags().StringP("workspaceName", "w", "", "Workspace name")
+	planCmd.Flags().StringP("workspaceName", "w", "", "Workspace name")
 	planCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (optional, defaults to current directory)")
 	planCmd.Flags().StringP("configurationId", "i", "", "Configuration Version Id (optional, i.e. cv-*)")
 	planCmd.Flags().Bool("speculative", false, "Perform a Speculative Plan (optional)")
 	planCmd.Flags().Bool("destroy", false, "Perform a Destroy Plan (optional)")
 	planCmd.Flags().StringSlice("env", []string{}, "Environment variables to write to the Workspace. Can be suplied multiple times. (optional, i.e. '--env='AWS_REGION=us-east1')")
+	planCmd.MarkFlagRequired("workspaceName")
 
-	planCmd.MarkPersistentFlagRequired("workspaceName")
+	planExportCmd.Flags().StringP("planId", "i", "", "Plan Id (i.e. plan-*)")
+	planExportCmd.Flags().StringP("directory", "d", "", "Directory to download export to (optional, defaults to a temp directory)")
+	planExportCmd.MarkFlagRequired("planId")
+	planExportCmd.MarkFlagRequired("directory")
 
 	rootCmd.AddCommand(planCmd)
+	planCmd.AddCommand(planExportCmd)
 }
 
 func runPlan() error {
@@ -62,7 +80,7 @@ func runPlan() error {
 	orgName := *viperString("tfeOrganization")
 	wsName := *viperString("workspaceName")
 	dir := *viperString("directory")
-	configId := *viperString("configurationId")
+	configID := *viperString("configurationId")
 	isSpeculative := *viperBool("speculative")
 	isDestroy := *viperBool("destroy")
 	envs, err := viperStringSliceMap("env")
@@ -91,7 +109,7 @@ func runPlan() error {
 	}
 
 	// Create config version
-	cv, err := createOrReadConfigurationVersion(ctx, client, w.ID, configId, dir, isSpeculative)
+	cv, err := createOrReadConfigurationVersion(ctx, client, w.ID, configID, dir, isSpeculative)
 	if err != nil {
 		logError(err, "failed to create configuration version")
 	}
@@ -131,6 +149,64 @@ func runPlan() error {
 	}
 
 	fmt.Println("Run Complete:", r.ID)
+
+	return nil
+}
+
+func runPlanExport() error {
+	planID := *viperString("planId")
+	directory := *viperString("directory")
+	client, ctx := getClientContext()
+
+	fmt.Print("Reading Plan Export for Plan ID ", color.GreenString(planID), " ...")
+	plan, err := client.Plans.Read(ctx, planID)
+	if err != nil {
+		logError(err, "failed to read Plan ")
+	}
+	fmt.Println(" Found")
+
+	var planExportID string
+	if plan.Exports == nil {
+		fmt.Print("Creating Plan Export ...")
+		planExport, err := client.PlanExports.Create(ctx, tfe.PlanExportCreateOptions{
+			Plan:     plan,
+			DataType: tfe.PlanExportType(tfe.PlanExportSentinelMockBundleV0),
+		})
+		if err != nil {
+			logError(err, "failed to read Plan ")
+		}
+		planExportID = planExport.ID
+	} else {
+		fmt.Print("Found existing Plan Export ...")
+		planExportID = plan.Exports[0].ID // Just grab the first one?
+	}
+	fmt.Println("ID ", color.BlueString(planExportID))
+	buff, err := client.PlanExports.Download(ctx, planExportID)
+	if err != nil {
+		logError(err, "failed to download plan export")
+	}
+	reader := bytes.NewReader(buff)
+
+	// Determine a directory to unpack the slug contents into.
+	if directory != "" {
+		directory, err = filepath.Abs(directory)
+		if err != nil {
+			logError(err, "invalid path")
+		}
+	} else {
+		fmt.Println("Directory not supplied, creating a temp directory")
+		dst, err := ioutil.TempDir("", "slug")
+		if err != nil {
+			logError(err, "failed to create directory")
+		}
+		directory = dst
+	}
+
+	if err := slug.Unpack(reader, directory); err != nil {
+		logError(err, "failed to unpack")
+	}
+
+	fmt.Println("Downloaded: ", color.BlueString(directory))
 
 	return nil
 }

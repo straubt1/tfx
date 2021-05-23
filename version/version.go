@@ -1,10 +1,11 @@
 package version
 
 var (
-	Version    = "0.0.0"
+	Version    = "0.0.1"
 	Prerelease = "dev"
 	Build      = ""
 	Date       = ""
+	BuiltBy    = ""
 )
 
 func String() string {
@@ -16,7 +17,9 @@ func String() string {
 		v += "\nBuild: " + Build
 	}
 	if Date != "" {
-		v += "\nDate:  " + Date
+		v += "\nDate: " + Date
 	}
+	v += "\nBuilt By: " + BuiltBy
+
 	return v
 }

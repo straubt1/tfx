@@ -1,24 +1,3 @@
-/*
-Copyright © 2021 Tom Straub <github.com/straubt1>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-*/
 package cmd
 
 import (
@@ -36,13 +15,13 @@ import (
 )
 
 // Create or read the CV to prepare for plan
-func createOrReadConfigurationVersion(ctx context.Context, client *tfe.Client, workspaceId string, cvId string, tfDirectory string, speculative bool) (*tfe.ConfigurationVersion, error) {
+func createOrReadConfigurationVersion(ctx context.Context, client *tfe.Client, workspaceID string, cvID string, tfDirectory string, speculative bool) (*tfe.ConfigurationVersion, error) {
 	var err error
 	var cv *tfe.ConfigurationVersion
 
-	if cvId == "" { // config id was not give, create a new one
+	if cvID == "" { // config id was not give, create a new one
 		fmt.Print("Creating new Config Version ...")
-		cv, err = client.ConfigurationVersions.Create(ctx, workspaceId, tfe.ConfigurationVersionCreateOptions{
+		cv, err = client.ConfigurationVersions.Create(ctx, workspaceID, tfe.ConfigurationVersionCreateOptions{
 			AutoQueueRuns: tfe.Bool(false), // wait for upload
 			Speculative:   tfe.Bool(speculative),
 		})
@@ -58,8 +37,8 @@ func createOrReadConfigurationVersion(ctx context.Context, client *tfe.Client, w
 		}
 	} else {
 		// config id was given, read
-		fmt.Println("Using existing Config Version ...", cvId)
-		cv, err = client.ConfigurationVersions.Read(ctx, cvId)
+		fmt.Println("Using existing Config Version ...", cvID)
+		cv, err = client.ConfigurationVersions.Read(ctx, cvID)
 		if err != nil {
 			return nil, err
 		}
@@ -73,10 +52,10 @@ func createOrReadConfigurationVersion(ctx context.Context, client *tfe.Client, w
 }
 
 // Get Run logs
-func getRunLogs(ctx context.Context, client *tfe.Client, planId string) error {
+func getRunLogs(ctx context.Context, client *tfe.Client, planID string) error {
 	var err error
 	var logs io.Reader
-	logs, err = client.Plans.Logs(ctx, planId)
+	logs, err = client.Plans.Logs(ctx, planID)
 	if err != nil {
 		return err
 	}
@@ -328,10 +307,10 @@ func getPolicyLogs(ctx context.Context, client *tfe.Client, r *tfe.Run) error {
 }
 
 // Get Apply logs
-func getApplyLogs(ctx context.Context, client *tfe.Client, applyId string) error {
+func getApplyLogs(ctx context.Context, client *tfe.Client, applyID string) error {
 	var err error
 	var logs io.Reader
-	logs, err = client.Applies.Logs(ctx, applyId)
+	logs, err = client.Applies.Logs(ctx, applyID)
 	if err != nil {
 		return err
 	}
@@ -362,14 +341,14 @@ func getApplyLogs(ctx context.Context, client *tfe.Client, applyId string) error
 }
 
 // Ensure variable is up to date (upsert)
-func createOrUpdateEnvVariables(ctx context.Context, client *tfe.Client, workspaceId string, variables map[string]string) error {
+func createOrUpdateEnvVariables(ctx context.Context, client *tfe.Client, workspaceID string, variables map[string]string) error {
 	var err error
 	var allV *tfe.VariableList
 	isSensitive := false
 
 	// Read all variables and search
 	// TODO: is there a better way? API doesnt expose a variable by name lookup
-	allV, err = client.Variables.List(ctx, workspaceId, tfe.VariableListOptions{})
+	allV, err = client.Variables.List(ctx, workspaceID, tfe.VariableListOptions{})
 	if err != nil {
 		return err
 	}
@@ -387,7 +366,7 @@ func createOrUpdateEnvVariables(ctx context.Context, client *tfe.Client, workspa
 		timestamp := time.Now()
 		if found == nil {
 			fmt.Print("Creating new Variable: ", color.GreenString(key), " ...")
-			_, err = client.Variables.Create(ctx, workspaceId, tfe.VariableCreateOptions{
+			_, err = client.Variables.Create(ctx, workspaceID, tfe.VariableCreateOptions{
 				Key:         &key,
 				Value:       &val,
 				Description: tfe.String(fmt.Sprintf("Written by TFx at %s", timestamp)),
@@ -399,7 +378,7 @@ func createOrUpdateEnvVariables(ctx context.Context, client *tfe.Client, workspa
 			}
 		} else {
 			fmt.Print("Updating existing Variable: ", color.GreenString(key), " ...")
-			_, err = client.Variables.Update(ctx, workspaceId, found.ID, tfe.VariableUpdateOptions{
+			_, err = client.Variables.Update(ctx, workspaceID, found.ID, tfe.VariableUpdateOptions{
 				Key:         &key,
 				Value:       &val,
 				Description: tfe.String(fmt.Sprintf("Written by TFx at %s", timestamp)),
@@ -426,4 +405,49 @@ func runCanBeApplied(status string) bool {
 		}
 	}
 	return false
+}
+
+// get all TFV
+func getAllTerraformVersions(ctx context.Context, client *tfe.Client) ([]*tfe.AdminTerraformVersion, error) {
+	// Read all versions through pagination
+	var err error
+	var tfv *tfe.AdminTerraformVersionsList
+	var tfvItems []*tfe.AdminTerraformVersion
+	pageNumber := 1
+	for {
+		tfv, err = client.Admin.TerraformVersions.List(ctx, tfe.AdminTerraformVersionsListOptions{
+			ListOptions: tfe.ListOptions{
+				PageSize:   100,
+				PageNumber: pageNumber,
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		tfvItems = append(tfvItems, tfv.Items...)
+		if tfv.NextPage == 0 {
+			break
+		}
+		pageNumber++
+	}
+
+	return tfvItems, nil
+}
+
+// get specific terraform version
+func getTerraformVersion(ctx context.Context, client *tfe.Client, version string) (*tfe.AdminTerraformVersion, error) {
+	tfvItems, err := getAllTerraformVersions(ctx, client)
+	if err != nil {
+		return nil, errors.New("failed to read all terraform versions")
+	}
+
+	for _, s := range tfvItems {
+		// if s.Enabled {
+		if s.Version == version {
+			return s, nil
+		}
+	}
+
+	return nil, errors.New("failed to find terraform versions")
 }
