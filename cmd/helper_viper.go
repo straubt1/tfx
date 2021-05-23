@@ -18,6 +18,11 @@ func viperString(flag string) *string {
 	return &value
 }
 
+func viperInt64(flag string) *int64 {
+	value := viper.GetInt64(flag)
+	return &value
+}
+
 func viperSemanticVersionString(flag string) (string, error) {
 	v, err := semver.NewVersion(viper.GetString(flag))
 	if err != nil {

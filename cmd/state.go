@@ -26,6 +26,7 @@ import (
 	"crypto/md5"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -93,9 +94,14 @@ func init() {
 	stateListCmd.MarkFlagRequired("workspaceName")
 
 	// `tfx state download`
-	stateDownloadCmd.Flags().StringP("stateId", "i", "", "State Version Id (i.e. sv-*)")
 	stateDownloadCmd.Flags().StringP("filename", "f", "", "File to save State Version to (i.e. terraform.tfstate)")
-	stateDownloadCmd.MarkFlagRequired("stateId")
+
+	stateDownloadCmd.Flags().StringP("stateId", "i", "", "State Version Id (i.e. sv-*)")
+	stateDownloadCmd.Flags().Int64P("serial", "s", -1, "State Version Serial (i.e. 8)")
+	stateDownloadCmd.Flags().StringP("workspaceName", "w", "", "Workspace name")
+
+	// stateDownloadCmd.Flags().StringP("stateId", "i", "", "State Version Id (i.e. sv-*)")
+	// stateDownloadCmd.MarkFlagRequired("stateId")
 	stateDownloadCmd.MarkFlagRequired("filename")
 
 	// `tfx state create`
@@ -106,7 +112,8 @@ func init() {
 
 	// `tfx state show`
 	stateShowCmd.Flags().StringP("stateId", "i", "", "State Version Id (i.e. sv-*)")
-	stateShowCmd.MarkFlagRequired("stateId")
+	stateShowCmd.Flags().Int64P("serial", "s", -1, "State Version Serial (i.e. 8)")
+	stateShowCmd.Flags().StringP("workspaceName", "w", "", "Workspace name")
 
 	rootCmd.AddCommand(stateCmd)
 	stateCmd.AddCommand(stateListCmd)
@@ -116,7 +123,6 @@ func init() {
 }
 
 func stateList() error {
-	// Validate flags
 	orgName := *viperString("tfeOrganization")
 	wsName := *viperString("workspaceName")
 	client, ctx := getClientContext()
@@ -152,9 +158,9 @@ func stateList() error {
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"Id", "Serial", "Run", "Created"})
+	t.AppendHeader(table.Row{"Id", "Serial", "Created"})
 	for _, i := range stateList.Items {
-		t.AppendRow(table.Row{i.ID, i.Serial, i.Serial, i.CreatedAt})
+		t.AppendRow(table.Row{i.ID, i.Serial, i.CreatedAt})
 	}
 	t.SetStyle(table.StyleRounded)
 	t.Render()
@@ -163,18 +169,58 @@ func stateList() error {
 }
 
 func stateDownload() error {
+	orgName := *viperString("tfeOrganization")
+	wsName := *viperString("workspaceName")
 	stateId := *viperString("stateId")
+	serial := *viperInt64("serial") //-1 is default
 	filename := *viperString("filename")
+	if stateId == "" && serial == -1 {
+		logError(errors.New(""), "serial or state id must be supplied")
+	} else if stateId != "" && serial != -1 {
+		logError(errors.New(""), "only one can be supplied [serial or state id]")
+	}
+	if serial != -1 && wsName == "" {
+		logError(errors.New(""), "serial requires a workspace name")
+	}
 	client, ctx := getClientContext()
 
-	fmt.Print("Reading State Version for ID ", color.GreenString(stateId), " ...")
-	state, err := client.StateVersions.Read(ctx, stateId)
-	if err != nil {
-		logError(err, "failed to read state version")
-	}
-	fmt.Println(" Found")
+	var st *tfe.StateVersion
+	var err error
+	if stateId != "" {
+		// Read State Version
+		fmt.Print("Reading State Version with ID ", color.GreenString(stateId), " ... ")
+		st, err = client.StateVersions.ReadWithOptions(ctx, stateId, &tfe.StateVersionReadOptions{
+			Include: "outputs",
+		})
+		if err != nil {
+			logError(err, "failed to find state id")
+		}
+		fmt.Println(" Found")
+	} else {
+		fmt.Print("Reading State Version with Serial ", color.GreenString(strconv.FormatInt(serial, 10)), " ... ")
+		// Get all state versions
+		stateList, err := client.StateVersions.List(ctx, tfe.StateVersionListOptions{
+			Organization: &orgName,
+			Workspace:    &wsName,
+		})
+		if err != nil {
+			logError(err, "failed to list state versions")
+		}
 
-	buff, err := client.StateVersions.Download(ctx, state.DownloadURL)
+		for _, s := range stateList.Items {
+			if s.Serial == serial {
+				st = s
+				break
+			}
+		}
+		if st == nil {
+			logError(err, "failed to find terraform version serial")
+		}
+
+		fmt.Println(" Found")
+	}
+
+	buff, err := client.StateVersions.Download(ctx, st.DownloadURL)
 	if err != nil {
 		logError(err, "failed to download state version")
 	}
@@ -183,6 +229,7 @@ func stateDownload() error {
 	if err != nil {
 		logError(err, "failed to save state version")
 	}
+	fmt.Println("Dowloaded State Version to", color.BlueString(filename))
 
 	return nil
 }
@@ -220,31 +267,6 @@ func stateCreate() error {
 		logError(err, "failed to read workspace id")
 	}
 	fmt.Println(" Found:", w.ID)
-
-	// // Read latest state file
-	// currentState, err := client.StateVersions.Current(ctx, w.ID)
-	// if err != nil {
-	// 	logError(err, "failed to get current state version")
-	// }
-	// // if currentState == nil {
-
-	// // }
-	// currentStateContents, err := client.StateVersions.Download(ctx, currentState.DownloadURL)
-	// if err != nil {
-	// 	logError(err, "failed to get download current state file")
-	// }
-	// fmt.Println(string(currentStateContents))
-	// var currSt StateFile
-	// err = json.Unmarshal(content, &currentStateContents)
-	// if err != nil {
-	// 	logError(err, "failed to marshal state file")
-	// }
-	// fmt.Println("Current State file ...")
-	// fmt.Println(color.BlueString("Lineage:    "), currSt.Lineage)
-	// fmt.Println(color.BlueString("Serial:     "), currSt.Serial)
-	// fmt.Println(color.BlueString("Version:    "), currSt.Version)
-	// fmt.Println(color.BlueString("Terraform:  "), currSt.TerraformVersion)
-	// fmt.Println()
 
 	// Read state file so we can get info (serial, lineage, etc...)
 	var st StateFile
@@ -302,22 +324,61 @@ func stateCreate() error {
 }
 
 func stateShow() error {
-	// Validate flags
+	orgName := *viperString("tfeOrganization")
+	wsName := *viperString("workspaceName")
 	stateId := *viperString("stateId")
+	serial := *viperInt64("serial") //-1 is default
+	if stateId == "" && serial == -1 {
+		logError(errors.New(""), "serial or state id must be supplied")
+	} else if stateId != "" && serial != -1 {
+		logError(errors.New(""), "only one can be supplied [serial or state id]")
+	}
+	if serial != -1 && wsName == "" {
+		logError(errors.New(""), "serial requires a workspace name")
+	}
 	client, ctx := getClientContext()
 
-	// Read Config Version
-	fmt.Print("Reading State Version for ID ", color.GreenString(stateId), " ...")
-	state, err := client.StateVersions.ReadWithOptions(ctx, stateId, &tfe.StateVersionReadOptions{
-		Include: "outputs",
-	})
-	if err != nil {
-		logError(err, "failed to read state version")
+	var st *tfe.StateVersion
+	var err error
+	if stateId != "" {
+		// Read State Version
+		fmt.Print("Reading State Version with ID ", color.GreenString(stateId), " ... ")
+		st, err = client.StateVersions.ReadWithOptions(ctx, stateId, &tfe.StateVersionReadOptions{
+			Include: "outputs",
+		})
+		if err != nil {
+			logError(err, "failed to find state id")
+		}
+		fmt.Println(" Found")
+	} else {
+		fmt.Print("Reading State Version with Serial ", color.GreenString(strconv.FormatInt(serial, 10)), " ... ")
+		// Get all state versions
+		stateList, err := client.StateVersions.List(ctx, tfe.StateVersionListOptions{
+			Organization: &orgName,
+			Workspace:    &wsName,
+		})
+		if err != nil {
+			logError(err, "failed to list state versions")
+		}
+
+		for _, s := range stateList.Items {
+			if s.Serial == serial {
+				st = s
+				break
+			}
+		}
+		if st == nil {
+			logError(err, "failed to find terraform version serial")
+		}
+
+		fmt.Println(" Found")
 	}
+
 	fmt.Println(" Found")
-	fmt.Println(color.BlueString("ID:     "), state.ID)
-	fmt.Println(color.BlueString("Create: "), state.CreatedAt)
-	fmt.Println(color.BlueString("Run:    "), state.Run.ID)
+	fmt.Println(color.BlueString("ID:     "), st.ID)
+	fmt.Println(color.BlueString("Create: "), st.CreatedAt)
+	fmt.Println(color.BlueString("Serial: "), st.Serial)
+	// fmt.Println(color.BlueString("Run:    "), st.Run.ID)
 
 	return nil
 }

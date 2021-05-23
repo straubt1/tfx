@@ -185,6 +185,14 @@ Managing Terraform Versions in a Terraform Enterprise install (TFE only).
 
 `tfx tfv create official` - Create an official Terraform Version from releases.hashicorp.com
 
+`tfx tfv disable` - Disable a Terraform Version(s), accepts comma separated list
+
+`tfx tfv disable all` - Disable all Terraform Versions
+
+`tfx tfv enable` - Enables a Terraform Version(s), accepts comma separated list
+
+`tfx tfv enable all` - Enables all Terraform Versions
+
 
 ## Potential Future Commands
 
@@ -192,13 +200,6 @@ Additional commands to implement.
 
 - [ ] `tfx run`
   - [ ] `cancel`, cancel, discard, force cancel a run
-- [ ] `tfe tfv`
-  - [ ] `list`, list all Terraform versions in TFE
-  - [ ] `disable`, disable a Terraform version, -a flag to disable all
-  - [ ] `enable`, enable a Terraform version
-  - [ ] `create`, create a new Terraform version, upsert?
-  - [ ] `show`, show a version
-  - [ ] `delete`, delete a version
 - [ ] `tfx pmr`
   - [ ] `search` find a module https://www.terraform.io/docs/registry/api.html#search-modules
 - [ ] `tfe sentinel`

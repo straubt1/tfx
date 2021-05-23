@@ -104,6 +104,36 @@ var (
 		},
 		PreRun: bindPFlags,
 	}
+
+	tfvDisableAllCmd = &cobra.Command{
+		Use:   "all",
+		Short: "Disable All Terraform Versions",
+		Long:  "Disable All Terraform Versions for a TFx install.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return tfvDisableAll()
+		},
+		PreRun: bindPFlags,
+	}
+
+	tfvEnableCmd = &cobra.Command{
+		Use:   "enable",
+		Short: "Enable Terraform Version",
+		Long:  "Enable Terraform Version for a TFx install.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return tfvEnable()
+		},
+		PreRun: bindPFlags,
+	}
+
+	tfvEnableAllCmd = &cobra.Command{
+		Use:   "all",
+		Short: "Disable All Terraform Versions",
+		Long:  "Disable All Terraform Versions for a TFx install.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return tfvEnableAll()
+		},
+		PreRun: bindPFlags,
+	}
 )
 
 func init() {
@@ -132,8 +162,12 @@ func init() {
 	tfvDeleteCmd.Flags().StringP("version", "v", "", "Terraform Version (i.e. 0.15.0)")
 
 	// `tfx tfv disable`
-	tfvDisableCmd.Flags().BoolP("all", "a", false, "Disable All")
-	tfvDisableCmd.Flags().StringSlice("versions", []string{}, "Versions to disable, comma seperated (i.e. 0.11.0,0.11.1)")
+	tfvDisableCmd.Flags().StringSliceP("versions", "v", []string{}, "Versions to disable, can be comma seperated (i.e. 0.11.0,0.11.1)")
+	tfvDisableCmd.MarkFlagRequired("versions")
+
+	// `tfx tfv enable`
+	tfvEnableCmd.Flags().StringSliceP("versions", "v", []string{}, "Versions to enable, can be comma seperated (i.e. 0.11.0,0.11.1)")
+	tfvEnableCmd.MarkFlagRequired("versions")
 
 	rootCmd.AddCommand(tfvCmd)
 	tfvCmd.AddCommand(tfvListCmd)
@@ -142,6 +176,9 @@ func init() {
 	tfvCmd.AddCommand(tfvShowCmd)
 	tfvCmd.AddCommand(tfvDeleteCmd)
 	tfvCmd.AddCommand(tfvDisableCmd)
+	tfvDisableCmd.AddCommand(tfvDisableAllCmd)
+	tfvCmd.AddCommand(tfvEnableCmd)
+	tfvEnableCmd.AddCommand(tfvEnableAllCmd)
 }
 
 func tfvList() error {
@@ -369,57 +406,103 @@ func tfvDelete() error {
 }
 
 func tfvDisable() error {
-	all := *viperBool("all")
 	versions := viperStringSlice("versions")
-	if len(versions) == 0 && !all {
-		logError(errors.New(""), "No Versions provided")
-	}
 
-	if all {
-		fmt.Println("Disabling All Terraform Versions that are not in use")
-	}
+	setTfvEnabledFlag(versions, false)
+
+	return nil
+}
+
+func tfvDisableAll() error {
+	fmt.Println("Disabling All Terraform Versions that are not in use")
+	setTfvEnabledFlagAll(false)
+
+	return nil
+}
+
+func tfvEnable() error {
+	versions := viperStringSlice("versions")
+
+	setTfvEnabledFlag(versions, true)
+
+	return nil
+}
+
+func tfvEnableAll() error {
+	fmt.Println("Enabling All Terraform Versions")
+	setTfvEnabledFlagAll(true)
+
+	return nil
+}
+
+func setTfvEnabledFlag(versions []string, enabled bool) error {
 	client, ctx := getClientContext()
-
 	allTFV, err := getAllTerraformVersions(ctx, client)
 	if err != nil {
-		logError(err, "failed to read all terraform versions")
+		return errors.New("failed to read all terraform versions")
 	}
 
-	for _, s := range allTFV {
-		// if not all, then see if version is passed in
-		if !all {
-			found := false
-			for _, v := range versions {
-				if s.Version == v {
-					found = true
-				}
-			}
-			// not found, skip version
-			if !found {
-				continue
+	// loop on passed in versions
+	for _, v := range versions {
+		var foundVersion *tfe.AdminTerraformVersion
+		for _, s := range allTFV {
+			if s.Version == v {
+				foundVersion = s
 			}
 		}
-
-		currentTFV, err := client.Admin.TerraformVersions.Read(ctx, s.ID)
-		if err != nil { //this should never happen
-			logWarning(err, "failed to read terraform version: "+s.Version)
-		}
-		if !currentTFV.Enabled { //already disabled, skip
-			fmt.Println("Terraform Version already disabled: ", color.BlueString(s.Version))
-			continue
-		}
-		if currentTFV.Usage > 0 { //can not disable a version with usage
-			fmt.Println(color.RedString("Terraform Version in use: "), color.BlueString(s.Version))
+		// not found, skip version
+		if foundVersion == nil {
+			logWarning(err, "failed to find terraform version: "+v)
 			continue
 		}
 
-		_, err = client.Admin.TerraformVersions.Update(ctx, s.ID, tfe.AdminTerraformVersionUpdateOptions{
-			Enabled: tfe.Bool(false),
+		if foundVersion.Enabled == enabled { //already set, skip
+			fmt.Println("Terraform Version", color.BlueString(foundVersion.Version), "is already", color.GreenString(strconv.FormatBool(enabled)))
+			continue
+		}
+		if !enabled && foundVersion.Usage > 0 { //can not disable a version with usage
+			fmt.Println(color.RedString("Terraform Version in use"), color.BlueString(foundVersion.Version))
+			continue
+		}
+
+		_, err = client.Admin.TerraformVersions.Update(ctx, foundVersion.ID, tfe.AdminTerraformVersionUpdateOptions{
+			Enabled: tfe.Bool(enabled),
 		})
 		if err == nil {
-			fmt.Println("Terraform Versions disabled: ", color.BlueString(s.Version))
+			fmt.Println("Terraform Versions", color.BlueString(foundVersion.Version), "is now set to", color.GreenString(strconv.FormatBool(enabled)))
 		} else {
-			fmt.Println(color.RedString("Unable to update Terraform Version: "), color.BlueString(s.Version))
+			fmt.Println(color.RedString("Unable to update Terraform Version "), color.BlueString(foundVersion.Version))
+		}
+	}
+
+	return nil
+}
+
+func setTfvEnabledFlagAll(enabled bool) error {
+	client, ctx := getClientContext()
+	allTFV, err := getAllTerraformVersions(ctx, client)
+	if err != nil {
+		return errors.New("failed to read all terraform versions")
+	}
+
+	// loop on all versions
+	for _, v := range allTFV {
+		if v.Enabled == enabled { //already set, skip
+			fmt.Println("Terraform Version", color.BlueString(v.Version), "is already", color.GreenString(strconv.FormatBool(enabled)))
+			continue
+		}
+		if !enabled && v.Usage > 0 { //can not disable a version with usage
+			fmt.Println(color.RedString("Terraform Version in use"), color.BlueString(v.Version))
+			continue
+		}
+
+		_, err = client.Admin.TerraformVersions.Update(ctx, v.ID, tfe.AdminTerraformVersionUpdateOptions{
+			Enabled: tfe.Bool(enabled),
+		})
+		if err == nil {
+			fmt.Println("Terraform Versions", color.BlueString(v.Version), "is now set to", color.GreenString(strconv.FormatBool(enabled)))
+		} else {
+			fmt.Println(color.RedString("Unable to update Terraform Version "), color.BlueString(v.Version))
 		}
 	}
 
