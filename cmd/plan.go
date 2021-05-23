@@ -1,24 +1,23 @@
-/*
-Copyright © 2021 Tom Straub <github.com/straubt1>
+// Copyright © 2021 Tom Straub <github.com/straubt1>
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-*/
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
 package cmd
 
 import (
@@ -80,7 +79,7 @@ func runPlan() error {
 	orgName := *viperString("tfeOrganization")
 	wsName := *viperString("workspaceName")
 	dir := *viperString("directory")
-	configId := *viperString("configurationId")
+	configID := *viperString("configurationId")
 	isSpeculative := *viperBool("speculative")
 	isDestroy := *viperBool("destroy")
 	envs, err := viperStringSliceMap("env")
@@ -109,7 +108,7 @@ func runPlan() error {
 	}
 
 	// Create config version
-	cv, err := createOrReadConfigurationVersion(ctx, client, w.ID, configId, dir, isSpeculative)
+	cv, err := createOrReadConfigurationVersion(ctx, client, w.ID, configID, dir, isSpeculative)
 	if err != nil {
 		logError(err, "failed to create configuration version")
 	}
@@ -154,18 +153,18 @@ func runPlan() error {
 }
 
 func runPlanExport() error {
-	planId := *viperString("planId")
+	planID := *viperString("planId")
 	directory := *viperString("directory")
 	client, ctx := getClientContext()
 
-	fmt.Print("Reading Plan Export for Plan ID ", color.GreenString(planId), " ...")
-	plan, err := client.Plans.Read(ctx, planId)
+	fmt.Print("Reading Plan Export for Plan ID ", color.GreenString(planID), " ...")
+	plan, err := client.Plans.Read(ctx, planID)
 	if err != nil {
 		logError(err, "failed to read Plan ")
 	}
 	fmt.Println(" Found")
 
-	var planExportId string
+	var planExportID string
 	if plan.Exports == nil {
 		fmt.Print("Creating Plan Export ...")
 		planExport, err := client.PlanExports.Create(ctx, tfe.PlanExportCreateOptions{
@@ -175,13 +174,13 @@ func runPlanExport() error {
 		if err != nil {
 			logError(err, "failed to read Plan ")
 		}
-		planExportId = planExport.ID
+		planExportID = planExport.ID
 	} else {
 		fmt.Print("Found existing Plan Export ...")
-		planExportId = plan.Exports[0].ID // Just grab the first one?
+		planExportID = plan.Exports[0].ID // Just grab the first one?
 	}
-	fmt.Println("ID ", color.BlueString(planExportId))
-	buff, err := client.PlanExports.Download(ctx, planExportId)
+	fmt.Println("ID ", color.BlueString(planExportID))
+	buff, err := client.PlanExports.Download(ctx, planExportID)
 	if err != nil {
 		logError(err, "failed to download plan export")
 	}

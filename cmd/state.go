@@ -1,24 +1,23 @@
-/*
-Copyright © 2021 Tom Straub <github.com/straubt1>
+// Copyright © 2021 Tom Straub <github.com/straubt1>
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-*/
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
 package cmd
 
 import (
@@ -171,12 +170,12 @@ func stateList() error {
 func stateDownload() error {
 	orgName := *viperString("tfeOrganization")
 	wsName := *viperString("workspaceName")
-	stateId := *viperString("stateId")
+	stateID := *viperString("stateId")
 	serial := *viperInt64("serial") //-1 is default
 	filename := *viperString("filename")
-	if stateId == "" && serial == -1 {
+	if stateID == "" && serial == -1 {
 		logError(errors.New(""), "serial or state id must be supplied")
-	} else if stateId != "" && serial != -1 {
+	} else if stateID != "" && serial != -1 {
 		logError(errors.New(""), "only one can be supplied [serial or state id]")
 	}
 	if serial != -1 && wsName == "" {
@@ -186,10 +185,10 @@ func stateDownload() error {
 
 	var st *tfe.StateVersion
 	var err error
-	if stateId != "" {
+	if stateID != "" {
 		// Read State Version
-		fmt.Print("Reading State Version with ID ", color.GreenString(stateId), " ... ")
-		st, err = client.StateVersions.ReadWithOptions(ctx, stateId, &tfe.StateVersionReadOptions{
+		fmt.Print("Reading State Version with ID ", color.GreenString(stateID), " ... ")
+		st, err = client.StateVersions.ReadWithOptions(ctx, stateID, &tfe.StateVersionReadOptions{
 			Include: "outputs",
 		})
 		if err != nil {
@@ -243,6 +242,7 @@ type StateFile struct {
 
 // to create a state file, the serial needs incremented and the lineage must match.
 // reads the Workspace to increment serial and maintain lineage
+// TODO: unlock workspace if theres an error
 func stateCreate() error {
 	// Validate flags
 	orgName := *viperString("tfeOrganization")
@@ -266,7 +266,19 @@ func stateCreate() error {
 	if err != nil {
 		logError(err, "failed to read workspace id")
 	}
-	fmt.Println(" Found:", w.ID)
+	fmt.Println(" Found:", color.BlueString(w.ID))
+
+	// Get current State Version, so we can increment the serial
+	fmt.Print("Reading Current State Version ...")
+	currentState, err := client.StateVersions.Current(ctx, w.ID)
+	if err != nil {
+		logError(err, "failed to read current state versions")
+	}
+	fmt.Println("Found")
+	newSerial := currentState.Serial + 1
+	fmt.Println("Current State Version Serial:", color.BlueString(strconv.FormatInt(currentState.Serial, 10)))
+	fmt.Println("New State Version Serial:", color.BlueString(strconv.FormatInt(newSerial, 10)))
+	fmt.Println()
 
 	// Read state file so we can get info (serial, lineage, etc...)
 	var st StateFile
@@ -274,14 +286,13 @@ func stateCreate() error {
 	if err != nil {
 		logError(err, "failed to marshal state file")
 	}
-	fmt.Println("Reading State file ", color.GreenString(filename), " ...")
+	fmt.Println("Parsing State file ", color.GreenString(filename), " ...")
 	fmt.Println(color.BlueString("Lineage:    "), st.Lineage)
 	fmt.Println(color.BlueString("Serial:     "), st.Serial)
 	fmt.Println(color.BlueString("Version:    "), st.Version)
 	fmt.Println(color.BlueString("Terraform:  "), st.TerraformVersion)
 	fmt.Println()
 
-	newSerial := st.Serial + 1
 	newContentString, err := sjson.Set(contentString, "serial", newSerial)
 	newContent := []byte(newContentString)
 	if err != nil {
@@ -326,11 +337,11 @@ func stateCreate() error {
 func stateShow() error {
 	orgName := *viperString("tfeOrganization")
 	wsName := *viperString("workspaceName")
-	stateId := *viperString("stateId")
+	stateID := *viperString("stateId")
 	serial := *viperInt64("serial") //-1 is default
-	if stateId == "" && serial == -1 {
+	if stateID == "" && serial == -1 {
 		logError(errors.New(""), "serial or state id must be supplied")
-	} else if stateId != "" && serial != -1 {
+	} else if stateID != "" && serial != -1 {
 		logError(errors.New(""), "only one can be supplied [serial or state id]")
 	}
 	if serial != -1 && wsName == "" {
@@ -340,10 +351,10 @@ func stateShow() error {
 
 	var st *tfe.StateVersion
 	var err error
-	if stateId != "" {
+	if stateID != "" {
 		// Read State Version
-		fmt.Print("Reading State Version with ID ", color.GreenString(stateId), " ... ")
-		st, err = client.StateVersions.ReadWithOptions(ctx, stateId, &tfe.StateVersionReadOptions{
+		fmt.Print("Reading State Version with ID ", color.GreenString(stateID), " ... ")
+		st, err = client.StateVersions.ReadWithOptions(ctx, stateID, &tfe.StateVersionReadOptions{
 			Include: "outputs",
 		})
 		if err != nil {

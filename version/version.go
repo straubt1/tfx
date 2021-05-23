@@ -5,6 +5,7 @@ var (
 	Prerelease = "dev"
 	Build      = ""
 	Date       = ""
+	BuiltBy    = ""
 )
 
 func String() string {
@@ -18,5 +19,7 @@ func String() string {
 	if Date != "" {
 		v += "\nDate:  " + Date
 	}
+	v += "\nBuilt By:  " + BuiltBy
+
 	return v
 }

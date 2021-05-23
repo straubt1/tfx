@@ -170,6 +170,7 @@ Managing Workspace State Files (State Versions).
 - A Workspace must be locked to create new State Versions
 - The "serial" attribute must be incremented
 - The "lineage" attribute must be the same for any newly created State Version
+- The API does not return a state versions lineage, you must download the file and parse to get the lineage
 
 ### `tfx tfv`
 

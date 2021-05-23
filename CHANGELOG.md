@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 * `tfx plan export` added flag to supply a directory
+* Added "Built By" output on version to help originate a build
 
 ### Removed
 
