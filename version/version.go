@@ -17,9 +17,9 @@ func String() string {
 		v += "\nBuild: " + Build
 	}
 	if Date != "" {
-		v += "\nDate:  " + Date
+		v += "\nDate: " + Date
 	}
-	v += "\nBuilt By:  " + BuiltBy
+	v += "\nBuilt By: " + BuiltBy
 
 	return v
 }
