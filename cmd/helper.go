@@ -455,3 +455,20 @@ func getAllTerraformVersions(ctx context.Context, client *tfe.Client) ([]*tfe.Ad
 
 	return tfvItems, nil
 }
+
+// get specific terraform version
+func getTerraformVersion(ctx context.Context, client *tfe.Client, version string) (*tfe.AdminTerraformVersion, error) {
+	tfvItems, err := getAllTerraformVersions(ctx, client)
+	if err != nil {
+		return nil, errors.New("failed to read all terraform versions")
+	}
+
+	for _, s := range tfvItems {
+		// if s.Enabled {
+		if s.Version == version {
+			return s, nil
+		}
+	}
+
+	return nil, errors.New("failed to find terraform versions")
+}

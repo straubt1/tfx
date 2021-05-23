@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * show
   * download
   * create
+* `tfx tfv` commands
+  * list
+  * show
+  * create
+  * create official
+  * delete
 
 ### Changed
 

@@ -171,6 +171,21 @@ Managing Workspace State Files (State Versions).
 - The "serial" attribute must be incremented
 - The "lineage" attribute must be the same for any newly created State Version
 
+### `tfx tfv`
+
+Managing Terraform Versions in a Terraform Enterprise install (TFE only).
+
+`tfx tfv list` - List all Terraform Versions for a TFE install
+
+`tfx tfv show` - Show version details for a supplied Terraform Version or Version Id
+
+`tfx tfv delete` - Delete a version of a supplied Terraform Version or Version Id
+
+`tfx tfv create` - Create a Terraform Version
+
+`tfx tfv create official` - Create an official Terraform Version from releases.hashicorp.com
+
+
 ## Potential Future Commands
 
 Additional commands to implement.

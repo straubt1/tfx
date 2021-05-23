@@ -24,9 +24,12 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/fatih/color"
 	tfe "github.com/hashicorp/go-tfe"
@@ -58,6 +61,16 @@ var (
 		Long:  "Create Terraform Version for a TFx install.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return tfvCreate()
+		},
+		PreRun: bindPFlags,
+	}
+
+	tfvCreateOfficialCmd = &cobra.Command{
+		Use:   "official",
+		Short: "Create Terraform Version Official",
+		Long:  "Create Terraform Version Official for a TFx install.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return tfvCreateOfficial()
 		},
 		PreRun: bindPFlags,
 	}
@@ -107,13 +120,16 @@ func init() {
 	tfvCreateCmd.MarkFlagRequired("url")
 	tfvCreateCmd.MarkFlagRequired("sha")
 
+	// `tfx tfv create official`
+	tfvCreateOfficialCmd.Flags().StringP("version", "v", "", "Version of Terraform (i.e. 0.15.0)")
+
 	// `tfx tfv show`
 	tfvShowCmd.Flags().StringP("versionId", "i", "", "Terraform Version Id (i.e. tool-*)")
-	tfvShowCmd.MarkFlagRequired("versionId")
+	tfvShowCmd.Flags().StringP("version", "v", "", "Terraform Version (i.e. 0.15.0)")
 
 	// `tfx tfv delete`
 	tfvDeleteCmd.Flags().StringP("versionId", "i", "", "Terraform Version Id (i.e. tool-*)")
-	tfvDeleteCmd.MarkFlagRequired("versionId")
+	tfvDeleteCmd.Flags().StringP("version", "v", "", "Terraform Version (i.e. 0.15.0)")
 
 	// `tfx tfv disable`
 	tfvDisableCmd.Flags().BoolP("all", "a", false, "Disable All")
@@ -122,6 +138,7 @@ func init() {
 	rootCmd.AddCommand(tfvCmd)
 	tfvCmd.AddCommand(tfvListCmd)
 	tfvCmd.AddCommand(tfvCreateCmd)
+	tfvCreateCmd.AddCommand(tfvCreateOfficialCmd)
 	tfvCmd.AddCommand(tfvShowCmd)
 	tfvCmd.AddCommand(tfvDeleteCmd)
 	tfvCmd.AddCommand(tfvDisableCmd)
@@ -193,19 +210,102 @@ func tfvCreate() error {
 	return nil
 }
 
-func tfvShow() error {
-	// Validate flags
-	vId := *viperString("versionId")
+func tfvCreateOfficial() error {
+	version, err := viperSemanticVersionString("version")
+	if err != nil {
+		logError(err, "failed to parse semantic version")
+	}
+
+	fmt.Print("Looking for official Terraform Version: ", color.GreenString(version), " ...")
+	url := fmt.Sprintf(
+		"https://releases.hashicorp.com/terraform/%s/terraform_%s_linux_amd64.zip",
+		version,
+		version,
+	)
+	// read checksum file
+	urlSha := fmt.Sprintf(
+		"https://releases.hashicorp.com/terraform/%s/terraform_%s_SHA256SUMS",
+		version,
+		version,
+	)
+	clientChecksum := &http.Client{}
+	req, err := http.NewRequest("GET", urlSha, nil)
+	if err != nil {
+		logError(err, "failed to create checksum request")
+	}
+
+	resp, err := clientChecksum.Do(req)
+	if err != nil || resp.StatusCode != 200 {
+		logError(err, "failed to request checksum")
+	}
+	defer resp.Body.Close()
+
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logError(err, "failed to read checksum")
+	}
+	// split by new line
+	var sha string
+	lines := strings.Split(string(b), "\n")
+	for _, l := range lines {
+		// looks for linux version
+		if strings.Contains(l, "linux_amd64") {
+			// only grab the checksum
+			innerLines := strings.Split(l, " ")
+			sha = innerLines[0]
+			break
+		}
+	}
+	fmt.Println("Found")
 
 	client, ctx := getClientContext()
 
-	// Read Terraform Version
-	fmt.Print("Reading Terraform Version with ID ", color.GreenString(vId), "...")
-	tfv, err := client.Admin.TerraformVersions.Read(ctx, vId)
+	// Create Terraform Version
+	fmt.Print("Creating Terraform Version ...")
+	tfv, err := client.Admin.TerraformVersions.Create(ctx, tfe.AdminTerraformVersionCreateOptions{
+		Version:  tfe.String(version),
+		URL:      tfe.String(url),
+		Sha:      tfe.String(sha),
+		Official: tfe.Bool(true),
+		Enabled:  tfe.Bool(true),
+		Beta:     tfe.Bool(false),
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(" Found")
+	fmt.Println(" ID:", tfv.ID)
+
+	return nil
+}
+
+func tfvShow() error {
+	vId := *viperString("versionId")
+	v := *viperString("version")
+	if vId == "" && v == "" {
+		logError(errors.New(""), "version or version id must be supplied")
+	} else if vId != "" && v != "" {
+		logError(errors.New(""), "only one can be supplied [version or version id]")
+	}
+	client, ctx := getClientContext()
+
+	var tfv *tfe.AdminTerraformVersion
+	var err error
+	if vId != "" {
+		// Read Terraform Version
+		fmt.Print("Reading Terraform Version with ID ", color.GreenString(vId), "...")
+		tfv, err = client.Admin.TerraformVersions.Read(ctx, vId)
+		if err != nil {
+			logError(err, "failed to find version id")
+		}
+		fmt.Println(" Found")
+	} else {
+		fmt.Print("Reading Terraform Version  ", color.GreenString(v), "...")
+		tfv, err = getTerraformVersion(ctx, client, v)
+		if err != nil {
+			logError(err, "failed to find version")
+		}
+		fmt.Println(" Found")
+	}
 	fmt.Println(color.BlueString("Version:   "), tfv.Version)
 	fmt.Println(color.BlueString("ID:        "), tfv.ID)
 	fmt.Println(color.BlueString("URL:       "), tfv.URL)
@@ -218,20 +318,50 @@ func tfvShow() error {
 }
 
 func tfvDelete() error {
-	// Validate flags
 	vId := *viperString("versionId")
+	v := *viperString("version")
+	if vId == "" && v == "" {
+		logError(errors.New(""), "version or version id must be supplied")
+	} else if vId != "" && v != "" {
+		logError(errors.New(""), "only one can be supplied [version or version id]")
+	}
 	client, ctx := getClientContext()
 
-	// TODO: force official provider to false, then delete.
-	// Need to verify an update wont bring these back
-	// client.Admin.TerraformVersions.Update(ctx, vId, tfe.AdminTerraformVersionUpdateOptions{
-	// 	Official: tfe.Bool(false),
-	// })
+	var tfv *tfe.AdminTerraformVersion
+	var err error
+	if vId != "" {
+		// Read Terraform Version
+		fmt.Print("Reading Terraform Version with ID ", color.GreenString(vId), "...")
+		tfv, err = client.Admin.TerraformVersions.Read(ctx, vId)
+		if err != nil {
+			logError(err, "failed to find version id")
+		}
+		fmt.Println(" Found")
+	} else {
+		fmt.Print("Reading Terraform Version  ", color.GreenString(v), "...")
+		tfv, err = getTerraformVersion(ctx, client, v)
+		if err != nil {
+			logError(err, "failed to find version")
+		}
+		fmt.Println(" Found")
+	}
+
+	// TODO: Need to verify an update wont bring these back
+	if tfv.Official {
+		fmt.Println("Forcing Terraform Version to be unofficial")
+		tfv, err = client.Admin.TerraformVersions.Update(ctx, tfv.ID, tfe.AdminTerraformVersionUpdateOptions{
+			Official: tfe.Bool(false),
+		})
+		if err != nil {
+			logError(err, "failed to set version to official = false")
+		}
+	}
+
 	// Delete Terraform Version
-	fmt.Print("Deleting Terraform Version ID ", color.GreenString(vId), "...")
-	err := client.Admin.TerraformVersions.Delete(ctx, vId)
+	fmt.Print("Deleting Terraform Version ID ", color.GreenString(tfv.ID), "...")
+	err = client.Admin.TerraformVersions.Delete(ctx, tfv.ID)
 	if err != nil {
-		log.Fatal(err)
+		logError(err, "failed to delete version")
 	}
 	fmt.Println(" Deleted")
 
@@ -239,7 +369,6 @@ func tfvDelete() error {
 }
 
 func tfvDisable() error {
-	// Validate flags
 	all := *viperBool("all")
 	versions := viperStringSlice("versions")
 	if len(versions) == 0 && !all {
@@ -293,7 +422,6 @@ func tfvDisable() error {
 			fmt.Println(color.RedString("Unable to update Terraform Version: "), color.BlueString(s.Version))
 		}
 	}
-	_ = all
 
 	return nil
 }
