@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * `list` - List all workspaces in an Organization (optional workspace name search string) 
   * `list all` - List all workspaces in All Organizations the API token has access to (optional workspace name search string) 
   * `show` - Show details of a workspace
+* `tfx metrics` command to pull details about TFx
+  * Organization Count
+  * Workspace Count
+  * Run Count
+  * Policy Check Count
+  * Policies Pass/Fail Count
 
 ### Changed
 

@@ -24,6 +24,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/fatih/color"
 	tfe "github.com/hashicorp/go-tfe"
@@ -44,14 +45,12 @@ var (
 )
 
 func init() {
-	// `tfx metrics`
-	// metricsCmd.Flags().StringP("version", "v", "", "Version of Terraform (i.e. 0.15.0)")
-
 	rootCmd.AddCommand(metricsCmd)
 }
 
 func metricsRun() error {
 
+	fmt.Println("Getting metrics for all organizations and workspaces...", color.HiYellowString("this can take some time to complete..."))
 	results, err := getAllMetrics()
 	if err != nil {
 		logError(err, "failed to get all metrics")
@@ -67,16 +66,24 @@ type MetricsAll struct {
 	WorkspaceCount    int      `json:"WorkspaceCount"`
 	Workspaces        []string `json:"Workspaces"`
 	RunCount          int      `json:"RunCount"`
+	PolicyCheckCount  int      `json:"PolicyCheckCount"`
+	PoliciesPassCount int      `json:"PoliciesPassCount"`
+	PoliciesFailCount int      `json:"PoliciesFailCount"`
+	QueryTime         string   `json:"QueryTime"`
 }
 
 type MetricsWorkspaces struct {
-	WorkspaceCount int      `json:"WorkspaceCount"`
-	Workspaces     []string `json:"Workspaces"`
-	RunCount       int      `json:"RunCount"`
+	WorkspaceCount    int      `json:"WorkspaceCount"`
+	Workspaces        []string `json:"Workspaces"`
+	RunCount          int      `json:"RunCount"`
+	PolicyCheckCount  int      `json:"PolicyCheckCount"`
+	PoliciesPassCount int      `json:"PoliciesPassCount"`
+	PoliciesFailCount int      `json:"PoliciesFailCount"`
 }
 
 func getAllMetrics() (*MetricsAll, error) {
 	result := &MetricsAll{}
+	start := time.Now()
 	client, ctx := getClientContext()
 
 	orgs, err := getAllOrganizations(ctx, client)
@@ -99,7 +106,13 @@ func getAllMetrics() (*MetricsAll, error) {
 		}
 		result.WorkspaceCount += ws.WorkspaceCount
 		result.RunCount += ws.RunCount
+		result.PolicyCheckCount += ws.PolicyCheckCount
+		result.PoliciesPassCount += ws.PoliciesPassCount
+		result.PoliciesFailCount += ws.PoliciesFailCount
 	}
+
+	elapsed := time.Since(start)
+	result.QueryTime = elapsed.String()
 
 	return result, nil
 }
@@ -150,16 +163,32 @@ func getAllOrganizationWorkspaces(ctx context.Context, client *tfe.Client, orgNa
 			return nil, err
 		}
 		result.RunCount += len(runs.Items)
+		for _, r := range runs.Items {
+			result.PolicyCheckCount += len(r.PolicyChecks)
+			for _, p := range r.PolicyChecks {
+				pFull, _ := client.PolicyChecks.Read(ctx, p.ID)
+				if pFull != nil {
+					if pFull.Result != nil {
+						result.PoliciesPassCount += pFull.Result.Passed
+						result.PoliciesFailCount += pFull.Result.TotalFailed
+					}
+				}
+			}
+		}
 	}
 
 	return result, nil
 }
 
 func printMetricsTable(m *MetricsAll) error {
-	fmt.Println(color.BlueString("Organization Count:   "), m.OrganizationCount)
-	// fmt.Println(color.BlueString("Organization Count:   "), m.Organizations[0])
-
-	fmt.Println(color.BlueString("Workspace Count:   "), m.WorkspaceCount)
-	fmt.Println(color.BlueString("Run Count:   "), m.RunCount)
+	fmt.Println(color.BlueString("Organization Count:       "), m.OrganizationCount)
+	fmt.Println(color.BlueString("Workspace Count:          "), m.WorkspaceCount)
+	fmt.Println(color.BlueString("Run Count:                "), m.RunCount)
+	fmt.Println(color.BlueString("Policy Check Count:       "), m.PolicyCheckCount)
+	fmt.Println(color.BlueString("Policies Passed Count:    "), m.PoliciesPassCount)
+	fmt.Println(color.BlueString("Policies Failed Count:    "), m.PoliciesFailCount)
+	fmt.Println()
+	fmt.Println("Metrics Query Time:", color.YellowString(m.QueryTime))
+	// fmt.Println(m)
 	return nil
 }
