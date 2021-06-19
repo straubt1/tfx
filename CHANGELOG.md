@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * TFE_HOSTNAME
   * TFE_ORGANIZATION
   * TFE_TOKEN
+* Added "message" flag to `tfx run` and `tfx plan` commands. ([8](https://github.com/straubt1/tfx/issues/8))
 
 ### Changed
 
