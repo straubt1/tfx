@@ -18,8 +18,8 @@ Often times these tasks are part of my pipeline, but could also be administrativ
 
 **Common API-Driven Workflow Challenges:**
 
-- The CLI-Driven workflow presents several gaps in creating more advanced pipelines a Workspace run, specifically the inability to insert a gate check between a plan and apply, (in other words you must run a `terraform apply -auto-approve`).
-- The CLI driven workflow requires a `terraform init` that forces a download of providers before a plan can be called remotely, these providers are never actually used on the local host and can be difficult to source in airgap environments.
+- The CLI-Driven workflow presents several challenges when creating more advanced pipelines for a Workspace run, specifically the inability to insert a gate check between a plan and apply, (in other words you must run a `terraform apply -auto-approve`).
+- The CLI driven workflow requires a `terraform init` that forces a download of providers before a plan can be called remotely, these providers are never actually used on the local host and can be difficult to source airgapped environments.
 - Implementing an API-Driven workflow requires several API calls to perform a plan/apply.
 - It is unlikely that the full range of features will be built into [Terraform](https://github.com/hashicorp/terraform).
 - Developing CI/CD specific plugins for even the most common tools is not feasible, and ignores the ability to run the commands locally.
@@ -66,9 +66,9 @@ For convenience this file will automatically load if it is in the hosts home dir
 Example:
 `./.tfx.hcl`
 ```hcl
-tfeHostname     = "tfe.rocks" (omit to default to TFC)
+tfeHostname     = "tfe.rocks" (omit to default to Terraform Cloud)
 tfeOrganization = "my-awesome-org"
-tfeToken        = "<Generated from TFx>"
+tfeToken        = "<Generated from Terraform Enterprise or Terraform Cloud>"
 ```
 
 You can also specify this file via the `--config` flag.
@@ -107,6 +107,8 @@ tfx apply -r <run-id>
 Create a plan to execute on TFx.
 
 `tfx plan` - Create a Workspace plan based on a current directory
+
+`tfx plan export` - Create and download a Sentinel Mock from a plan
 
 ### `tfx apply`
 
