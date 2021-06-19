@@ -55,12 +55,14 @@ Each command has the ability to pass in parameters via flags, several are requir
 
 Example:
 ```
-  --tfeHostname string       The hostname of TFE without the schema (defaults to TFE app.terraform.io). (default "app.terraform.io")
-  --tfeOrganization string   The name of the TFx Organization.
-  --tfeToken string          The API token used to authenticate to TFx.
+  --tfeHostname string       The hostname of TFE without the schema. Can also be set with the environment variable TFE_HOSTNAME. (default "app.terraform.io")
+  --tfeOrganization string   The name of the TFx Organization. Can also be set with the environment variable TFE_ORGANIZATION.
+  --tfeToken string          The API token used to authenticate to TFx. Can also be set with the environment variable TFE_TOKEN.
 ```
 
 Flags can also be created in a configuration file with the file name ".tfx.hcl".
+Flags can also be set via environment values by using a key that is capitalized version of the flag.
+
 For convenience this file will automatically load if it is in the hosts home directory or current working directory.
 
 Example:

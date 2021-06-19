@@ -64,13 +64,18 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file, can be used to store common flags, (default is ./.tfx.hcl).")
-	rootCmd.PersistentFlags().String("tfeHostname", "app.terraform.io", "The hostname of TFE without the schema (defaults to TFE app.terraform.io).")
-	rootCmd.PersistentFlags().String("tfeOrganization", "", "The name of the TFx Organization.")
-	rootCmd.PersistentFlags().String("tfeToken", "", "The API token used to authenticate to TFx.")
+	rootCmd.PersistentFlags().String("tfeHostname", "app.terraform.io", "The hostname of TFE without the schema. Can also be set with the environment variable TFE_HOSTNAME.")
+	rootCmd.PersistentFlags().String("tfeOrganization", "", "The name of the TFx Organization. Can also be set with the environment variable TFE_ORGANIZATION.")
+	rootCmd.PersistentFlags().String("tfeToken", "", "The API token used to authenticate to TFx. Can also be set with the environment variable TFE_TOKEN.")
 
 	// required
 	rootCmd.MarkPersistentFlagRequired("tfeOrganization")
 	rootCmd.MarkPersistentFlagRequired("tfeToken")
+
+	// ENV aliases
+	viper.BindEnv("tfeHostname", "TFE_HOSTNAME")
+	viper.BindEnv("tfeOrganization", "TFE_ORGANIZATION")
+	viper.BindEnv("tfeToken", "TFE_TOKEN")
 }
 
 // initConfig reads in config file and ENV variables if set.

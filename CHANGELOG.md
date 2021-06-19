@@ -9,9 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* hostname, organization and token can now be set with the respective environment values to align with [TFE Provider](https://registry.terraform.io/providers/hashicorp/tfe/latest/docs). ([#7](https://github.com/straubt1/tfx/issues/7))
+  * TFE_HOSTNAME
+  * TFE_ORGANIZATION
+  * TFE_TOKEN
+
 ### Changed
 
-- Cleaned up docs
+* Cleaned up docs
 
 ### Removed
 
