@@ -181,14 +181,9 @@ func init() {
 }
 
 func tfvList() error {
-	// Validate flags
-	// orgName := *viperString("tfeOrganization")
-	// wsName := *viperString("workspaceName")
-	// filterEnabled := *viperString("enabled")
 	client, ctx := getClientContext()
 
 	// Read all versions through pagination
-	// var err error
 	tfvItems, err := getAllTerraformVersions(ctx, client)
 	if err != nil {
 		logError(err, "failed to read all terraform versions")
