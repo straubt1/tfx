@@ -198,6 +198,14 @@ Managing Terraform Versions in a Terraform Enterprise install (TFE only).
 
 `tfx tfv enable all` - Enables all Terraform Versions
 
+### `tfe workspace`
+
+`tfx workspace list`
+- Using the "--search" flag allows filtering by workspaces with a given string
+- Using the "--run-status" flag allows filtering by workspaces with a current run with a given status (full list of available run statuses can be found [here](https://www.terraform.io/docs/cloud/api/run.html#run-states))
+
+`tfx workspace list all`
+- Using the "--search" flag allows filtering by workspaces with a given string
 
 ## Potential Future Commands
 

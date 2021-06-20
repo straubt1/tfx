@@ -23,6 +23,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -77,6 +78,7 @@ var (
 func init() {
 	// `tfx workspace list`
 	workspaceListCmd.Flags().StringP("search", "s", "", "Search string for Workspace Name (optional).")
+	workspaceListCmd.Flags().String("run-status", "", "Filter on current run status (optional).")
 
 	// `tfx workspace list all`
 	workspaceListAllCmd.Flags().StringP("search", "s", "", "Search string for Workspace Name (optional).")
@@ -94,6 +96,11 @@ func init() {
 func workspaceList() error {
 	orgName := *viperString("tfeOrganization")
 	searchString := *viperString("search")
+	runStatus := *viperString("run-status")
+	if !validateRunStatus(runStatus) {
+		logError(errors.New("run status given is now allowed"), "failed to supply a valid run status")
+	}
+
 	client, ctx := getClientContext()
 
 	if searchString == "" {
@@ -104,6 +111,13 @@ func workspaceList() error {
 	workspaceList, err := getAllWorkspaces(ctx, client, orgName, searchString)
 	if err != nil {
 		logError(err, "failed to list workspaces")
+	}
+
+	if runStatus != "" {
+		workspaceList, err = filterWorkspaces(workspaceList, runStatus)
+		if err != nil {
+			logError(err, "failed to filter workspaces by run status")
+		}
 	}
 
 	t := table.NewWriter()
@@ -240,6 +254,19 @@ func getAllWorkspaces(ctx context.Context, client *tfe.Client, orgName string, s
 	return workspaceItems, nil
 }
 
+func filterWorkspaces(list []*tfe.Workspace, runStatus string) ([]*tfe.Workspace, error) {
+	var result []*tfe.Workspace
+	for _, w := range list {
+		if w.CurrentRun != nil {
+			if w.CurrentRun.Status == tfe.RunStatus(runStatus) {
+				result = append(result, w)
+			}
+		}
+	}
+
+	return result, nil
+}
+
 func workspaceShow() error {
 	orgName := *viperString("tfeOrganization")
 	wsName := *viperString("workspaceName")
@@ -277,4 +304,17 @@ func workspaceShow() error {
 	}
 
 	return nil
+}
+
+func validateRunStatus(s string) bool {
+	if s == "" {
+		return true
+	}
+	var runStatuses = [...]string{"pending", "plan_queued", "planning", "planned", "cost_estimating", "cost_estimated", "policy_checking", "policy_override", "policy_soft_failed", "policy_checked", "confirmed", "planned_and_finished", "apply_queued", "applying", "applied", "discarded", "errored", "canceled", "force_canceled"}
+	for _, status := range runStatuses {
+		if status == s {
+			return true
+		}
+	}
+	return false
 }
