@@ -75,6 +75,7 @@ func init() {
 
 	// `tfx run create`
 	runCreateCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (defaults to current directory)")
+	runCreateCmd.Flags().StringP("message", "m", "", "Run Message (optional)")
 
 	// `tfx run show`
 	runShowCmd.Flags().StringP("runId", "i", "", "Run Id (i.e. run-*)")
@@ -127,6 +128,7 @@ func runCreate() error {
 	// Validate flags
 	orgName := *viperString("tfeOrganization")
 	wsName := *viperString("workspaceName")
+	message := *viperString("message")
 	client, ctx := getClientContext()
 
 	// Read workspace
@@ -142,7 +144,7 @@ func runCreate() error {
 	run, err := client.Runs.Create(ctx, tfe.RunCreateOptions{
 		Workspace: w,
 		IsDestroy: tfe.Bool(false),
-		Message:   tfe.String("TFx was here"),
+		Message:   tfe.String(message),
 		// ConfigurationVersion: {}
 		// without a CV the run will kick off automatically with the last know CV
 		// this is likely not ideal

@@ -228,7 +228,7 @@ func stateDownload() error {
 	if err != nil {
 		logError(err, "failed to save state version")
 	}
-	fmt.Println("Dowloaded State Version to", color.BlueString(filename))
+	fmt.Println("Downloaded State Version to", color.BlueString(filename))
 
 	return nil
 }

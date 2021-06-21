@@ -18,8 +18,8 @@ Often times these tasks are part of my pipeline, but could also be administrativ
 
 **Common API-Driven Workflow Challenges:**
 
-- The CLI-Driven workflow presents several gaps in creating more advanced pipelines a Workspace run, specifically the inability to insert a gate check between a plan and apply, (in other words you must run a `terraform apply -auto-approve`).
-- The CLI driven workflow requires a `terraform init` that forces a download of providers before a plan can be called remotely, these providers are never actually used on the local host and can be difficult to source in airgap environments.
+- The CLI-Driven workflow presents several challenges when creating more advanced pipelines for a Workspace run, specifically the inability to insert a gate check between a plan and apply, (in other words you must run a `terraform apply -auto-approve`).
+- The CLI driven workflow requires a `terraform init` that forces a download of providers before a plan can be called remotely, these providers are never actually used on the local host and can be difficult to source airgapped environments.
 - Implementing an API-Driven workflow requires several API calls to perform a plan/apply.
 - It is unlikely that the full range of features will be built into [Terraform](https://github.com/hashicorp/terraform).
 - Developing CI/CD specific plugins for even the most common tools is not feasible, and ignores the ability to run the commands locally.
@@ -55,20 +55,22 @@ Each command has the ability to pass in parameters via flags, several are requir
 
 Example:
 ```
-  --tfeHostname string       The hostname of TFE without the schema (defaults to TFE app.terraform.io). (default "app.terraform.io")
-  --tfeOrganization string   The name of the TFx Organization.
-  --tfeToken string          The API token used to authenticate to TFx.
+  --tfeHostname string       The hostname of TFE without the schema. Can also be set with the environment variable TFE_HOSTNAME. (default "app.terraform.io")
+  --tfeOrganization string   The name of the TFx Organization. Can also be set with the environment variable TFE_ORGANIZATION.
+  --tfeToken string          The API token used to authenticate to TFx. Can also be set with the environment variable TFE_TOKEN.
 ```
 
 Flags can also be created in a configuration file with the file name ".tfx.hcl".
+Flags can also be set via environment values by using a key that is capitalized version of the flag.
+
 For convenience this file will automatically load if it is in the hosts home directory or current working directory.
 
 Example:
 `./.tfx.hcl`
 ```hcl
-tfeHostname     = "tfe.rocks" (omit to default to TFC)
+tfeHostname     = "tfe.rocks" (omit to default to Terraform Cloud)
 tfeOrganization = "my-awesome-org"
-tfeToken        = "<Generated from TFx>"
+tfeToken        = "<Generated from Terraform Enterprise or Terraform Cloud>"
 ```
 
 You can also specify this file via the `--config` flag.
@@ -107,6 +109,8 @@ tfx apply -r <run-id>
 Create a plan to execute on TFx.
 
 `tfx plan` - Create a Workspace plan based on a current directory
+
+`tfx plan export` - Create and download a Sentinel Mock from a plan
 
 ### `tfx apply`
 
@@ -194,6 +198,14 @@ Managing Terraform Versions in a Terraform Enterprise install (TFE only).
 
 `tfx tfv enable all` - Enables all Terraform Versions
 
+### `tfe workspace`
+
+`tfx workspace list`
+- Using the "--search" flag allows filtering by workspaces with a given string
+- Using the "--run-status" flag allows filtering by workspaces with a current run with a given status (full list of available run statuses can be found [here](https://www.terraform.io/docs/cloud/api/run.html#run-states))
+
+`tfx workspace list all`
+- Using the "--search" flag allows filtering by workspaces with a given string
 
 ## Potential Future Commands
 

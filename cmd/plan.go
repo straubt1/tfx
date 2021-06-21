@@ -60,6 +60,7 @@ func init() {
 	planCmd.Flags().StringP("workspaceName", "w", "", "Workspace name")
 	planCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (optional, defaults to current directory)")
 	planCmd.Flags().StringP("configurationId", "i", "", "Configuration Version Id (optional, i.e. cv-*)")
+	planCmd.Flags().StringP("message", "m", "", "Run Message (optional)")
 	planCmd.Flags().Bool("speculative", false, "Perform a Speculative Plan (optional)")
 	planCmd.Flags().Bool("destroy", false, "Perform a Destroy Plan (optional)")
 	planCmd.Flags().StringSlice("env", []string{}, "Environment variables to write to the Workspace. Can be suplied multiple times. (optional, i.e. '--env='AWS_REGION=us-east1')")
@@ -81,13 +82,14 @@ func runPlan() error {
 	wsName := *viperString("workspaceName")
 	dir := *viperString("directory")
 	configID := *viperString("configurationId")
+	message := *viperString("message")
 	isSpeculative := *viperBool("speculative")
 	isDestroy := *viperBool("destroy")
 	envs, err := viperStringSliceMap("env")
 	if err != nil {
 		logError(err, "failed to parse provided environment variables")
 	}
-	message := "Plan created by TFx"
+	// message := "Plan created by TFx"
 	client, ctx := getClientContext()
 
 	fmt.Println("Remote Terraform Plan, speculative plan:", color.GreenString(strconv.FormatBool(isSpeculative)),
