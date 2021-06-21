@@ -31,21 +31,21 @@ Binaries are created as part of release, check out the [Release Page](https://gi
 
 **MacOs Installation**
 ```sh
-version="0.0.1-dev"
+version="0.0.2-dev"
 curl -L -o tfx "https://github.com/straubt1/tfx/releases/download/${version}/tfx_darwin_amd64"
 chmod +x tfx
 ```
 
 **Linux Installation**
 ```sh
-version="0.0.1-dev"
+version="0.0.2-dev"
 curl -L -o tfx "https://github.com/straubt1/tfx/releases/download/${version}/tfx_linux_amd64"
 chmod +x tfx
 ```
 
 **Windows Installation**
 ```sh
-version="0.0.1-dev"
+version="0.0.2-dev"
 curl -L -o tfx.exe "https://github.com/straubt1/tfx/releases/download/${version}/tfx_windows_amd64"
 ```
 
