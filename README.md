@@ -207,6 +207,18 @@ Managing Terraform Versions in a Terraform Enterprise install (TFE only).
 `tfx workspace list all`
 - Using the "--search" flag allows filtering by workspaces with a given string
 
+`tfx workspace lock`
+- Lock a given workspace by name, in a given organization
+
+`tfx workspace lock all`
+- Lock all workspaces in a given organization
+
+`tfx workspace unlock`
+- Unlock a given workspace by name, in a given organization
+
+`tfx workspace unlock all`
+- Unlock all workspaces in a given organization
+
 ## Potential Future Commands
 
 Additional commands to implement.

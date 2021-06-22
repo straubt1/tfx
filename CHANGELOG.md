@@ -8,7 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 
+* `tfx workspace lock` - Lock a given workspace by name, in a given organization
+* `tfx workspace lock all` - Lock all workspaces in a given organization
+* `tfx workspace unlock` - Unlock a given workspace by name, in a given organization
+* `tfx workspace unlock all` - Unlock all workspaces in a given organization
+
 ### Changed
+
+* `tfx workspace` commands now sort WS by name
 
 ### Removed
 

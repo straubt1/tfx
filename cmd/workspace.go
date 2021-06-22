@@ -26,6 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -73,6 +74,46 @@ var (
 		},
 		PreRun: bindPFlags,
 	}
+
+	workspaceLockCmd = &cobra.Command{
+		Use:   "lock",
+		Short: "Lock Workspace",
+		Long:  "Lock Workspace of a TFx Organization.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return workspaceLock()
+		},
+		PreRun: bindPFlags,
+	}
+
+	workspaceLockAllCmd = &cobra.Command{
+		Use:   "all",
+		Short: "Lock All Workspaces",
+		Long:  "Lock All Workspaces of a TFx Organization.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return workspaceLockAll()
+		},
+		PreRun: bindPFlags,
+	}
+
+	workspaceUnlockCmd = &cobra.Command{
+		Use:   "unlock",
+		Short: "Unlock Workspace",
+		Long:  "Unlock Workspace of a TFx Organization.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return workspaceUnlock()
+		},
+		PreRun: bindPFlags,
+	}
+
+	workspaceUnlockAllCmd = &cobra.Command{
+		Use:   "all",
+		Short: "Unlock All Workspaces",
+		Long:  "Unlock All Workspaces of a TFx Organization.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return workspaceUnlockAll()
+		},
+		PreRun: bindPFlags,
+	}
 )
 
 func init() {
@@ -87,10 +128,22 @@ func init() {
 	workspaceShowCmd.Flags().StringP("workspaceName", "w", "", "Workspace name")
 	workspaceShowCmd.MarkFlagRequired("workspaceName")
 
+	// `tfx workspace lock`
+	workspaceLockCmd.Flags().StringP("workspaceName", "w", "", "Workspace name")
+	workspaceLockCmd.MarkFlagRequired("workspaceName")
+
+	// `tfx workspace unlock`
+	workspaceUnlockCmd.Flags().StringP("workspaceName", "w", "", "Workspace name")
+	workspaceUnlockCmd.MarkFlagRequired("workspaceName")
+
 	rootCmd.AddCommand(workspaceCmd)
 	workspaceCmd.AddCommand(workspaceListCmd)
 	workspaceListCmd.AddCommand(workspaceListAllCmd)
 	workspaceCmd.AddCommand(workspaceShowCmd)
+	workspaceCmd.AddCommand(workspaceLockCmd)
+	workspaceLockCmd.AddCommand(workspaceLockAllCmd)
+	workspaceCmd.AddCommand(workspaceUnlockCmd)
+	workspaceUnlockCmd.AddCommand(workspaceUnlockAllCmd)
 }
 
 func workspaceList() error {
@@ -122,7 +175,7 @@ func workspaceList() error {
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"Name", "Id", "Current Run Created", "Status"})
+	t.AppendHeader(table.Row{"Name", "Id", "Current Run Created", "Status", "Locked"})
 	for _, i := range workspaceList {
 		cr_created_at := ""
 		cr_status := ""
@@ -130,7 +183,7 @@ func workspaceList() error {
 			cr_created_at = timestamp(i.CurrentRun.CreatedAt)
 			cr_status = string(i.CurrentRun.Status)
 		}
-		t.AppendRow(table.Row{i.Name, i.ID, cr_created_at, cr_status})
+		t.AppendRow(table.Row{i.Name, i.ID, cr_created_at, cr_status, i.Locked})
 	}
 	t.SetStyle(table.StyleRounded)
 	t.Render()
@@ -175,7 +228,7 @@ func workspaceListAll() error {
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"Organization", "Name", "Id", "Current Run Created", "Status"})
+	t.AppendHeader(table.Row{"Organization", "Name", "Id", "Current Run Created", "Status", "Locked"})
 	for _, i := range allWorkspaceList {
 		cr_created_at := ""
 		cr_status := ""
@@ -183,7 +236,7 @@ func workspaceListAll() error {
 			cr_created_at = timestamp(i.CurrentRun.CreatedAt)
 			cr_status = string(i.CurrentRun.Status)
 		}
-		t.AppendRow(table.Row{i.Organization.Name, i.Name, i.ID, cr_created_at, cr_status})
+		t.AppendRow(table.Row{i.Organization.Name, i.Name, i.ID, cr_created_at, cr_status, i.Locked})
 	}
 	t.SetStyle(table.StyleRounded)
 	t.Render()
@@ -251,6 +304,11 @@ func getAllWorkspaces(ctx context.Context, client *tfe.Client, orgName string, s
 		pageNumber++
 	}
 
+	// Sort by Name
+	sort.Slice(workspaceItems, func(i, j int) bool {
+		return workspaceItems[i].Name < workspaceItems[j].Name
+	})
+
 	return workspaceItems, nil
 }
 
@@ -317,4 +375,118 @@ func validateRunStatus(s string) bool {
 		}
 	}
 	return false
+}
+
+// Lock
+func workspaceLock() error {
+	orgName := *viperString("tfeOrganization")
+	wsName := *viperString("workspaceName")
+	client, ctx := getClientContext()
+
+	err := setWorkspaceLock(ctx, client, orgName, wsName, true)
+	if err != nil {
+		logError(err, "")
+	}
+	return nil
+}
+
+func workspaceLockAll() error {
+	orgName := *viperString("tfeOrganization")
+	client, ctx := getClientContext()
+
+	workspaceList, err := getAllWorkspaces(ctx, client, orgName, "")
+	if err != nil {
+		logError(err, "failed to list workspaces")
+	}
+	totalWorkspaces := len(workspaceList)
+	lockedWorkspaces := 0
+
+	for _, ws := range workspaceList {
+		err := setWorkspaceLock(ctx, client, orgName, ws.Name, true)
+		if err != nil {
+			fmt.Println(color.RedString("Error: " + err.Error()))
+		} else {
+			lockedWorkspaces++
+		}
+	}
+
+	fmt.Println()
+	fmt.Println(color.BlueString("Workspace Count:    "), totalWorkspaces)
+	fmt.Println(color.BlueString("Locked Workspaces:  "), lockedWorkspaces)
+	return nil
+}
+
+func workspaceUnlock() error {
+	orgName := *viperString("tfeOrganization")
+	wsName := *viperString("workspaceName")
+	client, ctx := getClientContext()
+
+	err := setWorkspaceLock(ctx, client, orgName, wsName, false)
+	if err != nil {
+		logError(err, "")
+	}
+	return nil
+}
+
+func workspaceUnlockAll() error {
+	orgName := *viperString("tfeOrganization")
+	client, ctx := getClientContext()
+
+	workspaceList, err := getAllWorkspaces(ctx, client, orgName, "")
+	if err != nil {
+		logError(err, "failed to list workspaces")
+	}
+	totalWorkspaces := len(workspaceList)
+	unlockedWorkspaces := 0
+
+	for _, ws := range workspaceList {
+		err := setWorkspaceLock(ctx, client, orgName, ws.Name, false)
+		if err != nil {
+			fmt.Println(color.RedString("Error: " + err.Error()))
+		} else {
+			unlockedWorkspaces++
+		}
+	}
+
+	fmt.Println()
+	fmt.Println(color.BlueString("Workspace Count:      "), totalWorkspaces)
+	fmt.Println(color.BlueString("Unlocked Workspaces:  "), unlockedWorkspaces)
+	return nil
+}
+
+func setWorkspaceLock(ctx context.Context, client *tfe.Client, orgName string, wsName string, lockSet bool) error {
+	// Read workspace
+	w, err := client.Workspaces.Read(ctx, orgName, wsName)
+	if err != nil {
+		return errors.New("failed to read workspace id")
+	}
+
+	fmt.Print("Locking Workspace ", color.GreenString(wsName), "(", color.BlueString(w.ID), ")... ")
+	if lockSet {
+		if w.Locked {
+			fmt.Println("Workspace already locked")
+			return nil
+		}
+		_, err := client.Workspaces.Lock(ctx, w.ID, tfe.WorkspaceLockOptions{
+			Reason: tfe.String("Locked via TFx"),
+		})
+		if err != nil {
+			return err
+		}
+		fmt.Println("locked")
+	} else {
+		if !w.Locked {
+			fmt.Println("Workspace already unlocked")
+			return nil
+		}
+		// TODO: Force unlocking here to get around unlocking a WS that has an active run pending. Revisit impact.
+		_, err := client.Workspaces.ForceUnlock(ctx, w.ID)
+		// _, err := client.Workspaces.Unlock(ctx, w.ID)
+		if err != nil {
+			return err
+		}
+		fmt.Println("unlocked")
+	}
+
+	return nil
 }
