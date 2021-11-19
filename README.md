@@ -1,5 +1,5 @@
-<img src="https://cdn.rawgit.com/hashicorp/terraform-website/master/content/source/assets/images/logo-hashicorp.svg" width="600px">
-
+<!-- <img src="https://cdn.rawgit.com/hashicorp/terraform-website/master/content/source/assets/images/logo-hashicorp.svg" width="600px">
+ -->
 # TFx CLI
 
 _tfx_ is a standalone CLI for Terraform Cloud and Terraform Enterprise.
