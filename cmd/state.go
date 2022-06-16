@@ -136,9 +136,9 @@ func stateList() error {
 
 	// Get current state version
 	curOpts := &tfe.StateVersionCurrentOptions{
-		Include: "outputs",
+		Include: []tfe.StateVersionIncludeOpt{"outputs"},
 	}
-	state, err := client.StateVersions.CurrentWithOptions(ctx, w.ID, curOpts)
+	state, err := client.StateVersions.ReadCurrentWithOptions(ctx, w.ID, curOpts)
 	if err != nil {
 		logError(err, "failed to get current state version")
 	}
@@ -147,9 +147,9 @@ func stateList() error {
 	// fmt.Println(color.BlueString("Run:    "), state.Run.ID) // Run can by nil
 
 	// Get all state versions
-	stateList, err := client.StateVersions.List(ctx, tfe.StateVersionListOptions{
-		Organization: &orgName,
-		Workspace:    &wsName,
+	stateList, err := client.StateVersions.List(ctx, &tfe.StateVersionListOptions{
+		Organization: orgName,
+		Workspace:    wsName,
 	})
 	if err != nil {
 		logError(err, "failed to list state versions")
@@ -189,7 +189,7 @@ func stateDownload() error {
 		// Read State Version
 		fmt.Print("Reading State Version with ID ", color.GreenString(stateID), " ... ")
 		st, err = client.StateVersions.ReadWithOptions(ctx, stateID, &tfe.StateVersionReadOptions{
-			Include: "outputs",
+			Include: []tfe.StateVersionIncludeOpt{"outputs"},
 		})
 		if err != nil {
 			logError(err, "failed to find state id")
@@ -198,9 +198,9 @@ func stateDownload() error {
 	} else {
 		fmt.Print("Reading State Version with Serial ", color.GreenString(strconv.FormatInt(serial, 10)), " ... ")
 		// Get all state versions
-		stateList, err := client.StateVersions.List(ctx, tfe.StateVersionListOptions{
-			Organization: &orgName,
-			Workspace:    &wsName,
+		stateList, err := client.StateVersions.List(ctx, &tfe.StateVersionListOptions{
+			Organization: orgName,
+			Workspace:    wsName,
 		})
 		if err != nil {
 			logError(err, "failed to list state versions")
@@ -270,7 +270,7 @@ func stateCreate() error {
 
 	// Get current State Version, so we can increment the serial
 	fmt.Print("Reading Current State Version ...")
-	currentState, err := client.StateVersions.Current(ctx, w.ID)
+	currentState, err := client.StateVersions.ReadCurrent(ctx, w.ID)
 	if err != nil {
 		logError(err, "failed to read current state versions")
 	}
@@ -355,7 +355,7 @@ func stateShow() error {
 		// Read State Version
 		fmt.Print("Reading State Version with ID ", color.GreenString(stateID), " ... ")
 		st, err = client.StateVersions.ReadWithOptions(ctx, stateID, &tfe.StateVersionReadOptions{
-			Include: "outputs",
+			Include: []tfe.StateVersionIncludeOpt{"outputs"},
 		})
 		if err != nil {
 			logError(err, "failed to find state id")
@@ -364,9 +364,9 @@ func stateShow() error {
 	} else {
 		fmt.Print("Reading State Version with Serial ", color.GreenString(strconv.FormatInt(serial, 10)), " ... ")
 		// Get all state versions
-		stateList, err := client.StateVersions.List(ctx, tfe.StateVersionListOptions{
-			Organization: &orgName,
-			Workspace:    &wsName,
+		stateList, err := client.StateVersions.List(ctx, &tfe.StateVersionListOptions{
+			Organization: orgName,
+			Workspace:    wsName,
 		})
 		if err != nil {
 			logError(err, "failed to list state versions")

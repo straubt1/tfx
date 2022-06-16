@@ -256,7 +256,7 @@ func getAllOrganizations(ctx context.Context, client *tfe.Client) ([]*tfe.Organi
 	var organizationItems []*tfe.Organization
 	pageNumber := 1
 	for {
-		ol, err = client.Organizations.List(ctx, tfe.OrganizationListOptions{
+		ol, err = client.Organizations.List(ctx, &tfe.OrganizationListOptions{
 			ListOptions: tfe.ListOptions{
 				PageSize: 100,
 			}})
@@ -280,19 +280,27 @@ func getAllWorkspaces(ctx context.Context, client *tfe.Client, orgName string, s
 	var workspaceItems []*tfe.Workspace
 	pageNumber := 1
 	for {
-		wsl, err = client.Workspaces.List(ctx, orgName, tfe.WorkspaceListOptions{
+		wsl, err = client.Workspaces.List(ctx, orgName, &tfe.WorkspaceListOptions{
 			ListOptions: tfe.ListOptions{
 				PageSize:   100,
 				PageNumber: pageNumber,
 			},
-			Include: tfe.String("organization,current_run"),
-			Search:  tfe.String(search),
-			// A search string (partial workspace name) used to filter the results.
-			// Search *string `url:"search[name],omitempty"`
-
-			// A list of relations to include. See available resources https://www.terraform.io/docs/cloud/api/workspaces.html#available-related-resources
-			// Include *string `url:"include"`
+			Search:  search,
+			Include: []tfe.WSIncludeOpt{"organization,current_run"},
 		})
+
+		// 	ListOptions: tfe.ListOptions{
+		// 		PageSize:   100,
+		// 		PageNumber: pageNumber,
+		// 	},
+		// 	Include: tfe.String("organization,current_run"),
+		// 	Search:  tfe.String(search),
+		// 	// A search string (partial workspace name) used to filter the results.
+		// 	// Search *string `url:"search[name],omitempty"`
+
+		// 	// A list of relations to include. See available resources https://www.terraform.io/docs/cloud/api/workspaces.html#available-related-resources
+		// 	// Include *string `url:"include"`
+		// })
 		if err != nil {
 			return nil, err
 		}
@@ -349,7 +357,7 @@ func workspaceShow() error {
 		fmt.Println(color.BlueString("Current Run:         "), "")
 	} else {
 		run, err := client.Runs.ReadWithOptions(ctx, w.CurrentRun.ID, &tfe.RunReadOptions{
-			Include: "",
+			Include: []tfe.RunIncludeOpt{},
 		})
 		if err != nil {
 			logError(err, "failed to read workspace current run")

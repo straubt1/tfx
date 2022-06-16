@@ -103,11 +103,9 @@ func cvList() error {
 	}
 	fmt.Println(" Found:", color.BlueString(w.ID))
 
-	// Get all config versions
-	cv, err := client.ConfigurationVersions.List(ctx, w.ID, tfe.ConfigurationVersionListOptions{
-		ListOptions: tfe.ListOptions{
-			PageSize: 10,
-		},
+	cv, err := client.ConfigurationVersions.List(ctx, w.ID, &tfe.ConfigurationVersionListOptions{
+		ListOptions: tfe.ListOptions{PageSize: 10},
+		Include:     []tfe.ConfigVerIncludeOpt{},
 	})
 	if err != nil {
 		logError(err, "failed to list configuration versions")

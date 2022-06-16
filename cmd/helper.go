@@ -348,7 +348,7 @@ func createOrUpdateEnvVariables(ctx context.Context, client *tfe.Client, workspa
 
 	// Read all variables and search
 	// TODO: is there a better way? API doesnt expose a variable by name lookup
-	allV, err = client.Variables.List(ctx, workspaceID, tfe.VariableListOptions{})
+	allV, err = client.Variables.List(ctx, workspaceID, &tfe.VariableListOptions{})
 	if err != nil {
 		return err
 	}
@@ -415,7 +415,7 @@ func getAllTerraformVersions(ctx context.Context, client *tfe.Client) ([]*tfe.Ad
 	var tfvItems []*tfe.AdminTerraformVersion
 	pageNumber := 1
 	for {
-		tfv, err = client.Admin.TerraformVersions.List(ctx, tfe.AdminTerraformVersionsListOptions{
+		tfv, err = client.Admin.TerraformVersions.List(ctx, &tfe.AdminTerraformVersionsListOptions{
 			ListOptions: tfe.ListOptions{
 				PageSize:   100,
 				PageNumber: pageNumber,

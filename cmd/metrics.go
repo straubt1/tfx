@@ -192,11 +192,11 @@ func getAllOrganizationWorkspaces(ctx context.Context, client *tfe.Client, orgNa
 	for i, ws := range workspaces {
 		result.Workspaces[i] = ws.Name
 
-		runs, err := client.Runs.List(ctx, ws.ID, tfe.RunListOptions{
+		runs, err := client.Runs.List(ctx, ws.ID, &tfe.RunListOptions{
 			ListOptions: tfe.ListOptions{
 				PageSize: 100,
 			},
-			Include: tfe.String(""),
+			Include: []tfe.RunIncludeOpt{},
 		})
 		if err != nil {
 			return nil, err
@@ -258,11 +258,10 @@ func getOrganizationMetricWorkspaces(ctx context.Context, client *tfe.Client, or
 		wsResult.ID = ws.ID
 
 		// TODO: pagination
-		runs, err := client.Runs.List(ctx, ws.ID, tfe.RunListOptions{
+		runs, err := client.Runs.List(ctx, ws.ID, &tfe.RunListOptions{
 			ListOptions: tfe.ListOptions{
-				PageSize: 100,
-			},
-			Include: tfe.String(""),
+				PageSize: 100},
+			Include: []tfe.RunIncludeOpt{},
 		})
 		if err != nil {
 			return nil, err
