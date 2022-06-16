@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-slug"
+	"github.com/hashicorp/go-tfe"
 )
 
 type RegistryModuleCreateVersionOptions struct {
@@ -243,7 +244,11 @@ func DownloadModule(token string, tfeHostname string, tfeOrganization string, mo
 	providerName string, moduleVersion string, directory string) (string, error) {
 
 	tfeClient, ctx := getClientContext()
-	pmr, err := tfeClient.RegistryModules.Read(ctx, tfeOrganization, moduleName, providerName)
+	pmr, err := tfeClient.RegistryModules.Read(ctx, tfe.RegistryModuleID{
+		Organization: tfeOrganization,
+		Name:         moduleName,
+		Provider:     providerName,
+	})
 	if err != nil || pmr == nil {
 		return "", errors.New("can't find module")
 	}

@@ -268,7 +268,11 @@ func pmrShow() error {
 
 	// Show Module
 	fmt.Print("Showing Module ", color.GreenString(moduleName), "/", color.GreenString(providerName), " ...")
-	pmr, err := client.RegistryModules.Read(ctx, orgName, moduleName, providerName)
+	pmr, err := client.RegistryModules.Read(ctx, tfe.RegistryModuleID{
+		Organization: orgName,
+		Name:         moduleName,
+		Provider:     providerName,
+	})
 	if err != nil {
 		logError(err, "failed to show module")
 	}
@@ -291,7 +295,11 @@ func pmrShowVersions() error {
 
 	// Show Module Versions
 	fmt.Print("Showing Module ", color.GreenString(moduleName), "/", color.GreenString(providerName), " ...")
-	pmr, err := client.RegistryModules.Read(ctx, orgName, moduleName, providerName)
+	pmr, err := client.RegistryModules.Read(ctx, tfe.RegistryModuleID{
+		Organization: orgName,
+		Name:         moduleName,
+		Provider:     providerName,
+	})
 	if err != nil {
 		logError(err, "failed to show module version")
 	}
@@ -318,7 +326,11 @@ func pmrDelete() error {
 
 	// Delete module, require the provider as well (if just the name is used, multiple modules could be deleted)
 	fmt.Print("Deleting Module for ", color.GreenString(moduleName), " ...")
-	err := client.RegistryModules.DeleteProvider(ctx, orgName, moduleName, providerName)
+	err := client.RegistryModules.DeleteProvider(ctx, tfe.RegistryModuleID{
+		Organization: orgName,
+		Name:         moduleName,
+		Provider:     providerName,
+	})
 	if err != nil {
 		logError(err, "failed to delete module")
 	}
@@ -338,7 +350,11 @@ func pmrDeleteVersion() error {
 	// Read Config Version
 	fmt.Print("Deleting Module Version for ", color.GreenString(moduleName), "/", color.GreenString(providerName),
 		":", color.GreenString(moduleVersion), " ...")
-	err := client.RegistryModules.DeleteVersion(ctx, orgName, moduleName, providerName, moduleVersion)
+	err := client.RegistryModules.DeleteVersion(ctx, tfe.RegistryModuleID{
+		Organization: orgName,
+		Name:         moduleName,
+		Provider:     providerName,
+	}, moduleVersion)
 	if err != nil {
 		logError(err, "failed to delete module version")
 	}

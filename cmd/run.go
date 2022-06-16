@@ -102,11 +102,11 @@ func runList() error {
 	fmt.Println(" Found:", color.BlueString(w.ID))
 
 	// Get all config versions and show the current config
-	run, err := client.Runs.List(ctx, w.ID, tfe.RunListOptions{
+	run, err := client.Runs.List(ctx, w.ID, &tfe.RunListOptions{
 		ListOptions: tfe.ListOptions{
 			PageSize: 10,
 		},
-		Include: tfe.String("workspace"), // To get TF Version
+		Include: []tfe.RunIncludeOpt{"workspace"}, // To get TF Version
 	})
 	if err != nil {
 		logError(err, "failed to list runs")
@@ -165,7 +165,7 @@ func runShow() error {
 	// Read Run
 	fmt.Print("Reading Run for ID ", color.GreenString(runID), "...")
 	run, err := client.Runs.ReadWithOptions(ctx, runID, &tfe.RunReadOptions{
-		Include: "workspace", // To get TF Version
+		Include: []tfe.RunIncludeOpt{"workspace"}, // To get TF Version
 	})
 	if err != nil {
 		logError(err, "failed to read run")
