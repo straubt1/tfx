@@ -286,7 +286,7 @@ func getAllWorkspaces(ctx context.Context, client *tfe.Client, orgName string, s
 				PageNumber: pageNumber,
 			},
 			Search:  search,
-			Include: []tfe.WSIncludeOpt{"organization,current_run"},
+			Include: []tfe.WSIncludeOpt{"organization", "current_run"},
 		})
 
 		// 	ListOptions: tfe.ListOptions{
