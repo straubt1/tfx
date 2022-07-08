@@ -21,10 +21,14 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"github.com/fatih/color"
+	"github.com/hashicorp/go-slug"
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
@@ -66,6 +70,16 @@ var (
 		},
 		PreRun: bindPFlags,
 	}
+
+	cvDownloadCmd = &cobra.Command{
+		Use:   "download",
+		Short: "Download the Configuration Version",
+		Long:  "Download the Configuration Version code for a TFx Workspace.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cvDownload()
+		},
+		PreRun: bindPFlags,
+	}
 )
 
 func init() {
@@ -83,10 +97,16 @@ func init() {
 	cvShowCmd.Flags().StringP("configurationId", "i", "", "Configuration Version Id (i.e. cv-*)")
 	cvShowCmd.MarkFlagRequired("configurationId")
 
+	// `tfx cv download`
+	cvDownloadCmd.Flags().StringP("configurationId", "i", "", "Configuration Version Id (i.e. cv-*)")
+	cvDownloadCmd.MarkFlagRequired("configurationId")
+	cvDownloadCmd.Flags().StringP("directory", "d", "", "Directory to download CV to (optional, defaults to a temp directory)")
+
 	rootCmd.AddCommand(cvCmd)
 	cvCmd.AddCommand(cvListCmd)
 	cvCmd.AddCommand(cvCreateCmd)
 	cvCmd.AddCommand(cvShowCmd)
+	cvCmd.AddCommand(cvDownloadCmd)
 }
 
 func cvList() error {
@@ -104,7 +124,7 @@ func cvList() error {
 	fmt.Println(" Found:", color.BlueString(w.ID))
 
 	cv, err := client.ConfigurationVersions.List(ctx, w.ID, &tfe.ConfigurationVersionListOptions{
-		ListOptions: tfe.ListOptions{PageSize: 10},
+		ListOptions: tfe.ListOptions{PageSize: 100},
 		Include:     []tfe.ConfigVerIncludeOpt{},
 	})
 	if err != nil {
@@ -180,6 +200,46 @@ func cvShow() error {
 	if cv.ErrorMessage != "" {
 		fmt.Println(color.BlueString("Error:       "), cv.ErrorMessage)
 	}
+
+	return nil
+}
+
+func cvDownload() error {
+	// Validate flags
+	configID := *viperString("configurationId")
+	directory := *viperString("directory")
+	client, ctx := getClientContext()
+
+	var err error
+	// Determine a directory to unpack the slug contents into.
+	if directory != "" {
+		directory, err = filepath.Abs(directory)
+		if err != nil {
+			logError(err, "invalid path")
+		}
+	} else {
+		fmt.Println("Directory not supplied, creating a temp directory")
+		dst, err := ioutil.TempDir("", "slug")
+		if err != nil {
+			logError(err, "failed to create directory")
+		}
+		directory = dst
+	}
+
+	// Read Config Version
+	fmt.Print("Downloading Configuration for ID ", color.GreenString(configID), " ...")
+	cv, err := client.ConfigurationVersions.Download(ctx, configID)
+	if err != nil {
+		logError(err, "failed to download configuration version")
+	}
+
+	// convert byte slice to io.Reader
+	reader := bytes.NewReader(cv)
+	if err := slug.Unpack(reader, directory); err != nil {
+		return err
+	}
+
+	fmt.Println("Downloaded: ", color.BlueString(directory))
 
 	return nil
 }

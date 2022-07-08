@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* `tfx cv download` - Download a Configuration Version and unpack onto disk.
+
 ### Changed
+
+* PMR Module uploading - Removed helper code and instead use the go-tfe functions
 
 ### Removed
 
