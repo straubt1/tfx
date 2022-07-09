@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `tfx gpg delete`
 
 * `tfx airgap tfe list`
+* `tfx airgap tfe show` - Show full details of a release
 * `tfx airgap tfe download`
 * `tfx airgap replicated list`
 * `tfx airgap replicated download`

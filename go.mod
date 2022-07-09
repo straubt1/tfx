@@ -40,6 +40,7 @@ require (
 	github.com/tidwall/gjson v1.14.1 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
+	golang.org/x/exp v0.0.0-20220706164943-b4a6d9510983
 	golang.org/x/sys v0.0.0-20220708085239-5a0f0661e09d // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20220609170525-579cf78fd858 // indirect
