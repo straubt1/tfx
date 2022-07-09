@@ -6,11 +6,11 @@ require (
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/coreos/go-semver v0.3.0
 	github.com/fatih/color v1.13.0
-	github.com/hashicorp/go-slug v0.8.1
-	github.com/hashicorp/go-tfe v1.3.0
-	github.com/jedib0t/go-pretty/v6 v6.3.2
+	github.com/hashicorp/go-slug v0.9.1
+	github.com/hashicorp/go-tfe v1.4.0
+	github.com/jedib0t/go-pretty/v6 v6.3.3
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/spf13/cobra v1.4.0
+	github.com/spf13/cobra v1.5.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.12.0
 	github.com/tidwall/sjson v1.2.4
@@ -40,7 +40,7 @@ require (
 	github.com/tidwall/gjson v1.14.1 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
-	golang.org/x/sys v0.0.0-20220615213510-4f61da869c0c // indirect
+	golang.org/x/sys v0.0.0-20220708085239-5a0f0661e09d // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20220609170525-579cf78fd858 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect

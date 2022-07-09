@@ -10,6 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * `tfx cv download` - Download a Configuration Version and unpack onto disk.
+* `tfx gpg list`
+* `tfx gpg create`
+* `tfx gpg show`
+* `tfx gpg delete`
+
+* `tfx airgap tfe list`
+* `tfx airgap tfe download`
+* `tfx airgap replicated list`
+* `tfx airgap replicated download`
+
 
 ### Changed
 

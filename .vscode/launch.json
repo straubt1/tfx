@@ -29,6 +29,18 @@
       ]
     },
     {
+      "name": "TFX - Run List",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${fileDirname}/../main.go",
+      "args": [
+        "run",
+        "list",
+        "-w=tfx-test",
+      ]
+    },
+    {
       "name": "TFX - Plan",
       "type": "go",
       "request": "launch",
@@ -114,6 +126,44 @@
         "plan",
         "test",
         "--env", "a=14=33",
+      ]
+    },
+    {
+      "name": "TFX - GPG Keys List",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${fileDirname}/../main.go",
+      "args": [
+        "gpg",
+        "list",
+        "--tfeOrganization=terraform-tom"
+      ]
+    },
+    {
+      "name": "TFX - GPG Keys Delete",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${fileDirname}/../main.go",
+      "args": [
+        "gpg",
+        "delete",
+        "-n=firefly",
+        "--keyId=34365D9472D7468F"
+      ]
+    },
+    {
+      "name": "TFX - GPG Keys Show",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${fileDirname}/../main.go",
+      "args": [
+        "gpg",
+        "show",
+        "-n=firefly",
+        "--keyId=34365D9472D7468F"
       ]
     }
   ]

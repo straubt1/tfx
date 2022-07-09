@@ -104,7 +104,7 @@ func runList() error {
 	// Get all config versions and show the current config
 	run, err := client.Runs.List(ctx, w.ID, &tfe.RunListOptions{
 		ListOptions: tfe.ListOptions{
-			PageSize: 10,
+			PageSize: 100,
 		},
 		Include: []tfe.RunIncludeOpt{"workspace"}, // To get TF Version
 	})

@@ -8,5 +8,9 @@ build:
 	-X 'github.com/straubt1/tfx/version.BuiltBy=tstraub' \
 	-X 'github.com/straubt1/tfx/version.Date=$(shell date)'"
 
+update:
+	go get -u
+	go mod tidy
+
 format:
 	go fmt
