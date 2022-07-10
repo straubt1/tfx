@@ -35,20 +35,20 @@ import (
 var (
 	releasesCmd = &cobra.Command{
 		Use:   "releases",
-		Short: "releases helper commands",
+		Short: "TFE release commands",
 		Long:  "Work with binaries needed for TFE releases installations.",
 	}
 
 	releasesTfeCmd = &cobra.Command{
 		Use:   "tfe",
-		Short: "TFE releases commands",
-		Long:  "TFE releases commands to work with TFE binaries.",
+		Short: "TFE release commands",
+		Long:  "Terraform Enterprise release commands.",
 	}
 
 	releasesTfeListCmd = &cobra.Command{
 		Use:   "list",
 		Short: "List TFE releases",
-		Long:  "List available TFE releases for releases download.",
+		Long:  "List available Terraform Enterprise releases.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return releasesTfeList()
 		},
@@ -58,7 +58,7 @@ var (
 	releasesTfeShowCmd = &cobra.Command{
 		Use:   "show",
 		Short: "Show TFE release",
-		Long:  "Show a TFE release, including release notes.",
+		Long:  "Show a Terraform Enterprise release, including release notes.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return releasesTfeShow()
 		},
@@ -68,7 +68,7 @@ var (
 	releasesTfeDownloadCmd = &cobra.Command{
 		Use:   "download",
 		Short: "Download TFE release binary",
-		Long:  "Download a TFE release binary.",
+		Long:  "Download a Terraform Enterprise release binary.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return releasesTfeDownload()
 		},
@@ -77,14 +77,14 @@ var (
 
 	releasesReplicatedCmd = &cobra.Command{
 		Use:   "replicated",
-		Short: "Replicated releases commands",
-		Long:  "Replicated releases commands to work with Replicated binaries.",
+		Short: "Replicated release commands",
+		Long:  "Replicated release commands.",
 	}
 
 	releasesReplicatedListCmd = &cobra.Command{
 		Use:   "list",
 		Short: "List Replicated binaries",
-		Long:  "List available Replicated binaries for download.",
+		Long:  "List available Replicated releases.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return releasesReplicatedList()
 		},
