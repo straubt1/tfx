@@ -7,9 +7,11 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/mmcdole/gofeed"
 	"github.com/spf13/cobra"
 	"golang.org/x/exp/slices"
 )
@@ -73,6 +75,16 @@ var (
 		},
 		PreRun: bindPFlags,
 	}
+
+	airgapReplicatedDownloadCmd = &cobra.Command{
+		Use:   "download",
+		Short: "Download Replicated release binary",
+		Long:  "Download a Replicated release binary.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return airgapReplicatedDownload()
+		},
+		PreRun: bindPFlags,
+	}
 )
 
 func init() {
@@ -85,7 +97,7 @@ func init() {
 	// `tfx airgap tfe show`
 	airgapTfeShowCmd.Flags().StringP("licenseId", "l", "", "License Id for TFE/Replicated")
 	airgapTfeShowCmd.Flags().StringP("password", "p", "", "Password to authenticate")
-	airgapTfeShowCmd.Flags().StringP("release", "r", "", "Release Sequence (i.e. 610, 619, etc...")
+	airgapTfeShowCmd.Flags().StringP("release", "r", "", "Release Sequence (i.e. 610, 619, etc...)")
 	airgapTfeShowCmd.MarkFlagRequired("licenseId")
 	airgapTfeShowCmd.MarkFlagRequired("password")
 	airgapTfeShowCmd.MarkFlagRequired("release")
@@ -93,10 +105,18 @@ func init() {
 	// `tfx airgap tfe download`
 	airgapTfeDownloadCmd.Flags().StringP("licenseId", "l", "", "License Id for TFE/Replicated")
 	airgapTfeDownloadCmd.Flags().StringP("password", "p", "", "Password to authenticate")
-	airgapTfeDownloadCmd.Flags().StringP("release", "r", "", "Release Sequence (i.e. 610, 619, etc...")
+	airgapTfeDownloadCmd.Flags().StringP("release", "r", "", "Release Sequence (i.e. 610, 619, etc...)")
+	airgapTfeDownloadCmd.Flags().StringP("directory", "d", "./", "Directory to save binary (optional, defaults to current directory)")
 	airgapTfeDownloadCmd.MarkFlagRequired("licenseId")
 	airgapTfeDownloadCmd.MarkFlagRequired("password")
 	airgapTfeDownloadCmd.MarkFlagRequired("release")
+
+	// `tfx airgap replicated list`
+	airgapReplicatedListCmd.Flags().IntP("maxResults", "r", 10, "The number of results to print (optional, defaults to 10)")
+
+	// `tfx airgap replicated download`
+	airgapReplicatedDownloadCmd.Flags().StringP("directory", "d", "./", "Directory to save binary (optional, defaults to current directory)")
+	airgapReplicatedDownloadCmd.Flags().StringP("version", "v", "", "Version of Replicated to Download (i.e. 0.0.1)")
 
 	rootCmd.AddCommand(airgapCmd)
 	airgapCmd.AddCommand(airgapTfeCmd)
@@ -106,6 +126,7 @@ func init() {
 
 	airgapCmd.AddCommand(airgapReplicatedCmd)
 	airgapReplicatedCmd.AddCommand(airgapReplicatedListCmd)
+	airgapReplicatedCmd.AddCommand(airgapReplicatedDownloadCmd)
 }
 
 func airgapTfeList() error {
@@ -164,18 +185,92 @@ func airgapTfeDownload() error {
 	licenseId := *viperString("licenseId")
 	password := *viperString("password")
 	release := *viperString("release")
+	directory := *viperString("directory")
 
+	// Get url
 	tfeUrl, err := GetTFEBinary(password, licenseId, release)
 	if err != nil {
 		return err
 	}
-	fmt.Println(color.BlueString("URL: "), tfeUrl.URL)
+
+	// Verify directory
+	_, err = os.Stat(directory)
+	if err != nil {
+		fmt.Println(color.RedString("Error: Invalid directory "), directory)
+		return err
+	}
+
+	// Verify trailing, if not add it
+	if !strings.HasSuffix(directory, "/") {
+		directory += "/"
+	}
+	path := fmt.Sprintf("%stfe-%s.airgap", directory, release)
 
 	//Download file
+	err = DownloadBinary(tfeUrl.URL, path)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
 func airgapReplicatedList() error {
+	// Validate flags
+	maxResults := *viperInt("maxResults")
+
+	fp := gofeed.NewParser()
+	feed, _ := fp.ParseURL("https://release-notes.replicated.com/index.xml")
+	fmt.Println(feed.Title)
+
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{"Version", "Published Date"})
+	for index, i := range feed.Items {
+		t.AppendRow(table.Row{i.Title, i.Published})
+		if index >= maxResults {
+			break
+		}
+	}
+	t.SetStyle(table.StyleRounded)
+	t.Render()
+
+	return nil
+}
+
+func airgapReplicatedDownload() error {
+	// Validate flags
+	directory := *viperString("directory")
+	// Attempt to prevent a non semantic version from being requested
+	version, err := viperSemanticVersionString("version")
+	if err != nil {
+		logError(err, "failed to parse semantic version")
+	}
+
+	// Get url - escape "%2B" as "%%2B", + symbol
+	url := fmt.Sprintf("https://s3.amazonaws.com/replicated-airgap-work/stable/replicated-%s%%2B%s%%2B%s.tar.gz",
+		version,
+		version,
+		version)
+
+	// Verify directory
+	_, err = os.Stat(directory)
+	if err != nil {
+		fmt.Println(color.RedString("Error: Invalid directory "), directory)
+		return err
+	}
+
+	// Verify trailing, if not add it
+	if !strings.HasSuffix(directory, "/") {
+		directory += "/"
+	}
+	path := fmt.Sprintf("%sreplicated-%s.targz", directory, version)
+
+	//Download file
+	err = DownloadBinary(url, path)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

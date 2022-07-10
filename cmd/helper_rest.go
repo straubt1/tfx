@@ -30,6 +30,9 @@ import (
 
 	b64 "encoding/base64"
 
+	"code.cloudfoundry.org/bytefmt"
+	"github.com/cavaliergopher/grab/v3"
+	"github.com/fatih/color"
 	"github.com/hashicorp/go-slug"
 	"github.com/hashicorp/go-tfe"
 )
@@ -296,4 +299,41 @@ func GetTFEBinary(password string, licenseId string, releaseSequence string) (*T
 	}
 
 	return tfeUrl, nil
+}
+
+func DownloadBinary(downloadURL string, path string) error {
+	client := grab.NewClient()
+	req, err := grab.NewRequest(path, downloadURL)
+	if err != nil {
+		return err
+	}
+	fmt.Println(color.BlueString("Downloading from URL:"), downloadURL)
+
+	resp := client.Do(req)
+	fmt.Println(color.BlueString("Download Started:"), resp.Filename)
+
+	// start UI loop
+	t := time.NewTicker(1000 * time.Millisecond)
+	defer t.Stop()
+
+Loop:
+	for {
+		select {
+		case <-t.C:
+			fmt.Printf(" Download Status: (%.2f%%) of %v\n",
+				100*resp.Progress(),
+				bytefmt.ByteSize(uint64(resp.Size())),
+			)
+
+		case <-resp.Done:
+			// download is complete
+			break Loop
+		}
+	}
+
+	// check for errors
+	if err := resp.Err(); err != nil {
+		return err
+	}
+	return nil
 }

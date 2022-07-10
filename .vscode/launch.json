@@ -165,6 +165,18 @@
         "-n=firefly",
         "--keyId=34365D9472D7468F"
       ]
+    },
+    {
+      "name": "TFX - Replicated List",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${fileDirname}/../main.go",
+      "args": [
+        "airgap",
+        "replicated",
+        "list"
+      ]
     }
   ]
 }
