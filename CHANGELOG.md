@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* PMR Module uploading - Removed helper code and instead use the go-tfe functions
+* PMR Module uploading - Removed helper code (shim) in favor of the now available the go-tfe functions
 
 ### Removed
 

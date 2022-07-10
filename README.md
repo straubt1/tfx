@@ -219,6 +219,25 @@ Managing Terraform Versions in a Terraform Enterprise install (TFE only).
 `tfx workspace unlock all`
 - Unlock all workspaces in a given organization
 
+### `tfe releases`
+
+Manage [Terraform Enterprise](https://www.terraform.io/enterprise) and [Replicated](https://www.replicated.com/) releases and binaries needed for airgap installations (TFE only).
+
+`tfx releases tfe list`
+- List available TFE releases
+
+`tfx releases tfe show`
+- Show details of a release, including release notes
+
+`tfx releases tfe download`
+- Download a TFE airgap binary
+
+`tfx releases replicated list`
+- List available Replicated releases
+
+`tfx releases replicated download`
+- Download a Replicated release
+
 ## Potential Future Commands
 
 Additional commands to implement.
