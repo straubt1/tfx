@@ -10,17 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * `tfx cv download` - Download a Configuration Version and unpack onto disk.
-* `tfx gpg list`
-* `tfx gpg create`
-* `tfx gpg show`
-* `tfx gpg delete`
+* `tfx gpg list` - List GPG Keys of an Organization
+* `tfx gpg create` - Create a GPG Key for an Organization
+* `tfx gpg show` - Show details of a GPG Key for an Organization
+* `tfx gpg delete` - Delete GPG Key for an Organization
 
-* `tfx airgap tfe list`
-* `tfx airgap tfe show` - Show full details of a release
-* `tfx airgap tfe download`
-* `tfx airgap replicated list`
-* `tfx airgap replicated download`
-
+* `tfx releases tfe list` - List available TFE releases
+* `tfx releases tfe show` - Show details of a release, including release notes
+* `tfx releases tfe download` - Download a TFE airgap binary
+* `tfx releases replicated list` - List available Replicated releases
+* `tfx releases replicated download` - Download a Replicated release
 
 ### Changed
 
