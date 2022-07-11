@@ -268,7 +268,7 @@ func releasesReplicatedDownload() error {
 	}
 
 	// Get url - escape "%2B" as "%%2B", + symbol
-	url := fmt.Sprintf("https://s3.amazonaws.com/replicated-releases-work/stable/replicated-%s%%2B%s%%2B%s.tar.gz",
+	url := fmt.Sprintf("https://s3.amazonaws.com/replicated-airgap-work/stable/replicated-%s%%2B%s%%2B%s.tar.gz",
 		version,
 		version,
 		version)

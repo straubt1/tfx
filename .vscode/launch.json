@@ -177,6 +177,19 @@
         "replicated",
         "list"
       ]
+    },
+    {
+      "name": "TFX - providers List",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${fileDirname}/../main.go",
+      "args": [
+        "registry",
+        "providers",
+        "list",
+        "--tfeOrganization=terraform-tom"
+      ]
     }
   ]
 }
