@@ -49,6 +49,12 @@ version="0.0.3-dev"
 curl -L -o tfx.exe "https://github.com/straubt1/tfx/releases/download/${version}/tfx_windows_amd64"
 ```
 
+**Go Installation**
+From Go version 1.18, the following is supported. `@latest` can be `@$VERSION`
+```sh
+go install github.com/straubt1/tfx@latest
+```
+
 ## Usage
 
 Each command has the ability to pass in parameters via flags, several are required for every command.
