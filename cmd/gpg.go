@@ -180,6 +180,8 @@ func gpgDelete() error {
 	keyId := *viperString("keyId")
 	client, ctx := getClientContext()
 
+	// TODO: verify GPG key is not in use before deleting
+
 	// Delete GPG Key
 	fmt.Print("Deleting GPG Key ", color.GreenString(namespace), "/", color.GreenString(keyId), " ... ")
 	err := client.GPGKeys.Delete(ctx, tfe.GPGKeyID{
