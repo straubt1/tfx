@@ -51,8 +51,8 @@ var (
 	// `tfx registry provider create` command
 	registryProviderCreateCmd = &cobra.Command{
 		Use:   "create",
-		Short: "Create/Update a Provider in a Private Registry",
-		Long:  "Create/Update a Provider in a Private Registry of a TFx Organization. ",
+		Short: "Create a Provider in a Private Registry",
+		Long:  "Create a Provider in a Private Registry of a TFx Organization. ",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return registryProviderCreate()
 		},
@@ -84,9 +84,18 @@ var (
 
 func init() {
 	// `tfx registry provider list` arguments
+
 	// `tfx registry provider create` arguments
+	registryProviderCreateCmd.Flags().StringP("name", "n", "", "Name of the Provider")
+	registryProviderCreateCmd.MarkFlagRequired("name")
+
 	// `tfx registry provider show` arguments
+	registryProviderShowCmd.Flags().StringP("name", "n", "", "Name of the Provider")
+	registryProviderShowCmd.MarkFlagRequired("name")
+
 	// `tfx registry provider delete` arguments
+	registryProviderDeleteCmd.Flags().StringP("name", "n", "", "Name of the Provider")
+	registryProviderDeleteCmd.MarkFlagRequired("name")
 
 	registryCmd.AddCommand(registryProviderCmd)
 	registryProviderCmd.AddCommand(registryProviderListCmd)
@@ -126,16 +135,77 @@ func registryProviderList() error {
 }
 
 func registryProviderCreate() error {
-	fmt.Println(color.MagentaString("Function not implemented yet."))
+	// Validate flags
+	orgName := *viperString("tfeOrganization")
+	name := *viperString("name")
+
+	client, ctx := getClientContext()
+
+	fmt.Println("Creating Provider in Registry for Organization:", color.GreenString(orgName))
+	provider, err := client.RegistryProviders.Create(ctx, orgName, tfe.RegistryProviderCreateOptions{
+		Name:         name,
+		Namespace:    orgName, // always org name for RegistryName "private"
+		RegistryName: tfe.PrivateRegistry,
+	})
+	if err != nil {
+		logError(err, "failed to create Provider")
+	}
+
+	fmt.Println(color.BlueString("Name:      "), provider.Name)
+	fmt.Println(color.BlueString("ID:        "), provider.ID)
+	fmt.Println(color.BlueString("Namespace: "), provider.Namespace)
+	fmt.Println(color.BlueString("Created:   "), provider.UpdatedAt)
+
 	return nil
 }
 
 func registryProviderShow() error {
-	fmt.Println(color.MagentaString("Function not implemented yet."))
+	// Validate flags
+	orgName := *viperString("tfeOrganization")
+	name := *viperString("name")
+
+	client, ctx := getClientContext()
+
+	fmt.Println("Creating Provider in Registry for Organization:", color.GreenString(orgName))
+	provider, err := client.RegistryProviders.Read(ctx, tfe.RegistryProviderID{
+		OrganizationName: orgName,
+		Name:             name,
+		Namespace:        orgName, // always org name for RegistryName "private"
+		RegistryName:     tfe.PrivateRegistry,
+	}, &tfe.RegistryProviderReadOptions{
+		Include: []tfe.RegistryProviderIncludeOps{},
+	})
+	if err != nil {
+		logError(err, "failed to create Provider")
+	}
+
+	fmt.Println(color.BlueString("Name:      "), provider.Name)
+	fmt.Println(color.BlueString("ID:        "), provider.ID)
+	fmt.Println(color.BlueString("Namespace: "), provider.Namespace)
+	fmt.Println(color.BlueString("Created:   "), provider.UpdatedAt)
+
 	return nil
 }
 
 func registryProviderDelete() error {
-	fmt.Println(color.MagentaString("Function not implemented yet."))
+	// Validate flags
+	orgName := *viperString("tfeOrganization")
+	name := *viperString("name")
+
+	client, ctx := getClientContext()
+
+	fmt.Println("Delete Provider in Registry for Organization:", color.GreenString(orgName))
+	err := client.RegistryProviders.Delete(ctx, tfe.RegistryProviderID{
+		OrganizationName: orgName,
+		Name:             name,
+		Namespace:        orgName, // always org name for RegistryName "private"
+		RegistryName:     tfe.PrivateRegistry,
+	})
+	if err != nil {
+		logError(err, "failed to delete Provider")
+	}
+
+	fmt.Println(color.BlueString("Provider Delete: "), name)
+
 	return nil
 }
