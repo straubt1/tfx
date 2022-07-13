@@ -20,7 +20,12 @@
 package cmd
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"fmt"
+	"io"
+	"log"
 	"os"
 
 	"github.com/fatih/color"
@@ -89,6 +94,17 @@ func init() {
 	registryProviderVersionPlatformListCmd.MarkFlagRequired("name")
 
 	// `tfx registry provider version platform create` arguments
+	registryProviderVersionPlatformCreateCmd.Flags().StringP("name", "n", "", "Name of the Provider")
+	registryProviderVersionPlatformCreateCmd.Flags().StringP("version", "v", "", "Version of Provider (i.e. 0.0.1)")
+	registryProviderVersionPlatformCreateCmd.Flags().StringP("os", "", "", "OS of the Provider Version Platform (linux, windows, darwin)")
+	registryProviderVersionPlatformCreateCmd.Flags().StringP("arch", "", "", "ARCH of the Provider Version Platform (amd64, arm64)")
+	registryProviderVersionPlatformCreateCmd.Flags().StringP("filename", "f", "", "Path to the filename that is the provider binary")
+	registryProviderVersionPlatformCreateCmd.MarkFlagRequired("name")
+	registryProviderVersionPlatformCreateCmd.MarkFlagRequired("version")
+	registryProviderVersionPlatformCreateCmd.MarkFlagRequired("os")
+	registryProviderVersionPlatformCreateCmd.MarkFlagRequired("arch")
+	registryProviderVersionPlatformCreateCmd.MarkFlagRequired("filename")
+
 	// `tfx registry provider version platform show` arguments
 	// `tfx registry provider version platform delete` arguments
 
@@ -166,7 +182,40 @@ func registryProviderVersionPlatformList() error {
 }
 
 func registryProviderVersionPlatformCreate() error {
-	fmt.Println(color.MagentaString("Function not implemented yet."))
+	// Validate flags
+	orgName := *viperString("tfeOrganization")
+	providerName := *viperString("name")
+	providerVersion := *viperString("version")
+	providerOS := *viperString("os")
+	providerARCH := *viperString("arch")
+	providerFilename := *viperString("filename")
+
+	if _, err := os.Stat(providerFilename); errors.Is(err, os.ErrNotExist) {
+		logError(err, "Filename does not exist")
+	}
+
+	f, err := os.Open(providerFilename)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, f); err != nil {
+		log.Fatal(err)
+	}
+	sum := hex.EncodeToString(hash.Sum(nil))
+
+	filename := fmt.Sprintf("terraform-provider-%s_%s_%s_%s.zip",
+		providerName,
+		providerVersion,
+		providerOS,
+		providerARCH)
+
+	fmt.Println(orgName)
+	fmt.Println(providerFilename)
+	fmt.Println(filename)
+	fmt.Println(sum)
 	return nil
 }
 
