@@ -20,6 +20,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -51,8 +52,8 @@ var (
 	// `tfx registry provider version create` command
 	registryProviderVersionCreateCmd = &cobra.Command{
 		Use:   "create",
-		Short: "Create/Update a Provider Version in a Private Registry",
-		Long:  "Create/Update a Provider Version for a Provider in a Private Registry of a TFx Organization. ",
+		Short: "Create a Provider Version in a Private Registry",
+		Long:  "Create a Provider Version for a Provider in a Private Registry of a TFx Organization. ",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return registryProviderVersionCreate()
 		},
@@ -164,7 +165,12 @@ func registryProviderVersionCreate() error {
 	shasums := *viperString("shasums")
 	shasumssig := *viperString("shasumssig")
 
-	// TODO: validate files, etc...
+	if _, err := os.Stat(shasums); errors.Is(err, os.ErrNotExist) {
+		logError(err, "shasums file does not exist")
+	}
+	if _, err := os.Stat(shasumssig); errors.Is(err, os.ErrNotExist) {
+		logError(err, "shasumssig file does not exist")
+	}
 
 	client, ctx := getClientContext()
 	// existing, err := client.RegistryProviderVersions.Read(ctx, tfe.RegistryProviderVersionID{
