@@ -24,8 +24,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"os"
 	"time"
 
 	b64 "encoding/base64"
@@ -336,4 +339,47 @@ Loop:
 		return err
 	}
 	return nil
+}
+
+func UploadBinary(uploadURL string, path string) error {
+	data, err := os.Open(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer data.Close()
+	req, err := http.NewRequest("PUT", uploadURL, data)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	client := &http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer res.Body.Close()
+	return nil
+}
+
+func DownloadTextFile(downloadURL string) (string, error) {
+
+	client := http.Client{
+		CheckRedirect: func(r *http.Request, via []*http.Request) error {
+			r.URL.Opaque = r.URL.Path
+			return nil
+		},
+	}
+	resp, err := client.Get(downloadURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	b, err := io.ReadAll(resp.Body)
+	// b, err := ioutil.ReadAll(resp.Body)  Go.1.15 and earlier
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	return string(b), nil
 }
