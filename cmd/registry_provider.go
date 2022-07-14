@@ -113,25 +113,30 @@ func init() {
 
 func registryProviderList(c TfxClientContext, orgName string) error {
 	fmt.Println("Providers for Organization:", color.GreenString(orgName))
-	modules, err := c.Client.RegistryProviders.List(c.Context, orgName, &tfe.RegistryProviderListOptions{
-		// RegistryName: tfe.PrivateRegistry, // Can restrict to just private
-		ListOptions: tfe.ListOptions{
-			PageSize: 100,
-		},
-		// Include: &[]tfe.RegistryProviderIncludeOps{"provider-versions"}, does not work, cant get provider versions from this call?
-	})
-	if err != nil {
-		logError(err, "failed to read providers in PMR")
-	}
 
-	if modules.CurrentPage != modules.TotalPages {
-		fmt.Println("more pages")
+	// Get all items via pagination
+	CurrentPage, TotalPages := 1, 1
+	items := []*tfe.RegistryProvider{}
+	for ; CurrentPage <= TotalPages; CurrentPage++ {
+		rp, err := c.Client.RegistryProviders.List(c.Context, orgName, &tfe.RegistryProviderListOptions{
+			// RegistryName: tfe.PrivateRegistry, // Can restrict to just private
+			ListOptions: tfe.ListOptions{
+				PageNumber: CurrentPage,
+				PageSize:   100,
+			},
+			// Include: &[]tfe.RegistryProviderIncludeOps{"provider-versions"}, does not work, cant get provider versions from this call?
+		})
+		if err != nil {
+			logError(err, "failed to read providers in PMR")
+		}
+		TotalPages = rp.TotalPages
+		items = append(items, rp.Items...)
 	}
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
 	t.AppendHeader(table.Row{"Name", "Registry", "ID", "Published"})
-	for _, i := range modules.Items {
+	for _, i := range items {
 
 		t.AppendRow(table.Row{i.Name, i.RegistryName, i.ID, i.UpdatedAt})
 	}
