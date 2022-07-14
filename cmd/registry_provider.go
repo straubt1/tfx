@@ -43,9 +43,10 @@ var (
 		Short: "List Providers in a Private Registry",
 		Long:  "List Providers in a Private Registry of a TFx Organization. ",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return registryProviderList()
+			return registryProviderList(
+				getTfxClientContext(),
+				*viperString("tfeOrganization"))
 		},
-		PreRun: bindPFlags,
 	}
 
 	// `tfx registry provider create` command
@@ -54,9 +55,11 @@ var (
 		Short: "Create a Provider in a Private Registry",
 		Long:  "Create a Provider in a Private Registry of a TFx Organization. ",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return registryProviderCreate()
+			return registryProviderCreate(
+				getTfxClientContext(),
+				*viperString("tfeOrganization"),
+				*viperString("name"))
 		},
-		PreRun: bindPFlags,
 	}
 
 	// `tfx registry provider show` command
@@ -65,9 +68,11 @@ var (
 		Short: "Show details about a Provider in a Private Registry",
 		Long:  "Show details about a Provider in a Private Registry of a TFx Organization. ",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return registryProviderShow()
+			return registryProviderShow(
+				getTfxClientContext(),
+				*viperString("tfeOrganization"),
+				*viperString("name"))
 		},
-		PreRun: bindPFlags,
 	}
 
 	// `tfx registry provider delete` command
@@ -76,9 +81,11 @@ var (
 		Short: "Delete a Provider in a Private Registry",
 		Long:  "Delete a Provider in a Private Registry of a TFx Organization. ",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return registryProviderDelete()
+			return registryProviderDelete(
+				getTfxClientContext(),
+				*viperString("tfeOrganization"),
+				*viperString("name"))
 		},
-		PreRun: bindPFlags,
 	}
 )
 
@@ -104,15 +111,10 @@ func init() {
 	registryProviderCmd.AddCommand(registryProviderDeleteCmd)
 }
 
-func registryProviderList() error {
-	// Validate flags
-	orgName := *viperString("tfeOrganization")
-
-	client, ctx := getClientContext()
-
-	// Read all providers in PMR
-	fmt.Println("Reading Providers for Organization:", color.GreenString(orgName))
-	modules, err := client.RegistryProviders.List(ctx, orgName, &tfe.RegistryProviderListOptions{
+func registryProviderList(c TfxClientContext, orgName string) error {
+	fmt.Println("Providers for Organization:", color.GreenString(orgName))
+	modules, err := c.Client.RegistryProviders.List(c.Context, orgName, &tfe.RegistryProviderListOptions{
+		// RegistryName: tfe.PrivateRegistry, // Can restrict to just private
 		ListOptions: tfe.ListOptions{
 			PageSize: 100,
 		},
@@ -121,6 +123,11 @@ func registryProviderList() error {
 	if err != nil {
 		logError(err, "failed to read providers in PMR")
 	}
+
+	if modules.CurrentPage != modules.TotalPages {
+		fmt.Println("more pages")
+	}
+
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
 	t.AppendHeader(table.Row{"Name", "Registry", "ID", "Published"})
@@ -134,16 +141,10 @@ func registryProviderList() error {
 	return nil
 }
 
-func registryProviderCreate() error {
-	// Validate flags
-	orgName := *viperString("tfeOrganization")
-	name := *viperString("name")
-
-	client, ctx := getClientContext()
-
+func registryProviderCreate(c TfxClientContext, orgName string, providerName string) error {
 	fmt.Println("Creating Provider in Registry for Organization:", color.GreenString(orgName))
-	provider, err := client.RegistryProviders.Create(ctx, orgName, tfe.RegistryProviderCreateOptions{
-		Name:         name,
+	provider, err := c.Client.RegistryProviders.Create(c.Context, orgName, tfe.RegistryProviderCreateOptions{
+		Name:         providerName,
 		Namespace:    orgName, // always org name for RegistryName "private"
 		RegistryName: tfe.PrivateRegistry,
 	})
@@ -159,17 +160,11 @@ func registryProviderCreate() error {
 	return nil
 }
 
-func registryProviderShow() error {
-	// Validate flags
-	orgName := *viperString("tfeOrganization")
-	name := *viperString("name")
-
-	client, ctx := getClientContext()
-
+func registryProviderShow(c TfxClientContext, orgName string, providerName string) error {
 	fmt.Println("Creating Provider in Registry for Organization:", color.GreenString(orgName))
-	provider, err := client.RegistryProviders.Read(ctx, tfe.RegistryProviderID{
+	provider, err := c.Client.RegistryProviders.Read(c.Context, tfe.RegistryProviderID{
 		OrganizationName: orgName,
-		Name:             name,
+		Name:             providerName,
 		Namespace:        orgName, // always org name for RegistryName "private"
 		RegistryName:     tfe.PrivateRegistry,
 	}, &tfe.RegistryProviderReadOptions{
@@ -187,17 +182,11 @@ func registryProviderShow() error {
 	return nil
 }
 
-func registryProviderDelete() error {
-	// Validate flags
-	orgName := *viperString("tfeOrganization")
-	name := *viperString("name")
-
-	client, ctx := getClientContext()
-
+func registryProviderDelete(c TfxClientContext, orgName string, providerName string) error {
 	fmt.Println("Delete Provider in Registry for Organization:", color.GreenString(orgName))
-	err := client.RegistryProviders.Delete(ctx, tfe.RegistryProviderID{
+	err := c.Client.RegistryProviders.Delete(c.Context, tfe.RegistryProviderID{
 		OrganizationName: orgName,
-		Name:             name,
+		Name:             providerName,
 		Namespace:        orgName, // always org name for RegistryName "private"
 		RegistryName:     tfe.PrivateRegistry,
 	})
@@ -205,7 +194,7 @@ func registryProviderDelete() error {
 		logError(err, "failed to delete Provider")
 	}
 
-	fmt.Println(color.BlueString("Provider Delete: "), name)
+	fmt.Println(color.BlueString("Provider Delete: "), providerName)
 
 	return nil
 }

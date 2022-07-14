@@ -66,7 +66,7 @@ var (
 
 	// `tfx registry provider version platform show` command
 	registryProviderVersionPlatformShowCmd = &cobra.Command{
-		Use:   "create",
+		Use:   "show",
 		Short: "Show details about a Provider Version Platform in a Private Registry",
 		Long:  "Show details about a Provider Version Platform for a Provider Version in a Private Registry of a TFx Organization. ",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -77,7 +77,7 @@ var (
 
 	// `tfx registry provider version platform delete` command
 	registryProviderVersionPlatformDeleteCmd = &cobra.Command{
-		Use:   "create",
+		Use:   "delete",
 		Short: "Delete a Provider Version Platform in a Private Registry",
 		Long:  "Delete a Provider Version Platform for a Provider Version in a Private Registry of a TFx Organization. ",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -98,7 +98,7 @@ func init() {
 	registryProviderVersionPlatformCreateCmd.Flags().StringP("version", "v", "", "Version of Provider (i.e. 0.0.1)")
 	registryProviderVersionPlatformCreateCmd.Flags().StringP("os", "", "", "OS of the Provider Version Platform (linux, windows, darwin)")
 	registryProviderVersionPlatformCreateCmd.Flags().StringP("arch", "", "", "ARCH of the Provider Version Platform (amd64, arm64)")
-	registryProviderVersionPlatformCreateCmd.Flags().StringP("filename", "f", "", "Path to the filename that is the provider binary")
+	registryProviderVersionPlatformCreateCmd.Flags().StringP("filename", "f", "", "Path to the file that is the provider binary. Must be a zip file. Actual filename does not matter.")
 	registryProviderVersionPlatformCreateCmd.MarkFlagRequired("name")
 	registryProviderVersionPlatformCreateCmd.MarkFlagRequired("version")
 	registryProviderVersionPlatformCreateCmd.MarkFlagRequired("os")
@@ -106,7 +106,25 @@ func init() {
 	registryProviderVersionPlatformCreateCmd.MarkFlagRequired("filename")
 
 	// `tfx registry provider version platform show` arguments
+	registryProviderVersionPlatformShowCmd.Flags().StringP("name", "n", "", "Name of the Provider")
+	// registryProviderVersionPlatformShowCmd.Flags().StringP("name", "n", "", "Name of the Provider")
+	registryProviderVersionPlatformShowCmd.Flags().StringP("version", "v", "", "Version of Provider (i.e. 0.0.1)")
+	registryProviderVersionPlatformShowCmd.Flags().StringP("os", "", "", "OS of the Provider Version Platform (linux, windows, darwin)")
+	registryProviderVersionPlatformShowCmd.Flags().StringP("arch", "", "", "ARCH of the Provider Version Platform (amd64, arm64)")
+	registryProviderVersionPlatformShowCmd.MarkFlagRequired("name")
+	registryProviderVersionPlatformShowCmd.MarkFlagRequired("version")
+	registryProviderVersionPlatformShowCmd.MarkFlagRequired("os")
+	registryProviderVersionPlatformShowCmd.MarkFlagRequired("arch")
+
 	// `tfx registry provider version platform delete` arguments
+	registryProviderVersionPlatformDeleteCmd.Flags().StringP("name", "n", "", "Name of the Provider")
+	registryProviderVersionPlatformDeleteCmd.Flags().StringP("version", "v", "", "Version of Provider (i.e. 0.0.1)")
+	registryProviderVersionPlatformDeleteCmd.Flags().StringP("os", "", "", "OS of the Provider Version Platform (linux, windows, darwin)")
+	registryProviderVersionPlatformDeleteCmd.Flags().StringP("arch", "", "", "ARCH of the Provider Version Platform (amd64, arm64)")
+	registryProviderVersionPlatformDeleteCmd.MarkFlagRequired("name")
+	registryProviderVersionPlatformDeleteCmd.MarkFlagRequired("version")
+	registryProviderVersionPlatformDeleteCmd.MarkFlagRequired("os")
+	registryProviderVersionPlatformDeleteCmd.MarkFlagRequired("arch")
 
 	registryProviderVersionCmd.AddCommand(registryProviderVersionPlatformCmd)
 	registryProviderVersionPlatformCmd.AddCommand(registryProviderVersionPlatformListCmd)
@@ -212,19 +230,111 @@ func registryProviderVersionPlatformCreate() error {
 		providerOS,
 		providerARCH)
 
-	fmt.Println(orgName)
-	fmt.Println(providerFilename)
-	fmt.Println(filename)
-	fmt.Println(sum)
+	// fmt.Println(orgName)
+	// fmt.Println(providerFilename)
+	// fmt.Println(filename)
+	// fmt.Println(sum)
+
+	client, ctx := getClientContext()
+
+	// Create a platform
+	fmt.Println("Create Provider Platforms for Organization:", color.GreenString(orgName))
+	rpp, err := client.RegistryProviderPlatforms.Create(ctx, tfe.RegistryProviderVersionID{
+		RegistryProviderID: tfe.RegistryProviderID{
+			OrganizationName: orgName,
+			Namespace:        orgName, // always org name for RegistryName "private
+			RegistryName:     tfe.PrivateRegistry,
+			Name:             providerName,
+		},
+		Version: providerVersion,
+	}, tfe.RegistryProviderPlatformCreateOptions{
+		OS:       providerOS,
+		Arch:     providerARCH,
+		Shasum:   sum,
+		Filename: filename,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("Uploading Provider Version Platform:", color.GreenString(providerName))
+	err = UploadBinary(rpp.Links["provider-binary-upload"].(string), providerFilename)
+	if err != nil {
+		logError(err, "failed to upload provider")
+	}
+	fmt.Println(rpp.Links["provider-binary-upload"], rpp.ID)
+	fmt.Println("Provider Version Platform Uploaded!")
 	return nil
 }
 
 func registryProviderVersionPlatformShow() error {
-	fmt.Println(color.MagentaString("Function not implemented yet."))
+	// Validate flags
+	orgName := *viperString("tfeOrganization")
+	providerName := *viperString("name")
+	providerVersion := *viperString("version")
+	providerOS := *viperString("os")
+	providerARCH := *viperString("arch")
+
+	client, ctx := getClientContext()
+
+	fmt.Println("Delete Provider Version Platform in Registry for Organization:", color.GreenString(orgName))
+	rpp, err := client.RegistryProviderPlatforms.Read(ctx, tfe.RegistryProviderPlatformID{
+		RegistryProviderVersionID: tfe.RegistryProviderVersionID{
+			RegistryProviderID: tfe.RegistryProviderID{
+				OrganizationName: orgName,
+				Namespace:        orgName, // always org name for RegistryName "private
+				RegistryName:     tfe.PrivateRegistry,
+				Name:             providerName,
+			},
+			Version: providerVersion,
+		},
+		OS:   providerOS,
+		Arch: providerARCH,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(color.BlueString("Name:     "), providerName)
+	fmt.Println(color.BlueString("ID:       "), rpp.ID)
+	fmt.Println(color.BlueString("Version:  "), providerVersion)
+	fmt.Println(color.BlueString("OS:       "), rpp.OS)
+	fmt.Println(color.BlueString("ARCH:     "), rpp.Arch)
+	fmt.Println(color.BlueString("Filename: "), rpp.Filename)
+	fmt.Println(color.BlueString("Shasum:   "), rpp.Shasum)
+
 	return nil
 }
 
 func registryProviderVersionPlatformDelete() error {
-	fmt.Println(color.MagentaString("Function not implemented yet."))
+	// Validate flags
+	orgName := *viperString("tfeOrganization")
+	providerName := *viperString("name")
+	providerVersion := *viperString("version")
+	providerOS := *viperString("os")
+	providerARCH := *viperString("arch")
+
+	client, ctx := getClientContext()
+
+	fmt.Println("Delete Provider Version Platform in Registry for Organization:", color.GreenString(orgName))
+	err := client.RegistryProviderPlatforms.Delete(ctx, tfe.RegistryProviderPlatformID{
+		RegistryProviderVersionID: tfe.RegistryProviderVersionID{
+			RegistryProviderID: tfe.RegistryProviderID{
+				OrganizationName: orgName,
+				Namespace:        orgName, // always org name for RegistryName "private
+				RegistryName:     tfe.PrivateRegistry,
+				Name:             providerName,
+			},
+			Version: providerVersion,
+		},
+		OS:   providerOS,
+		Arch: providerARCH,
+	})
+
+	if err != nil {
+		logError(err, "failed to delete Provider Version Platform")
+	}
+
+	fmt.Println(color.BlueString("Provider Version Platform Deleted: "), providerName, providerVersion)
 	return nil
 }
