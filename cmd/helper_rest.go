@@ -344,18 +344,18 @@ Loop:
 func UploadBinary(uploadURL string, path string) error {
 	data, err := os.Open(path)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer data.Close()
 	req, err := http.NewRequest("PUT", uploadURL, data)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	client := &http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer res.Body.Close()
 	return nil

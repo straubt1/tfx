@@ -111,26 +111,37 @@ func init() {
 	registryProviderCmd.AddCommand(registryProviderDeleteCmd)
 }
 
+func registryProvidersListAll(c TfxClientContext, orgName string) ([]*tfe.RegistryProvider, error) {
+	allItems := []*tfe.RegistryProvider{}
+	opts := tfe.RegistryProviderListOptions{
+		// RegistryName: tfe.PrivateRegistry, // Can restrict to just private
+		ListOptions: tfe.ListOptions{
+			PageNumber: 1,
+			PageSize:   100,
+		},
+		// Include: &[]tfe.RegistryProviderIncludeOps{"provider-versions"}, does not work, cant get provider versions from this call?
+	}
+	for {
+		items, err := c.Client.RegistryProviders.List(c.Context, orgName, &opts)
+		if err != nil {
+			return nil, err
+		}
+
+		allItems = append(allItems, items.Items...)
+		if items.CurrentPage >= items.TotalPages {
+			break
+		}
+		opts.PageNumber = items.NextPage
+	}
+
+	return allItems, nil
+}
+
 func registryProviderList(c TfxClientContext, orgName string) error {
 	fmt.Println("Providers for Organization:", color.GreenString(orgName))
-
-	// Get all items via pagination
-	CurrentPage, TotalPages := 1, 1
-	items := []*tfe.RegistryProvider{}
-	for ; CurrentPage <= TotalPages; CurrentPage++ {
-		rp, err := c.Client.RegistryProviders.List(c.Context, orgName, &tfe.RegistryProviderListOptions{
-			// RegistryName: tfe.PrivateRegistry, // Can restrict to just private
-			ListOptions: tfe.ListOptions{
-				PageNumber: CurrentPage,
-				PageSize:   100,
-			},
-			// Include: &[]tfe.RegistryProviderIncludeOps{"provider-versions"}, does not work, cant get provider versions from this call?
-		})
-		if err != nil {
-			logError(err, "failed to read providers in PMR")
-		}
-		TotalPages = rp.TotalPages
-		items = append(items, rp.Items...)
+	items, err := registryProvidersListAll(c, orgName)
+	if err != nil {
+		logError(err, "failed to read providers in PMR")
 	}
 
 	t := table.NewWriter()

@@ -44,9 +44,11 @@ var (
 		Short: "List Provider Versions in a Private Registry",
 		Long:  "List Provider Versions for a Provider in a Private Registry of a TFx Organization. ",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return registryProviderVersionList()
+			return registryProviderVersionList(
+				getTfxClientContext(),
+				*viperString("tfeOrganization"),
+				*viperString("name"))
 		},
-		PreRun: bindPFlags,
 	}
 
 	// `tfx registry provider version create` command
@@ -55,9 +57,23 @@ var (
 		Short: "Create a Provider Version in a Private Registry",
 		Long:  "Create a Provider Version for a Provider in a Private Registry of a TFx Organization. ",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return registryProviderVersionCreate()
+			// TODO: verify path is not a directory, passing a valid path but not to a file will error
+			if _, err := os.Stat(*viperString("shasums")); errors.Is(err, os.ErrNotExist) {
+				logError(err, "shasums file does not exist")
+			}
+			if _, err := os.Stat(*viperString("shasumssig")); errors.Is(err, os.ErrNotExist) {
+				logError(err, "shasumssig file does not exist")
+			}
+
+			return registryProviderVersionCreate(getTfxClientContext(),
+				*viperString("tfeOrganization"),
+				*viperString("name"),
+				*viperString("version"),
+				*viperString("keyId"),
+				*viperString("shasums"),
+				*viperString("shasumssig"),
+			)
 		},
-		PreRun: bindPFlags,
 	}
 
 	// `tfx registry provider version show` command
@@ -66,9 +82,11 @@ var (
 		Short: "Show details of a Provider Version in a Private Registry",
 		Long:  "Show details of a Provider Version for a Provider in a Private Registry of a TFx Organization. ",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return registryProviderVersionShow()
+			return registryProviderVersionShow(getTfxClientContext(),
+				*viperString("tfeOrganization"),
+				*viperString("name"),
+				*viperString("version"))
 		},
-		PreRun: bindPFlags,
 	}
 
 	// `tfx registry provider version delete` command
@@ -77,9 +95,11 @@ var (
 		Short: "Delete a Provider Version in a Private Registry",
 		Long:  "Delete a Provider Version for a Provider in a Private Registry of a TFx Organization. ",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return registryProviderVersionDelete()
+			return registryProviderVersionDelete(getTfxClientContext(),
+				*viperString("tfeOrganization"),
+				*viperString("name"),
+				*viperString("version"))
 		},
-		PreRun: bindPFlags,
 	}
 )
 
@@ -119,34 +139,48 @@ func init() {
 	registryProviderVersionCmd.AddCommand(registryProviderVersionDeleteCmd)
 }
 
-func registryProviderVersionList() error {
-	// Validate flags
-	orgName := *viperString("tfeOrganization")
-	providerName := *viperString("name")
-
-	client, ctx := getClientContext()
-
-	// Read all providers in PMR
-	fmt.Println("Reading Providers for Organization:", color.GreenString(orgName))
-	fmt.Println("Provider Name:", color.GreenString(providerName))
-	provider, err := client.RegistryProviderVersions.List(ctx, tfe.RegistryProviderID{
-		OrganizationName: orgName,
-		Namespace:        orgName,
-		RegistryName:     "private", // for some reason public doesn't work...
-		Name:             providerName,
-	}, &tfe.RegistryProviderVersionListOptions{
+func registryProviderVersionsListAll(c TfxClientContext, orgName string, providerName string) ([]*tfe.RegistryProviderVersion, error) {
+	allItems := []*tfe.RegistryProviderVersion{}
+	opts := tfe.RegistryProviderVersionListOptions{
 		ListOptions: tfe.ListOptions{
-			PageSize: 100,
+			PageNumber: 1,
+			PageSize:   100,
 		},
-	})
+	}
+	for {
+		items, err := c.Client.RegistryProviderVersions.List(c.Context,
+			tfe.RegistryProviderID{
+				OrganizationName: orgName,
+				Namespace:        orgName, // always org name for RegistryName "private"
+				RegistryName:     tfe.PrivateRegistry,
+				Name:             providerName,
+			}, &opts)
+		if err != nil {
+			return nil, err
+		}
+
+		allItems = append(allItems, items.Items...)
+		if items.CurrentPage >= items.TotalPages {
+			break
+		}
+		opts.PageNumber = items.NextPage
+	}
+
+	return allItems, nil
+}
+
+func registryProviderVersionList(c TfxClientContext, orgName string, providerName string) error {
+	fmt.Println("Provider Versions for Organization:", color.GreenString(orgName))
+	fmt.Println("Provider Name:", color.GreenString(providerName))
+	items, err := registryProviderVersionsListAll(c, orgName, providerName)
 	if err != nil {
-		logError(err, "failed to read provider in PMR")
+		logError(err, "failed to read provider versions in Registry")
 	}
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
 	t.AppendHeader(table.Row{"Name", "Registry", "Published", "SHASUM Uploaded", "SHASUM Sig Uploaded"})
-	for _, i := range provider.Items {
+	for _, i := range items {
 
 		t.AppendRow(table.Row{i.ID, i.Version, i.UpdatedAt, i.ShasumsUploaded, i.ShasumsSigUploaded})
 	}
@@ -156,41 +190,10 @@ func registryProviderVersionList() error {
 	return nil
 }
 
-func registryProviderVersionCreate() error {
-	// Validate flags
-	orgName := *viperString("tfeOrganization")
-	providerName := *viperString("name")
-	providerVersion := *viperString("version")
-	keyId := *viperString("keyId")
-	shasums := *viperString("shasums")
-	shasumssig := *viperString("shasumssig")
-
-	if _, err := os.Stat(shasums); errors.Is(err, os.ErrNotExist) {
-		logError(err, "shasums file does not exist")
-	}
-	if _, err := os.Stat(shasumssig); errors.Is(err, os.ErrNotExist) {
-		logError(err, "shasumssig file does not exist")
-	}
-
-	client, ctx := getClientContext()
-	// existing, err := client.RegistryProviderVersions.Read(ctx, tfe.RegistryProviderVersionID{
-	// 	RegistryProviderID: tfe.RegistryProviderID{
-	// 		OrganizationName: orgName,
-	// 		Namespace:        orgName, // always org name for RegistryName "private"
-	// 		RegistryName:     tfe.PrivateRegistry,
-	// 		Name:             providerName,
-	// 	},
-	// 	Version: providerVersion,
-	// })
-	// if err != nil {
-	// 	logError(err, "failed to find provider in PMR")
-	// }
-	// fmt.Println(existing)
-
-	// Create provider in Registry
+func registryProviderVersionCreate(c TfxClientContext, orgName string, providerName string, providerVersion string, keyId string, shasums string, shasumssig string) error {
 	fmt.Println("Create Provider for Organization:", color.GreenString(orgName))
 	fmt.Println("Provider Name:", color.GreenString(providerName))
-	p, err := client.RegistryProviderVersions.Create(ctx, tfe.RegistryProviderID{
+	p, err := c.Client.RegistryProviderVersions.Create(c.Context, tfe.RegistryProviderID{
 		OrganizationName: orgName,
 		Namespace:        orgName, // always org name for RegistryName "private"
 		RegistryName:     tfe.PrivateRegistry,
@@ -201,10 +204,10 @@ func registryProviderVersionCreate() error {
 		// Protocols: []string{},
 	})
 	if err != nil {
-		// logError(err, "failed to create provider in PMR")
-		fmt.Println("failed to create provider in PMR")
+		logError(err, "failed to create provider version in Registry")
 	}
 
+	fmt.Println(p.Links["shasums-upload"], p.Links["shasums-sig-upload"], p.CreatedAt)
 	err = UploadBinary(p.Links["shasums-upload"].(string), shasums)
 	if err != nil {
 		logError(err, "failed to upload shasums")
@@ -213,24 +216,16 @@ func registryProviderVersionCreate() error {
 	if err != nil {
 		logError(err, "failed to upload shasums sig")
 	}
-	fmt.Println(p.Links["shasums-upload"], p.Links["shasums-sig-upload"], p.CreatedAt)
 	fmt.Println(shasums, shasumssig, p.CreatedAt)
 	return nil
 }
 
-func registryProviderVersionShow() error {
-	// Validate flags
-	orgName := *viperString("tfeOrganization")
-	providerName := *viperString("name")
-	providerVersion := *viperString("version")
-
-	client, ctx := getClientContext()
-
-	provider, err := client.RegistryProviderVersions.Read(ctx, tfe.RegistryProviderVersionID{
+func registryProviderVersionShow(c TfxClientContext, orgName string, providerName string, providerVersion string) error {
+	provider, err := c.Client.RegistryProviderVersions.Read(c.Context, tfe.RegistryProviderVersionID{
 		RegistryProviderID: tfe.RegistryProviderID{
 			OrganizationName: orgName,
-			Namespace:        orgName,
-			RegistryName:     "private", // for some reason public doesn't work...
+			Namespace:        orgName, // always org name for RegistryName "private"
+			RegistryName:     tfe.PrivateRegistry,
 			Name:             providerName,
 		},
 		Version: providerVersion,
@@ -258,14 +253,9 @@ func registryProviderVersionShow() error {
 	return nil
 }
 
-func registryProviderVersionDelete() error {
-	client, ctx := getClientContext()
-	orgName := *viperString("tfeOrganization")
-	providerName := *viperString("name")
-	providerVersion := *viperString("version")
-
+func registryProviderVersionDelete(c TfxClientContext, orgName string, providerName string, providerVersion string) error {
 	fmt.Println("Delete Provider Version in Registry for Organization:", color.GreenString(orgName))
-	err := client.RegistryProviderVersions.Delete(ctx, tfe.RegistryProviderVersionID{
+	err := c.Client.RegistryProviderVersions.Delete(c.Context, tfe.RegistryProviderVersionID{
 		RegistryProviderID: tfe.RegistryProviderID{
 			OrganizationName: orgName,
 			Name:             providerName,
