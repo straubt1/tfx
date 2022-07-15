@@ -70,6 +70,25 @@ var (
 		},
 	}
 
+	// `tfx variable update` command
+	variableUpdateCmd = &cobra.Command{
+		Use:   "update",
+		Short: "Update a Variable",
+		Long:  "Update a Variable in a Workspace. ",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return variableUpdate(
+				getTfxClientContext(),
+				*viperString("tfeOrganization"),
+				*viperString("workspace"),
+				*viperString("key"),
+				*viperString("value"),
+				*viperString("description"),
+				*viperBool("env"),
+				*viperBool("hcl"),
+				*viperBool("sensitive"))
+		},
+	}
+
 	// `tfx variable show` command
 	variableShowCmd = &cobra.Command{
 		Use:   "show",
@@ -116,6 +135,18 @@ func init() {
 	variableCreateCmd.MarkFlagRequired("key")
 	variableCreateCmd.MarkFlagRequired("value")
 
+	// `tfx variable update` command
+	variableUpdateCmd.Flags().StringP("workspace", "w", "", "Name of the Workspace")
+	variableUpdateCmd.Flags().StringP("key", "k", "", "Key of the Variable")
+	variableUpdateCmd.Flags().StringP("value", "v", "", "Value of the Variable")
+	variableUpdateCmd.Flags().StringP("description", "d", "", "Description of the Variable (optional)")
+	variableUpdateCmd.Flags().BoolP("env", "e", false, "Variable is an Environment Variable (optional, defaults to false)")
+	variableUpdateCmd.Flags().BoolP("hcl", "", false, "Value of Variable is HCL (optional, defaults to false)")
+	variableUpdateCmd.Flags().BoolP("sensitive", "", false, "Variable is Sensitive (optional, defaults to false)")
+	variableUpdateCmd.MarkFlagRequired("workspace")
+	variableUpdateCmd.MarkFlagRequired("key")
+	variableUpdateCmd.MarkFlagRequired("value")
+
 	// `tfx variable show` command
 	variableShowCmd.Flags().StringP("workspace", "w", "", "Name of the Workspace")
 	variableShowCmd.Flags().StringP("key", "k", "", "Key of the Variable")
@@ -131,6 +162,7 @@ func init() {
 	rootCmd.AddCommand(variableCmd)
 	variableCmd.AddCommand(variableListCmd)
 	variableCmd.AddCommand(variableCreateCmd)
+	variableCmd.AddCommand(variableUpdateCmd)
 	variableCmd.AddCommand(variableShowCmd)
 	variableCmd.AddCommand(variableDeleteCmd)
 }
@@ -183,6 +215,43 @@ func variableCreate(c TfxClientContext, orgName string, workspaceName string,
 	})
 	if err != nil {
 		return errors.Wrap(err, "Failed to Create Variable")
+	}
+
+	fmt.Println(color.BlueString("ID:  "), variable.ID)
+	fmt.Println(color.BlueString("Key: "), variable.Key)
+
+	return nil
+}
+
+func variableUpdate(c TfxClientContext, orgName string, workspaceName string,
+	variableKey string, variableValue string, description string, isEnvironment bool, isHcl bool, isSensitive bool) error {
+	fmt.Println("Create Variable for Workspace:", color.GreenString(workspaceName))
+	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
+	if err != nil {
+		return errors.Wrap(err, "unable to read workspace id")
+	}
+
+	variableId, err := getVariableId(c, workspaceId, variableKey)
+	if err != nil {
+		return errors.Wrap(err, "unable to read variable id")
+	}
+
+	var category *tfe.CategoryType
+	if isEnvironment {
+		category = tfe.Category(tfe.CategoryEnv)
+	} else {
+		category = tfe.Category(tfe.CategoryTerraform)
+	}
+	variable, err := c.Client.Variables.Update(c.Context, workspaceId, variableId, tfe.VariableUpdateOptions{
+		Key:         &variableKey,
+		Value:       &variableValue,
+		Description: &description,
+		Category:    category,
+		HCL:         &isHcl,
+		Sensitive:   &isSensitive,
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to Update Variable")
 	}
 
 	fmt.Println(color.BlueString("ID:  "), variable.ID)
