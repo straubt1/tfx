@@ -159,8 +159,8 @@ func releaseTfeList() error {
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
 	t.AppendHeader(table.Row{"Sequence", "Label", "Required", "Release Date"})
-	for index, i := range tfeBinaries.release {
-		t.AppendRow(table.Row{i.releaseequence, i.Label, i.Required, i.ReleaseDate.String()})
+	for index, i := range tfeBinaries.Releases {
+		t.AppendRow(table.Row{i.ReleaseSequence, i.Label, i.Required, i.ReleaseDate.String()})
 		if index+1 >= maxResults {
 			break
 		}
@@ -182,15 +182,15 @@ func releaseTfeShow() error {
 		return err
 	}
 
-	idx := slices.IndexFunc(tfeBinaries.release, func(c TFERelease) bool { return c.releaseequence == release })
+	idx := slices.IndexFunc(tfeBinaries.Releases, func(c TFERelease) bool { return c.ReleaseSequence == release })
 	if idx < 0 {
 		fmt.Println(color.RedString("Error: "), "Unable to find release sequence: ", release)
 		return nil
 	}
-	tfeRelease := tfeBinaries.release[idx]
+	tfeRelease := tfeBinaries.Releases[idx]
 
 	fmt.Println(" Found")
-	fmt.Println(color.BlueString("Release Sequence: "), tfeRelease.releaseequence)
+	fmt.Println(color.BlueString("Release Sequence: "), tfeRelease.ReleaseSequence)
 	fmt.Println(color.BlueString("Label:            "), tfeRelease.Label)
 	fmt.Println(color.BlueString("Release Date:     "), tfeRelease.ReleaseDate)
 	fmt.Println(color.BlueString("Required:         "), tfeRelease.Required)
