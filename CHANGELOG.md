@@ -9,7 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* `tfx cv download` - Download a Configuration Version and unpack onto disk.
+* `tfx gpg list` - List GPG Keys of an Organization
+* `tfx gpg create` - Create a GPG Key for an Organization
+* `tfx gpg show` - Show details of a GPG Key for an Organization
+* `tfx gpg delete` - Delete GPG Key for an Organization
+* `tfx release tfe list` - List available Terraform Enterprise releases
+* `tfx release tfe show` - Show details of a Terraform Enterprise release, including release notes
+* `tfx release tfe download` - Download a Terraform Enterprise airgap binary
+* `tfx release replicated list` - List available Replicated releases
+* `tfx release replicated download` - Download a Replicated release
+* `tfx registry provider list` - List Providers in the Registry
+* `tfx registry provider version list` - List Versions for a Provider in the Registry
+* `tfx registry provider version platform list` - List Platforms for a Provider Version in the Registry
+* `tfx registry provider create` - Create a Provider in the Registry
+* `tfx registry provider show` - Show details of a Provider in the Registry
+* `tfx registry provider delete` - Delete a Provider in the Registry
+* `tfx registry provider version create` - Create a Version for a Provider in the Registry
+* `tfx registry provider version show` - Show details a Version for a Provider in the Registry
+* `tfx registry provider version delete` - Delete a Version for a Provider in the Registry
+* `tfx registry provider version platform create` - Create a Platform Version for a Provider in the Registry
+* `tfx registry provider version platform show` - Show details of a Platform Version for a Provider in the Registry
+* `tfx registry provider version platform delete` - Delete a Platform Version for a Provider in the Registry
+
 ### Changed
+
+* PMR Module uploading - Removed helper code (shim) in favor of the now available the go-tfe functions
 
 ### Removed
 

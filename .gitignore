@@ -24,3 +24,8 @@ debug/
 demo.md
 tfx
 local/
+bin/
+*.airgap
+*.tgz
+*.targz
+styleguide.md

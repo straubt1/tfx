@@ -25,6 +25,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/fatih/color"
+	"github.com/logrusorgru/aurora"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/straubt1/tfx/version"
@@ -36,6 +38,7 @@ import (
 var (
 	cfgFile string
 
+	// Required to leverage viper defaults for optional Flags
 	bindPFlags = func(cmd *cobra.Command, args []string) {
 		err := viper.BindPFlags(cmd.Flags())
 		if err != nil {
@@ -48,16 +51,21 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "tfx",
 	Short: "A CLI to easily interact with TFC/TFE.",
-	Long: `Leveraging the API for TFC/TFE can become a burden for common tasks.
+	Long: `Leveraging the API can become a burden for common tasks.
 	TFx aims to ease that challenge for common and repeatable tasks. This application
 	can be used to interact with either Terraform Cloud or Terraform Enterprise.`,
-	Version: version.String(),
+	SilenceUsage:     true,
+	SilenceErrors:    true,
+	Version:          version.String(),
+	PersistentPreRun: bindPFlags, // Bind here to avoid having to call this in every subcommand
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	cobra.CheckErr(rootCmd.Execute())
+	if err := rootCmd.Execute(); err != nil {
+		log.Fatal(aurora.Red(err))
+	}
 }
 
 func init() {
@@ -98,7 +106,7 @@ func initConfig() {
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+		fmt.Fprintln(os.Stderr, "Using config file:", color.YellowString(viper.ConfigFileUsed()))
 	}
 
 	// Some hacking here to let viper use the cobra required flags, simplifies this checking

@@ -184,20 +184,24 @@ func init() {
 
 func pmrList() error {
 	// Validate flags
-	hostname := *viperString("tfeHostname")
-	token := *viperString("tfeToken")
 	orgName := *viperString("tfeOrganization")
+	client, ctx := getClientContext()
 
-	pmr, err := GetAllPMRModules(token, hostname, orgName)
+	// Read all modules in PMR
+	fmt.Println("Reading Private Modules for Organization:", color.GreenString(orgName))
+	modules, err := client.RegistryModules.List(ctx, orgName, &tfe.RegistryModuleListOptions{
+		ListOptions: tfe.ListOptions{
+			PageSize: 100,
+		},
+	})
 	if err != nil {
-		logError(err, "failed to get pmr modules")
+		logError(err, "failed to read modules in PMR")
 	}
-
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"Organization", "Name", "Provider", "Id", "Published"})
-	for _, i := range pmr.Modules {
-		t.AppendRow(table.Row{i.Namespace, i.Name, i.Provider, i.ID, i.PublishedAt})
+	t.AppendHeader(table.Row{"Organization", "Name", "Provider", "ID", "Published"})
+	for _, i := range modules.Items {
+		t.AppendRow(table.Row{i.Organization.Name, i.Name, i.Provider, i.ID, i.UpdatedAt})
 	}
 	t.SetStyle(table.StyleRounded)
 	t.Render()
@@ -228,8 +232,8 @@ func pmrCreate() error {
 
 func pmrCreateVersion() error {
 	// Validate flags
-	hostname := *viperString("tfeHostname")
-	token := *viperString("tfeToken")
+	// hostname := *viperString("tfeHostname")
+	// token := *viperString("tfeToken")
 	orgName := *viperString("tfeOrganization")
 	moduleName := *viperString("name")
 	providerName := *viperString("provider")
@@ -241,16 +245,27 @@ func pmrCreateVersion() error {
 		logError(err, "failed to parse semantic version")
 	}
 
+	client, ctx := getClientContext()
+
 	fmt.Print("Creating Module Version ", color.GreenString(moduleName), "/", color.GreenString(providerName),
 		":", color.GreenString(moduleVersion), " ... ")
-	var url *string
-	url, err = RegistryModulesCreateVersion(token, hostname, orgName,
-		moduleName, providerName, moduleVersion)
+	rmv, err := client.RegistryModules.CreateVersion(ctx, tfe.RegistryModuleID{
+		Organization: orgName,
+		Name:         moduleName,
+		Provider:     providerName,
+	}, tfe.RegistryModuleCreateVersionOptions{
+		Version: &moduleVersion,
+	})
+
+	// var url *string
+	// url, err = RegistryModulesCreateVersion(token, hostname, orgName,
+	// 	moduleName, providerName, moduleVersion)
 	if err != nil {
 		logError(err, "failed to create a version with an upload URL")
 	}
 	fmt.Print(" Uploading ... ")
-	err = RegistryModulesUpload(token, url, dir)
+	err = client.RegistryModules.Upload(ctx, *rmv, dir)
+	// err = RegistryModulesUpload(token, url, dir)
 	if err != nil {
 		logError(err, "failed to upload code")
 	}
