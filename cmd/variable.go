@@ -1,0 +1,288 @@
+// Copyright © 2021 Tom Straub <github.com/straubt1>
+
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+package cmd
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/fatih/color"
+	tfe "github.com/hashicorp/go-tfe"
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+)
+
+var (
+	// `tfx variable` commands
+	variableCmd = &cobra.Command{
+		Use:   "variable",
+		Short: "Variable Commands",
+		Long:  "Commands to work with Workspace Variables.",
+	}
+
+	// `tfx variable list` command
+	variableListCmd = &cobra.Command{
+		Use:   "list",
+		Short: "List Variables",
+		Long:  "List Variables in a Workspace. ",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return variableList(
+				getTfxClientContext(),
+				*viperString("tfeOrganization"),
+				*viperString("workspace"))
+		},
+	}
+
+	// `tfx variable create` command
+	variableCreateCmd = &cobra.Command{
+		Use:   "create",
+		Short: "Create a Variable",
+		Long:  "Create a Variable in a Workspace. ",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return variableCreate(
+				getTfxClientContext(),
+				*viperString("tfeOrganization"),
+				*viperString("workspace"),
+				*viperString("key"),
+				*viperString("value"),
+				*viperString("description"),
+				*viperBool("env"),
+				*viperBool("hcl"),
+				*viperBool("sensitive"))
+		},
+	}
+
+	// `tfx variable show` command
+	variableShowCmd = &cobra.Command{
+		Use:   "show",
+		Short: "Show details of a Variable",
+		Long:  "Show details of a Variable in a Workspace. ",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return variableShow(
+				getTfxClientContext(),
+				*viperString("tfeOrganization"),
+				*viperString("workspace"),
+				*viperString("key"))
+		},
+	}
+
+	// `tfx variable delete` command
+	variableDeleteCmd = &cobra.Command{
+		Use:   "delete",
+		Short: "Delete a Variable",
+		Long:  "Delete a Variable in a Workspace. ",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return variableDelete(
+				getTfxClientContext(),
+				*viperString("tfeOrganization"),
+				*viperString("workspace"),
+				*viperString("key"))
+		},
+	}
+)
+
+func init() {
+	// `tfx variable list` command
+	variableListCmd.Flags().StringP("workspace", "w", "", "Name of the Workspace")
+	variableListCmd.MarkFlagRequired("workspace")
+
+	// `tfx variable create` command
+	variableCreateCmd.Flags().StringP("workspace", "w", "", "Name of the Workspace")
+	variableCreateCmd.Flags().StringP("key", "k", "", "Key of the Variable")
+	variableCreateCmd.Flags().StringP("value", "v", "", "Value of the Variable")
+	variableCreateCmd.Flags().StringP("description", "d", "", "Description of the Variable (optional)")
+	variableCreateCmd.Flags().BoolP("env", "e", false, "Variable is an Environment Variable (optional, defaults to false)")
+	variableCreateCmd.Flags().BoolP("hcl", "", false, "Value of Variable is HCL (optional, defaults to false)")
+	variableCreateCmd.Flags().BoolP("sensitive", "", false, "Variable is Sensitive (optional, defaults to false)")
+	variableCreateCmd.MarkFlagRequired("workspace")
+	variableCreateCmd.MarkFlagRequired("key")
+	variableCreateCmd.MarkFlagRequired("value")
+
+	// `tfx variable show` command
+	variableShowCmd.Flags().StringP("workspace", "w", "", "Name of the Workspace")
+	variableShowCmd.Flags().StringP("key", "k", "", "Key of the Variable")
+	variableShowCmd.MarkFlagRequired("workspace")
+	variableShowCmd.MarkFlagRequired("key")
+
+	// `tfx variable delete` command
+	variableDeleteCmd.Flags().StringP("workspace", "w", "", "Name of the Workspace")
+	variableDeleteCmd.Flags().StringP("key", "k", "", "Key of the Variable")
+	variableDeleteCmd.MarkFlagRequired("workspace")
+	variableDeleteCmd.MarkFlagRequired("key")
+
+	rootCmd.AddCommand(variableCmd)
+	variableCmd.AddCommand(variableListCmd)
+	variableCmd.AddCommand(variableCreateCmd)
+	variableCmd.AddCommand(variableShowCmd)
+	variableCmd.AddCommand(variableDeleteCmd)
+}
+
+func variableList(c TfxClientContext, orgName string, workspaceName string) error {
+	fmt.Println("Variables for Workspace:", color.GreenString(workspaceName))
+	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
+	if err != nil {
+		return errors.Wrap(err, "unable to read workspace id")
+	}
+
+	items, err := variablesListAll(c, workspaceId)
+	if err != nil {
+		return errors.Wrap(err, "failed to list variables")
+	}
+
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{"Id", "Key", "Value", "Sensitive", "HCL", "Category", "Description"})
+	for _, i := range items {
+		t.AppendRow(table.Row{i.ID, i.Key, i.Value, i.Sensitive, i.HCL, i.Category, i.Description})
+	}
+	t.SetStyle(table.StyleRounded)
+	t.Render()
+
+	return nil
+}
+
+func variableCreate(c TfxClientContext, orgName string, workspaceName string,
+	variableKey string, variableValue string, description string, isEnvironment bool, isHcl bool, isSensitive bool) error {
+	fmt.Println("Create Variable for Workspace:", color.GreenString(workspaceName))
+	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
+	if err != nil {
+		return errors.Wrap(err, "unable to read workspace id")
+	}
+
+	var category *tfe.CategoryType
+	if isEnvironment {
+		category = tfe.Category(tfe.CategoryEnv)
+	} else {
+		category = tfe.Category(tfe.CategoryTerraform)
+	}
+	variable, err := c.Client.Variables.Create(c.Context, workspaceId, tfe.VariableCreateOptions{
+		Key:         &variableKey,
+		Value:       &variableValue,
+		Description: &description,
+		Category:    category,
+		HCL:         &isHcl,
+		Sensitive:   &isSensitive,
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to Create Variable")
+	}
+
+	fmt.Println(color.BlueString("ID:  "), variable.ID)
+	fmt.Println(color.BlueString("Key: "), variable.Key)
+
+	return nil
+}
+
+func variableShow(c TfxClientContext, orgName string, workspaceName string, variableKey string) error {
+	fmt.Println("Variable for Workspace:", color.GreenString(workspaceName))
+	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
+	if err != nil {
+		return errors.Wrap(err, "unable to read workspace id")
+	}
+
+	variableId, err := getVariableId(c, workspaceId, variableKey)
+	if err != nil {
+		return errors.Wrap(err, "unable to read variable id")
+	}
+
+	variable, err := c.Client.Variables.Read(c.Context, workspaceId, variableId)
+	if err != nil {
+		return errors.Wrap(err, "unable to read variable")
+	}
+
+	fmt.Println(color.BlueString("ID:          "), variable.ID)
+	fmt.Println(color.BlueString("Key:         "), variable.Key)
+	fmt.Println(color.BlueString("Value:       "), variable.Value)
+	fmt.Println(color.BlueString("Sensitive:   "), variable.Sensitive)
+	fmt.Println(color.BlueString("HCL:         "), variable.HCL)
+	fmt.Println(color.BlueString("Category:    "), variable.Category)
+	fmt.Println(color.BlueString("Description: "), variable.Description)
+
+	return nil
+}
+
+func variableDelete(c TfxClientContext, orgName string, workspaceName string, variableKey string) error {
+	fmt.Println("Delete Variable for Workspace:", color.GreenString(workspaceName))
+	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
+	if err != nil {
+		return errors.Wrap(err, "unable to read workspace id")
+	}
+
+	variableId, err := getVariableId(c, workspaceId, variableKey)
+	if err != nil {
+		return errors.Wrap(err, "unable to read variable id")
+	}
+
+	err = c.Client.Variables.Delete(c.Context, workspaceId, variableId)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete variable")
+	}
+	return nil
+}
+
+// Other Functions
+func variablesListAll(c TfxClientContext, workspaceId string) ([]*tfe.Variable, error) {
+	allItems := []*tfe.Variable{}
+	opts := tfe.VariableListOptions{
+		ListOptions: tfe.ListOptions{
+			PageNumber: 1,
+			PageSize:   100,
+		},
+	}
+	for {
+		items, err := c.Client.Variables.List(c.Context, workspaceId, &opts)
+		if err != nil {
+			return nil, err
+		}
+
+		allItems = append(allItems, items.Items...)
+		if items.CurrentPage >= items.TotalPages {
+			break
+		}
+		opts.PageNumber = items.NextPage
+	}
+
+	return allItems, nil
+}
+
+func getWorkspaceId(c TfxClientContext, orgName string, workspaceName string) (string, error) {
+	w, err := c.Client.Workspaces.Read(c.Context, orgName, workspaceName)
+	if err != nil {
+		return "", err
+	}
+
+	return w.ID, nil
+}
+
+func getVariableId(c TfxClientContext, workspaceId string, variableKey string) (string, error) {
+	vars, err := variablesListAll(c, workspaceId)
+	if err != nil {
+		return "", err
+	}
+
+	for _, v := range vars {
+		if v.Key == variableKey {
+			return v.ID, nil
+		}
+	}
+
+	return "", errors.New("variable key not found")
+}
