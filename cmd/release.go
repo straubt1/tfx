@@ -31,121 +31,121 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-// releasesCmd represents the releases command
+// releaseCmd represents the release command
 var (
-	releasesCmd = &cobra.Command{
-		Use:   "releases",
+	releaseCmd = &cobra.Command{
+		Use:   "release",
 		Short: "TFE release commands",
-		Long:  "Work with binaries needed for TFE releases installations.",
+		Long:  "Work with binaries needed for TFE release installations.",
 	}
 
-	releasesTfeCmd = &cobra.Command{
+	releaseTfeCmd = &cobra.Command{
 		Use:   "tfe",
 		Short: "TFE release commands",
 		Long:  "Terraform Enterprise release commands.",
 	}
 
-	releasesTfeListCmd = &cobra.Command{
+	releaseTfeListCmd = &cobra.Command{
 		Use:   "list",
-		Short: "List TFE releases",
-		Long:  "List available Terraform Enterprise releases.",
+		Short: "List TFE release",
+		Long:  "List available Terraform Enterprise release.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return releasesTfeList()
+			return releaseTfeList()
 		},
 		PreRun: bindPFlags,
 	}
 
-	releasesTfeShowCmd = &cobra.Command{
+	releaseTfeShowCmd = &cobra.Command{
 		Use:   "show",
 		Short: "Show TFE release",
 		Long:  "Show a Terraform Enterprise release, including release notes.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return releasesTfeShow()
+			return releaseTfeShow()
 		},
 		PreRun: bindPFlags,
 	}
 
-	releasesTfeDownloadCmd = &cobra.Command{
+	releaseTfeDownloadCmd = &cobra.Command{
 		Use:   "download",
 		Short: "Download TFE release binary",
 		Long:  "Download a Terraform Enterprise release binary.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return releasesTfeDownload()
+			return releaseTfeDownload()
 		},
 		PreRun: bindPFlags,
 	}
 
-	releasesReplicatedCmd = &cobra.Command{
+	releaseReplicatedCmd = &cobra.Command{
 		Use:   "replicated",
 		Short: "Replicated release commands",
 		Long:  "Replicated release commands.",
 	}
 
-	releasesReplicatedListCmd = &cobra.Command{
+	releaseReplicatedListCmd = &cobra.Command{
 		Use:   "list",
 		Short: "List Replicated binaries",
-		Long:  "List available Replicated releases.",
+		Long:  "List available Replicated release.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return releasesReplicatedList()
+			return releaseReplicatedList()
 		},
 		PreRun: bindPFlags,
 	}
 
-	releasesReplicatedDownloadCmd = &cobra.Command{
+	releaseReplicatedDownloadCmd = &cobra.Command{
 		Use:   "download",
 		Short: "Download Replicated release binary",
 		Long:  "Download a Replicated release binary.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return releasesReplicatedDownload()
+			return releaseReplicatedDownload()
 		},
 		PreRun: bindPFlags,
 	}
 )
 
 func init() {
-	// `tfx releases tfe list`
-	releasesTfeListCmd.Flags().StringP("licenseId", "l", "", "License Id for TFE/Replicated")
-	releasesTfeListCmd.Flags().StringP("password", "p", "", "Password to authenticate")
-	releasesTfeListCmd.Flags().IntP("maxResults", "r", 10, "The number of results to print (optional, defaults to 10)")
-	releasesTfeListCmd.MarkFlagRequired("licenseId")
-	releasesTfeListCmd.MarkFlagRequired("password")
+	// `tfx release tfe list`
+	releaseTfeListCmd.Flags().StringP("licenseId", "l", "", "License Id for TFE/Replicated")
+	releaseTfeListCmd.Flags().StringP("password", "p", "", "Password to authenticate")
+	releaseTfeListCmd.Flags().IntP("maxResults", "r", 10, "The number of results to print (optional, defaults to 10)")
+	releaseTfeListCmd.MarkFlagRequired("licenseId")
+	releaseTfeListCmd.MarkFlagRequired("password")
 
-	// `tfx releases tfe show`
-	releasesTfeShowCmd.Flags().StringP("licenseId", "l", "", "License Id for TFE/Replicated")
-	releasesTfeShowCmd.Flags().StringP("password", "p", "", "Password to authenticate")
-	releasesTfeShowCmd.Flags().StringP("release", "r", "", "Release Sequence (i.e. 610, 619, etc...)")
-	releasesTfeShowCmd.MarkFlagRequired("licenseId")
-	releasesTfeShowCmd.MarkFlagRequired("password")
-	releasesTfeShowCmd.MarkFlagRequired("release")
+	// `tfx release tfe show`
+	releaseTfeShowCmd.Flags().StringP("licenseId", "l", "", "License Id for TFE/Replicated")
+	releaseTfeShowCmd.Flags().StringP("password", "p", "", "Password to authenticate")
+	releaseTfeShowCmd.Flags().StringP("release", "r", "", "Release Sequence (i.e. 610, 619, etc...)")
+	releaseTfeShowCmd.MarkFlagRequired("licenseId")
+	releaseTfeShowCmd.MarkFlagRequired("password")
+	releaseTfeShowCmd.MarkFlagRequired("release")
 
-	// `tfx releases tfe download`
-	releasesTfeDownloadCmd.Flags().StringP("licenseId", "l", "", "License Id for TFE/Replicated")
-	releasesTfeDownloadCmd.Flags().StringP("password", "p", "", "Password to authenticate")
-	releasesTfeDownloadCmd.Flags().StringP("release", "r", "", "Release Sequence (i.e. 610, 619, etc...)")
-	releasesTfeDownloadCmd.Flags().StringP("directory", "d", "./", "Directory to save binary (optional, defaults to current directory)")
-	releasesTfeDownloadCmd.MarkFlagRequired("licenseId")
-	releasesTfeDownloadCmd.MarkFlagRequired("password")
-	releasesTfeDownloadCmd.MarkFlagRequired("release")
+	// `tfx release tfe download`
+	releaseTfeDownloadCmd.Flags().StringP("licenseId", "l", "", "License Id for TFE/Replicated")
+	releaseTfeDownloadCmd.Flags().StringP("password", "p", "", "Password to authenticate")
+	releaseTfeDownloadCmd.Flags().StringP("release", "r", "", "Release Sequence (i.e. 610, 619, etc...)")
+	releaseTfeDownloadCmd.Flags().StringP("directory", "d", "./", "Directory to save binary (optional, defaults to current directory)")
+	releaseTfeDownloadCmd.MarkFlagRequired("licenseId")
+	releaseTfeDownloadCmd.MarkFlagRequired("password")
+	releaseTfeDownloadCmd.MarkFlagRequired("release")
 
-	// `tfx releases replicated list`
-	releasesReplicatedListCmd.Flags().IntP("maxResults", "r", 10, "The number of results to print (optional, defaults to 10)")
+	// `tfx release replicated list`
+	releaseReplicatedListCmd.Flags().IntP("maxResults", "r", 10, "The number of results to print (optional, defaults to 10)")
 
-	// `tfx releases replicated download`
-	releasesReplicatedDownloadCmd.Flags().StringP("directory", "d", "./", "Directory to save binary (optional, defaults to current directory)")
-	releasesReplicatedDownloadCmd.Flags().StringP("version", "v", "", "Version of Replicated to Download (i.e. 0.0.1)")
+	// `tfx release replicated download`
+	releaseReplicatedDownloadCmd.Flags().StringP("directory", "d", "./", "Directory to save binary (optional, defaults to current directory)")
+	releaseReplicatedDownloadCmd.Flags().StringP("version", "v", "", "Version of Replicated to Download (i.e. 0.0.1)")
 
-	rootCmd.AddCommand(releasesCmd)
-	releasesCmd.AddCommand(releasesTfeCmd)
-	releasesTfeCmd.AddCommand(releasesTfeListCmd)
-	releasesTfeCmd.AddCommand(releasesTfeShowCmd)
-	releasesTfeCmd.AddCommand(releasesTfeDownloadCmd)
+	rootCmd.AddCommand(releaseCmd)
+	releaseCmd.AddCommand(releaseTfeCmd)
+	releaseTfeCmd.AddCommand(releaseTfeListCmd)
+	releaseTfeCmd.AddCommand(releaseTfeShowCmd)
+	releaseTfeCmd.AddCommand(releaseTfeDownloadCmd)
 
-	releasesCmd.AddCommand(releasesReplicatedCmd)
-	releasesReplicatedCmd.AddCommand(releasesReplicatedListCmd)
-	releasesReplicatedCmd.AddCommand(releasesReplicatedDownloadCmd)
+	releaseCmd.AddCommand(releaseReplicatedCmd)
+	releaseReplicatedCmd.AddCommand(releaseReplicatedListCmd)
+	releaseReplicatedCmd.AddCommand(releaseReplicatedDownloadCmd)
 }
 
-func releasesTfeList() error {
+func releaseTfeList() error {
 	// Validate flags
 	licenseId := *viperString("licenseId")
 	password := *viperString("password")
@@ -159,8 +159,8 @@ func releasesTfeList() error {
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
 	t.AppendHeader(table.Row{"Sequence", "Label", "Required", "Release Date"})
-	for index, i := range tfeBinaries.Releases {
-		t.AppendRow(table.Row{i.ReleaseSequence, i.Label, i.Required, i.ReleaseDate.String()})
+	for index, i := range tfeBinaries.release {
+		t.AppendRow(table.Row{i.releaseequence, i.Label, i.Required, i.ReleaseDate.String()})
 		if index+1 >= maxResults {
 			break
 		}
@@ -171,7 +171,7 @@ func releasesTfeList() error {
 	return nil
 }
 
-func releasesTfeShow() error {
+func releaseTfeShow() error {
 	// Validate flags
 	licenseId := *viperString("licenseId")
 	password := *viperString("password")
@@ -182,15 +182,15 @@ func releasesTfeShow() error {
 		return err
 	}
 
-	idx := slices.IndexFunc(tfeBinaries.Releases, func(c TFERelease) bool { return c.ReleaseSequence == release })
+	idx := slices.IndexFunc(tfeBinaries.release, func(c TFERelease) bool { return c.releaseequence == release })
 	if idx < 0 {
 		fmt.Println(color.RedString("Error: "), "Unable to find release sequence: ", release)
 		return nil
 	}
-	tfeRelease := tfeBinaries.Releases[idx]
+	tfeRelease := tfeBinaries.release[idx]
 
 	fmt.Println(" Found")
-	fmt.Println(color.BlueString("Release Sequence: "), tfeRelease.ReleaseSequence)
+	fmt.Println(color.BlueString("Release Sequence: "), tfeRelease.releaseequence)
 	fmt.Println(color.BlueString("Label:            "), tfeRelease.Label)
 	fmt.Println(color.BlueString("Release Date:     "), tfeRelease.ReleaseDate)
 	fmt.Println(color.BlueString("Required:         "), tfeRelease.Required)
@@ -200,7 +200,7 @@ func releasesTfeShow() error {
 	return nil
 }
 
-func releasesTfeDownload() error {
+func releaseTfeDownload() error {
 	// Validate flags
 	licenseId := *viperString("licenseId")
 	password := *viperString("password")
@@ -224,7 +224,7 @@ func releasesTfeDownload() error {
 	if !strings.HasSuffix(directory, "/") {
 		directory += "/"
 	}
-	path := fmt.Sprintf("%stfe-%s.releases", directory, release)
+	path := fmt.Sprintf("%stfe-%s.release", directory, release)
 
 	//Download file
 	err = DownloadBinary(tfeUrl.URL, path)
@@ -235,7 +235,7 @@ func releasesTfeDownload() error {
 	return nil
 }
 
-func releasesReplicatedList() error {
+func releaseReplicatedList() error {
 	// Validate flags
 	maxResults := *viperInt("maxResults")
 
@@ -258,7 +258,7 @@ func releasesReplicatedList() error {
 	return nil
 }
 
-func releasesReplicatedDownload() error {
+func releaseReplicatedDownload() error {
 	// Validate flags
 	directory := *viperString("directory")
 	// Attempt to prevent a non semantic version from being requested

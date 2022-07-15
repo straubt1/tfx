@@ -20,13 +20,13 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
 	"github.com/fatih/color"
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -174,7 +174,7 @@ func registryProviderVersionList(c TfxClientContext, orgName string, providerNam
 	fmt.Println("Provider Name:", color.GreenString(providerName))
 	items, err := registryProviderVersionsListAll(c, orgName, providerName)
 	if err != nil {
-		logError(err, "failed to read provider versions in Registry")
+		return errors.Wrap(err, "Failed to List Provider Versions")
 	}
 
 	t := table.NewWriter()
@@ -204,7 +204,7 @@ func registryProviderVersionCreate(c TfxClientContext, orgName string, providerN
 		// Protocols: []string{},
 	})
 	if err != nil {
-		logError(err, "failed to create provider version in Registry")
+		return errors.Wrap(err, "Failed to Create Provider Version")
 	}
 
 	fmt.Println(p.Links["shasums-upload"], p.Links["shasums-sig-upload"], p.CreatedAt)
@@ -231,7 +231,7 @@ func registryProviderVersionShow(c TfxClientContext, orgName string, providerNam
 		Version: providerVersion,
 	})
 	if err != nil {
-		logError(err, "failed to read provider in PMR")
+		return errors.Wrap(err, "Failed to Read Provider Version")
 	}
 
 	fmt.Println(color.BlueString("Name:                 "), provider.RegistryProvider.Name)
@@ -244,7 +244,7 @@ func registryProviderVersionShow(c TfxClientContext, orgName string, providerNam
 	if provider.ShasumsUploaded {
 		sha, err := DownloadTextFile(provider.Links["shasums-download"].(string))
 		if err != nil {
-			logError(err, "failed to read shassum in PMR")
+			return errors.Wrap(err, "Failed to read shasums download link")
 		}
 		fmt.Println(color.BlueString("Shasums:"))
 		fmt.Println(sha)
@@ -265,7 +265,7 @@ func registryProviderVersionDelete(c TfxClientContext, orgName string, providerN
 		Version: providerVersion,
 	})
 	if err != nil {
-		logError(err, "failed to delete Provider Version")
+		return errors.Wrap(err, "Failed to Delete Provider Version")
 	}
 
 	fmt.Println(color.BlueString("Provider Deleted: "), providerName, providerVersion)

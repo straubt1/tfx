@@ -180,7 +180,7 @@ Managing Workspace State Files (State Versions).
 
 Managing Terraform Versions in a Terraform Enterprise install (TFE only).
 
-`tfx tfv list` - List all Terraform Versions for a TFE install
+`tfx tfv list` - List all Terraform Versions for a Terraform Enterprise install
 
 `tfx tfv show` - Show version details for a supplied Terraform Version or Version Id
 
@@ -198,7 +198,7 @@ Managing Terraform Versions in a Terraform Enterprise install (TFE only).
 
 `tfx tfv enable all` - Enables all Terraform Versions
 
-### `tfe workspace`
+### `tfx workspace`
 
 `tfx workspace list`
 - Using the "--search" flag allows filtering by workspaces with a given string
@@ -219,24 +219,64 @@ Managing Terraform Versions in a Terraform Enterprise install (TFE only).
 `tfx workspace unlock all`
 - Unlock all workspaces in a given organization
 
-### `tfe releases`
+### `tfx release`
 
 Manage [Terraform Enterprise](https://www.terraform.io/enterprise) and [Replicated](https://www.replicated.com/) releases and binaries needed for airgap installations (TFE only).
 
-`tfx releases tfe list`
-- List available TFE releases
+`tfx release tfe list`
+- List available Terraform Enterprise releases
 
-`tfx releases tfe show`
-- Show details of a release, including release notes
+`tfx release tfe show`
+- Show details of a Terraform Enterprise release, including release notes
 
-`tfx releases tfe download`
-- Download a TFE airgap binary
+`tfx release tfe download`
+- Download a Terraform Enterprise airgap binary
 
-`tfx releases replicated list`
+`tfx release replicated list`
 - List available Replicated releases
 
-`tfx releases replicated download`
+`tfx release replicated download`
 - Download a Replicated release
+
+### `tfx registry provider`
+
+Manage providers in the Private Registry
+
+`tfx registry provider list`
+- List Providers in the Registry
+
+`tfx registry provider version list`
+- List Versions for a Provider in the Registry
+
+`tfx registry provider version platform list`
+- List Platforms for a Provider Version in the Registry
+
+`tfx registry provider create`
+- Create a Provider in the Registry
+
+`tfx registry provider show`
+- Show details of a Provider in the Registry
+
+`tfx registry provider delete`
+- Delete a Provider in the Registry
+
+`tfx registry provider version create`
+ - Create a Version for a Provider in the Registry
+
+`tfx registry provider version show`
+- Show details a Version for a Provider in the Registry
+
+`tfx registry provider version delete`
+ - Delete a Version for a Provider in the Registry
+
+`tfx registry provider version platform create`
+- Create a Platform Version for a Provider in the Registry
+
+`tfx registry provider version platform show`
+- Show details of a Platform Version for a Provider in the Registry
+
+`tfx registry provider version platform delete`
+- Delete a Platform Version for a Provider in the Registry
 
 ## Potential Future Commands
 
@@ -246,7 +286,7 @@ Additional commands to implement.
   - [ ] `cancel`, cancel, discard, force cancel a run
 - [ ] `tfx pmr`
   - [ ] `search` find a module https://www.terraform.io/docs/registry/api.html#search-modules
-- [ ] `tfe sentinel`
+- [ ] `tfx sentinel`
   - [ ] `list`, list policy sets
   - [ ] `create`, create a policy set
   - [ ] `delete`, deletes a policy set

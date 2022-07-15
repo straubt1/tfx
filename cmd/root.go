@@ -26,6 +26,7 @@ import (
 	"os"
 
 	"github.com/fatih/color"
+	"github.com/logrusorgru/aurora"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/straubt1/tfx/version"
@@ -53,6 +54,8 @@ var rootCmd = &cobra.Command{
 	Long: `Leveraging the API can become a burden for common tasks.
 	TFx aims to ease that challenge for common and repeatable tasks. This application
 	can be used to interact with either Terraform Cloud or Terraform Enterprise.`,
+	SilenceUsage:     true,
+	SilenceErrors:    true,
 	Version:          version.String(),
 	PersistentPreRun: bindPFlags, // Bind here to avoid having to call this in every subcommand
 }
@@ -60,7 +63,9 @@ var rootCmd = &cobra.Command{
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	cobra.CheckErr(rootCmd.Execute())
+	if err := rootCmd.Execute(); err != nil {
+		log.Fatal(aurora.Red(err))
+	}
 }
 
 func init() {

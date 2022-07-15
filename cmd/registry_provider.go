@@ -26,6 +26,7 @@ import (
 	"github.com/fatih/color"
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -141,7 +142,7 @@ func registryProviderList(c TfxClientContext, orgName string) error {
 	fmt.Println("Providers for Organization:", color.GreenString(orgName))
 	items, err := registryProvidersListAll(c, orgName)
 	if err != nil {
-		logError(err, "failed to read providers in PMR")
+		return errors.Wrap(err, "Failed to List Providers")
 	}
 
 	t := table.NewWriter()
@@ -165,7 +166,7 @@ func registryProviderCreate(c TfxClientContext, orgName string, providerName str
 		RegistryName: tfe.PrivateRegistry,
 	})
 	if err != nil {
-		logError(err, "failed to create Provider")
+		return errors.Wrap(err, "Failed to Create Provider")
 	}
 
 	fmt.Println(color.BlueString("Name:      "), provider.Name)
@@ -187,7 +188,7 @@ func registryProviderShow(c TfxClientContext, orgName string, providerName strin
 		Include: []tfe.RegistryProviderIncludeOps{},
 	})
 	if err != nil {
-		logError(err, "failed to create Provider")
+		return errors.Wrap(err, "Failed to Read Provider")
 	}
 
 	fmt.Println(color.BlueString("Name:      "), provider.Name)
@@ -207,7 +208,7 @@ func registryProviderDelete(c TfxClientContext, orgName string, providerName str
 		RegistryName:     tfe.PrivateRegistry,
 	})
 	if err != nil {
-		logError(err, "failed to delete Provider")
+		return errors.Wrap(err, "Failed to Delete Provider")
 	}
 
 	fmt.Println(color.BlueString("Provider Delete: "), providerName)

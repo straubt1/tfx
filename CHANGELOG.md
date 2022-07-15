@@ -14,13 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `tfx gpg create` - Create a GPG Key for an Organization
 * `tfx gpg show` - Show details of a GPG Key for an Organization
 * `tfx gpg delete` - Delete GPG Key for an Organization
-
-* `tfx releases tfe list` - List available TFE releases
-* `tfx releases tfe show` - Show details of a release, including release notes
-* `tfx releases tfe download` - Download a TFE airgap binary
-* `tfx releases replicated list` - List available Replicated releases
-* `tfx releases replicated download` - Download a Replicated release
-
+* `tfx release tfe list` - List available Terraform Enterprise releases
+* `tfx release tfe show` - Show details of a Terraform Enterprise release, including release notes
+* `tfx release tfe download` - Download a Terraform Enterprise airgap binary
+* `tfx release replicated list` - List available Replicated releases
+* `tfx release replicated download` - Download a Replicated release
 * `tfx registry provider list` - List Providers in the Registry
 * `tfx registry provider version list` - List Versions for a Provider in the Registry
 * `tfx registry provider version platform list` - List Platforms for a Provider Version in the Registry
@@ -33,8 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `tfx registry provider version platform create` - Create a Platform Version for a Provider in the Registry
 * `tfx registry provider version platform show` - Show details of a Platform Version for a Provider in the Registry
 * `tfx registry provider version platform delete` - Delete a Platform Version for a Provider in the Registry
-
-
 
 ### Changed
 

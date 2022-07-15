@@ -186,9 +186,40 @@
       "program": "${fileDirname}/../main.go",
       "args": [
         "registry",
-        "providers",
+        "provider",
         "list",
         "--tfeOrganization=terraform-tom"
+      ]
+    },
+    {
+      "name": "TFX - providers Show",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${fileDirname}/../main.go",
+      "args": [
+        "registry",
+        "provider",
+        "show",
+        "-n=random"
+      ]
+    },
+    {
+      "name": "TFX - providers version create",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${fileDirname}/../main.go",
+      "args": [
+        "registry",
+        "provider",
+        "version",
+        "create",
+        "-n=random",
+        "-v=0.0.1",
+        "--keyId=51852D87348FFC4C",
+        "--shasums=/Users/tstraub/Projects/hashicorp-services.github.com/pmr-providers-guide/providers/random/3.1.0/terraform-provider-random_3.1.0_SHA256SUMS",
+        "--shasumssig=/Users/tstraub/Projects/hashicorp-services.github.com/pmr-providers-guide/providers/random/3.1.0/terraform-provider-random_3.1.0_SHA256SUMS.sig"
       ]
     }
   ]
