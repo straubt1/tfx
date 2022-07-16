@@ -174,7 +174,7 @@ func variableList(c TfxClientContext, orgName string, workspaceName string) erro
 		return errors.Wrap(err, "failed to list variables")
 	}
 
-	o.AddTableHeader("Id", "Key", "Value", "Sensitive", "HCL", "Category", "Description", "dd")
+	o.AddTableHeader("Id", "Key", "Value", "Sensitive", "HCL", "Category", "Description")
 	for _, i := range items {
 		o.AddTableRows(i.ID, i.Key, i.Value, i.Sensitive, i.HCL, i.Category, i.Description)
 	}
@@ -192,6 +192,7 @@ func variableCreate(c TfxClientContext, orgName string, workspaceName string,
 	}
 
 	// check if value is a file
+	// TODO: fix this, it is not updating the variableValue var correctly
 	if isFile(variableValue) {
 		o.AddMessageUserProvided("Value passed as a filename, contents will be used: ", variableValue)
 		variableValue, err = readFile(variableValue)
