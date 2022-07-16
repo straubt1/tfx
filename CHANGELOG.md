@@ -31,13 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `tfx registry provider version platform create` - Create a Platform Version for a Provider in the Registry
 * `tfx registry provider version platform show` - Show details of a Platform Version for a Provider in the Registry
 * `tfx registry provider version platform delete` - Delete a Platform Version for a Provider in the Registry
-
-
-* `tfc variable list`
-* `tfc variable create`
-* `tfc variable update`
-* `tfc variable show`
-* `tfc variable delete`
+* `tfx variable list` - List all workspace variables
+* `tfx variable create` - Create a workspace variable
+* `tfx variable update` - Update an existing workspace variable
+* `tfx variable show` - Show details of a workspace variable
+* `tfx variable delete` - Delete a workspace variable 
 
 ### Changed
 

@@ -225,6 +225,26 @@ Managing Terraform Versions in a Terraform Enterprise install (TFE only).
 `tfx workspace unlock all`
 - Unlock all workspaces in a given organization
 
+### `tfx variable`
+
+Manage Workspace Variables
+
+`tfx variable list`
+- List all workspace variables
+
+`tfx variable create`
+- Create a workspace variable
+
+`tfx variable update`
+- Update an existing workspace variable
+
+`tfx variable show`
+- Show details of a workspace variable
+
+`tfx variable delete`
+- Delete a workspace variable 
+
+
 ### `tfx release`
 
 Manage [Terraform Enterprise](https://www.terraform.io/enterprise) and [Replicated](https://www.replicated.com/) releases and binaries needed for airgap installations (TFE only).
