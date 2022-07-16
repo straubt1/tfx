@@ -20,6 +20,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -28,6 +29,7 @@ import (
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/straubt1/tfx/output"
 )
 
 var (
@@ -168,7 +170,7 @@ func init() {
 }
 
 func variableList(c TfxClientContext, orgName string, workspaceName string) error {
-	fmt.Println("Variables for Workspace:", color.GreenString(workspaceName))
+	o.AddMessageInfo("Variables for Workspace:", color.GreenString(workspaceName))
 	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
@@ -179,21 +181,29 @@ func variableList(c TfxClientContext, orgName string, workspaceName string) erro
 		return errors.Wrap(err, "failed to list variables")
 	}
 
-	t := table.NewWriter()
-	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"Id", "Key", "Value", "Sensitive", "HCL", "Category", "Description"})
-	for _, i := range items {
-		t.AppendRow(table.Row{i.ID, i.Key, i.Value, i.Sensitive, i.HCL, i.Category, i.Description})
+	if o.OutputType == output.DefaultOutput {
+		t := table.NewWriter()
+		t.SetOutputMirror(os.Stdout)
+		t.AppendHeader(table.Row{"Id", "Key", "Value", "Sensitive", "HCL", "Category", "Description"})
+		for _, i := range items {
+			t.AppendRow(table.Row{i.ID, i.Key, i.Value, i.Sensitive, i.HCL, i.Category, i.Description})
+		}
+		t.SetStyle(table.StyleRounded)
+		t.Render()
+	} else {
+		b, err := json.Marshal(items)
+		if err != nil {
+			return errors.Wrap(err, "failed to json marshal")
+		}
+		o.AddJsonString(string(b))
 	}
-	t.SetStyle(table.StyleRounded)
-	t.Render()
 
 	return nil
 }
 
 func variableCreate(c TfxClientContext, orgName string, workspaceName string,
 	variableKey string, variableValue string, description string, isEnvironment bool, isHcl bool, isSensitive bool) error {
-	fmt.Println("Create Variable for Workspace:", color.GreenString(workspaceName))
+	o.AddMessageInfo("Create Variable for Workspace:", color.GreenString(workspaceName))
 	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
@@ -201,13 +211,13 @@ func variableCreate(c TfxClientContext, orgName string, workspaceName string,
 
 	// check if value is a file
 	if isFile(variableValue) {
-		fmt.Println("Value passed as a filename, contents will be used: ", color.GreenString(variableValue))
+		o.AddMessageInfo("Value passed as a filename, contents will be used: ", color.GreenString(variableValue))
 		variableValue, err = readFile(variableValue)
 		if err != nil {
 			return errors.Wrap(err, "unable to read the file passed")
 		}
 	}
-	fmt.Println(workspaceId)
+	o.AddMessageInfo(workspaceId)
 
 	var category *tfe.CategoryType
 	if isEnvironment {
@@ -227,15 +237,15 @@ func variableCreate(c TfxClientContext, orgName string, workspaceName string,
 		return errors.Wrap(err, "Failed to Create Variable")
 	}
 
-	fmt.Println(color.BlueString("ID:  "), variable.ID)
-	fmt.Println(color.BlueString("Key: "), variable.Key)
+	o.AddMessageInfo(color.BlueString("ID:  "), variable.ID)
+	o.AddMessageInfo(color.BlueString("Key: "), variable.Key)
 
 	return nil
 }
 
 func variableUpdate(c TfxClientContext, orgName string, workspaceName string,
 	variableKey string, variableValue string, description string, isEnvironment bool, isHcl bool, isSensitive bool) error {
-	fmt.Println("Create Variable for Workspace:", color.GreenString(workspaceName))
+	o.AddMessageInfo("Create Variable for Workspace:", color.GreenString(workspaceName))
 	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
@@ -264,14 +274,14 @@ func variableUpdate(c TfxClientContext, orgName string, workspaceName string,
 		return errors.Wrap(err, "Failed to Update Variable")
 	}
 
-	fmt.Println(color.BlueString("ID:  "), variable.ID)
-	fmt.Println(color.BlueString("Key: "), variable.Key)
+	o.AddMessageInfo(color.BlueString("ID:  "), variable.ID)
+	o.AddMessageInfo(color.BlueString("Key: "), variable.Key)
 
 	return nil
 }
 
 func variableShow(c TfxClientContext, orgName string, workspaceName string, variableKey string) error {
-	fmt.Println("Variable for Workspace:", color.GreenString(workspaceName))
+	o.AddMessageInfo("Variable for Workspace:", color.GreenString(workspaceName))
 	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
@@ -287,20 +297,20 @@ func variableShow(c TfxClientContext, orgName string, workspaceName string, vari
 		return errors.Wrap(err, "unable to read variable")
 	}
 
-	fmt.Println(color.BlueString("ID:          "), variable.ID)
-	fmt.Println(color.BlueString("Key:         "), variable.Key)
-	fmt.Println(color.BlueString("Value:       "), variable.Value)
-	fmt.Println(color.BlueString("Sensitive:   "), variable.Sensitive)
-	fmt.Println(color.BlueString("HCL:         "), variable.HCL)
-	fmt.Println(color.BlueString("Category:    "), variable.Category)
-	fmt.Println(color.BlueString("Description: "), variable.Description)
+	o.AddMessageInfo(color.BlueString("ID:          "), variable.ID)
+	o.AddMessageInfo(color.BlueString("Key:         "), variable.Key)
+	o.AddMessageInfo(color.BlueString("Value:       "), variable.Value)
+	o.AddMessageInfo(fmt.Sprintf(color.BlueString("Sensitive:   %s"), variable.Sensitive))
+	o.AddMessageInfo(fmt.Sprintf(color.BlueString("HCL:         %s"), variable.HCL))
+	o.AddMessageInfo(fmt.Sprintf(color.BlueString("Category:    %s"), variable.Category))
+	o.AddMessageInfo(color.BlueString("Description: "), variable.Description)
 
 	return nil
 }
 
 func variableDelete(c TfxClientContext, orgName string, workspaceName string, variableKey string) error {
 	// TODO: Add ability to delete multiple keys at once: https://github.com/spf13/cobra/issues/661
-	fmt.Println("Delete Variable for Workspace:", color.GreenString(workspaceName))
+	o.AddMessageInfo("Delete Variable for Workspace:", color.GreenString(workspaceName))
 	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")

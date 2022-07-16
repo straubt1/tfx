@@ -21,14 +21,13 @@
 package cmd
 
 import (
-	"fmt"
 	"log"
-	"os"
 
 	"github.com/fatih/color"
 	"github.com/logrusorgru/aurora"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"github.com/straubt1/tfx/output"
 	"github.com/straubt1/tfx/version"
 
 	homedir "github.com/mitchellh/go-homedir"
@@ -37,6 +36,7 @@ import (
 
 var (
 	cfgFile string
+	o       output.Output
 
 	// Required to leverage viper defaults for optional Flags
 	bindPFlags = func(cmd *cobra.Command, args []string) {
@@ -76,6 +76,10 @@ func init() {
 	rootCmd.PersistentFlags().String("tfeOrganization", "", "The name of the TFx Organization. Can also be set with the environment variable TFE_ORGANIZATION.")
 	rootCmd.PersistentFlags().String("tfeToken", "", "The API token used to authenticate to TFx. Can also be set with the environment variable TFE_TOKEN.")
 
+	// Add output option, but hide during development
+	rootCmd.PersistentFlags().StringP("output", "o", string(output.DefaultOutput), "Output type ['default','json'].")
+	rootCmd.PersistentFlags().MarkHidden("output")
+
 	// required
 	rootCmd.MarkPersistentFlagRequired("tfeOrganization")
 	rootCmd.MarkPersistentFlagRequired("tfeToken")
@@ -105,14 +109,22 @@ func initConfig() {
 	viper.AutomaticEnv() // read in environment variables that match
 
 	// If a config file is found, read it in.
+	isConfigFile := false
 	if err := viper.ReadInConfig(); err == nil {
-		fmt.Fprintln(os.Stderr, "Using config file:", color.YellowString(viper.ConfigFileUsed()))
+		isConfigFile = true // Capture information here to bring after all flags are loaded (namely which output type)
 	}
 
 	// Some hacking here to let viper use the cobra required flags, simplifies this checking
 	// in one place rather than each command
 	// More info: https://github.com/spf13/viper/issues/397
 	postInitCommands(rootCmd.Commands())
+
+	// Initialize output
+	o = output.New(*viperString("output"))
+	// Print if config file was found
+	if isConfigFile {
+		o.AddMessageInfo("Using config file:", color.YellowString(viper.ConfigFileUsed()))
+	}
 }
 
 // copy.pasta function
