@@ -32,6 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `tfx registry provider version platform show` - Show details of a Platform Version for a Provider in the Registry
 * `tfx registry provider version platform delete` - Delete a Platform Version for a Provider in the Registry
 
+
+* `tfc variable list`
+* `tfc variable create`
+* `tfc variable update`
+* `tfc variable show`
+* `tfc variable delete`
+
 ### Changed
 
 * PMR Module uploading - Removed helper code (shim) in favor of the now available the go-tfe functions

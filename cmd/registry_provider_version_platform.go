@@ -72,8 +72,8 @@ var (
 			}
 
 			providerFilename := *viperString("filename")
-			if _, err := os.Stat(providerFilename); errors.Is(err, os.ErrNotExist) {
-				return errors.Wrap(err, "Filename Does Not Exist")
+			if !isFile(providerFilename) {
+				return errors.New("filename does not exist")
 			}
 
 			return registryProviderVersionPlatformCreate(

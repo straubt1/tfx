@@ -57,12 +57,11 @@ var (
 		Short: "Create a Provider Version in a Private Registry",
 		Long:  "Create a Provider Version for a Provider in a Private Registry of a TFx Organization. ",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// TODO: verify path is not a directory, passing a valid path but not to a file will error
-			if _, err := os.Stat(*viperString("shasums")); errors.Is(err, os.ErrNotExist) {
-				logError(err, "shasums file does not exist")
+			if !isFile(*viperString("shasums")) {
+				return errors.New("shasums file does not exist")
 			}
-			if _, err := os.Stat(*viperString("shasumssig")); errors.Is(err, os.ErrNotExist) {
-				logError(err, "shasumssig file does not exist")
+			if !isFile(*viperString("shasumssig")) {
+				return errors.New("shasumssig file does not exist")
 			}
 
 			return registryProviderVersionCreate(getTfxClientContext(),

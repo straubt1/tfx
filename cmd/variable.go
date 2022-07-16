@@ -126,7 +126,7 @@ func init() {
 	// `tfx variable create` command
 	variableCreateCmd.Flags().StringP("workspace", "w", "", "Name of the Workspace")
 	variableCreateCmd.Flags().StringP("key", "k", "", "Key of the Variable")
-	variableCreateCmd.Flags().StringP("value", "v", "", "Value of the Variable")
+	variableCreateCmd.Flags().StringP("value", "v", "", "Value of the Variable - Can be a path to a file, if so the contents of the file will be used")
 	variableCreateCmd.Flags().StringP("description", "d", "", "Description of the Variable (optional)")
 	variableCreateCmd.Flags().BoolP("env", "e", false, "Variable is an Environment Variable (optional, defaults to false)")
 	variableCreateCmd.Flags().BoolP("hcl", "", false, "Value of Variable is HCL (optional, defaults to false)")
@@ -198,6 +198,16 @@ func variableCreate(c TfxClientContext, orgName string, workspaceName string,
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
 	}
+
+	// check if value is a file
+	if isFile(variableValue) {
+		fmt.Println("Value passed as a filename, contents will be used: ", color.GreenString(variableValue))
+		variableValue, err = readFile(variableValue)
+		if err != nil {
+			return errors.Wrap(err, "unable to read the file passed")
+		}
+	}
+	fmt.Println(workspaceId)
 
 	var category *tfe.CategoryType
 	if isEnvironment {
@@ -289,6 +299,7 @@ func variableShow(c TfxClientContext, orgName string, workspaceName string, vari
 }
 
 func variableDelete(c TfxClientContext, orgName string, workspaceName string, variableKey string) error {
+	// TODO: Add ability to delete multiple keys at once: https://github.com/spf13/cobra/issues/661
 	fmt.Println("Delete Variable for Workspace:", color.GreenString(workspaceName))
 	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
 	if err != nil {
