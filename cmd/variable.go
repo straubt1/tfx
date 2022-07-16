@@ -20,15 +20,9 @@
 package cmd
 
 import (
-	"encoding/json"
-	"os"
-
-	"github.com/fatih/color"
 	tfe "github.com/hashicorp/go-tfe"
-	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/straubt1/tfx/output"
 )
 
 var (
@@ -169,7 +163,6 @@ func init() {
 }
 
 func variableList(c TfxClientContext, orgName string, workspaceName string) error {
-	// o.AddMessageInfo("Variables for Workspace:", color.GreenString(workspaceName))
 	o.AddMessageUserProvided("Variable for Workspace:", workspaceName)
 	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
 	if err != nil {
@@ -181,29 +174,18 @@ func variableList(c TfxClientContext, orgName string, workspaceName string) erro
 		return errors.Wrap(err, "failed to list variables")
 	}
 
-	if o.OutputType == output.DefaultOutput {
-		t := table.NewWriter()
-		t.SetOutputMirror(os.Stdout)
-		t.AppendHeader(table.Row{"Id", "Key", "Value", "Sensitive", "HCL", "Category", "Description"})
-		for _, i := range items {
-			t.AppendRow(table.Row{i.ID, i.Key, i.Value, i.Sensitive, i.HCL, i.Category, i.Description})
-		}
-		t.SetStyle(table.StyleRounded)
-		t.Render()
-	} else {
-		_, err := json.Marshal(items)
-		if err != nil {
-			return errors.Wrap(err, "failed to json marshal")
-		}
-		// o.AddJsonString(string(b))
+	o.AddTableHeader("Id", "Key", "Value", "Sensitive", "HCL", "Category", "Description", "dd")
+	for _, i := range items {
+		o.AddTableRows(i.ID, i.Key, i.Value, i.Sensitive, i.HCL, i.Category, i.Description)
 	}
+	o.Close()
 
 	return nil
 }
 
 func variableCreate(c TfxClientContext, orgName string, workspaceName string,
 	variableKey string, variableValue string, description string, isEnvironment bool, isHcl bool, isSensitive bool) error {
-	o.AddMessageInfo("Create Variable for Workspace:", color.GreenString(workspaceName))
+	o.AddMessageUserProvided("Create Variable for Workspace:", workspaceName)
 	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
@@ -211,13 +193,12 @@ func variableCreate(c TfxClientContext, orgName string, workspaceName string,
 
 	// check if value is a file
 	if isFile(variableValue) {
-		o.AddMessageInfo("Value passed as a filename, contents will be used: ", color.GreenString(variableValue))
+		o.AddMessageUserProvided("Value passed as a filename, contents will be used: ", variableValue)
 		variableValue, err = readFile(variableValue)
 		if err != nil {
 			return errors.Wrap(err, "unable to read the file passed")
 		}
 	}
-	o.AddMessageInfo(workspaceId)
 
 	var category *tfe.CategoryType
 	if isEnvironment {
@@ -237,15 +218,22 @@ func variableCreate(c TfxClientContext, orgName string, workspaceName string,
 		return errors.Wrap(err, "Failed to Create Variable")
 	}
 
-	o.AddMessageInfo(color.BlueString("ID:  "), variable.ID)
-	o.AddMessageInfo(color.BlueString("Key: "), variable.Key)
+	o.AddMessageUserProvided("Variable Created:", variableKey)
+	o.AddDeferredMessageRead("ID", variable.ID)
+	o.AddDeferredMessageRead("Key", variable.Key)
+	o.AddDeferredMessageRead("Value", variable.Value)
+	o.AddDeferredMessageRead("Sensitive", variable.Sensitive)
+	o.AddDeferredMessageRead("HCL", variable.HCL)
+	o.AddDeferredMessageRead("Category", variable.Category)
+	o.AddDeferredMessageRead("Description", variable.Description)
+	o.Close()
 
 	return nil
 }
 
 func variableUpdate(c TfxClientContext, orgName string, workspaceName string,
 	variableKey string, variableValue string, description string, isEnvironment bool, isHcl bool, isSensitive bool) error {
-	o.AddMessageInfo("Create Variable for Workspace:", color.GreenString(workspaceName))
+	o.AddMessageUserProvided("Update Variable for Workspace:", workspaceName)
 	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
@@ -274,14 +262,21 @@ func variableUpdate(c TfxClientContext, orgName string, workspaceName string,
 		return errors.Wrap(err, "Failed to Update Variable")
 	}
 
-	o.AddMessageInfo(color.BlueString("ID:  "), variable.ID)
-	o.AddMessageInfo(color.BlueString("Key: "), variable.Key)
+	o.AddMessageUserProvided("Variable Updated", workspaceName)
+	o.AddDeferredMessageRead("ID", variable.ID)
+	o.AddDeferredMessageRead("Key", variable.Key)
+	o.AddDeferredMessageRead("Value", variable.Value)
+	o.AddDeferredMessageRead("Sensitive", variable.Sensitive)
+	o.AddDeferredMessageRead("HCL", variable.HCL)
+	o.AddDeferredMessageRead("Category", variable.Category)
+	o.AddDeferredMessageRead("Description", variable.Description)
+	o.Close()
 
 	return nil
 }
 
 func variableShow(c TfxClientContext, orgName string, workspaceName string, variableKey string) error {
-	o.AddMessageUserProvided("Variable for Workspace:", workspaceName)
+	o.AddMessageUserProvided("Show Variable for Workspace:", workspaceName)
 	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
@@ -304,13 +299,6 @@ func variableShow(c TfxClientContext, orgName string, workspaceName string, vari
 	o.AddDeferredMessageRead("HCL", variable.HCL)
 	o.AddDeferredMessageRead("Category", variable.Category)
 	o.AddDeferredMessageRead("Description", variable.Description)
-	// o.AddMessageInfo(color.BlueString("Key:         "), variable.Key)
-	// o.AddMessageInfo(color.BlueString("Value:       "), variable.Value)
-	// o.AddMessageInfo(fmt.Sprintf(color.BlueString("Sensitive:   %s"), variable.Sensitive))
-	// o.AddMessageInfo(fmt.Sprintf(color.BlueString("HCL:         %s"), variable.HCL))
-	// o.AddMessageInfo(fmt.Sprintf(color.BlueString("Category:    %s"), variable.Category))
-	// o.AddMessageInfo(color.BlueString("Description: "), variable.Description)
-
 	o.Close()
 
 	return nil
@@ -318,7 +306,7 @@ func variableShow(c TfxClientContext, orgName string, workspaceName string, vari
 
 func variableDelete(c TfxClientContext, orgName string, workspaceName string, variableKey string) error {
 	// TODO: Add ability to delete multiple keys at once: https://github.com/spf13/cobra/issues/661
-	o.AddMessageInfo("Delete Variable for Workspace:", color.GreenString(workspaceName))
+	o.AddMessageUserProvided("Delete Variable for Workspace:", workspaceName)
 	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
@@ -333,6 +321,9 @@ func variableDelete(c TfxClientContext, orgName string, workspaceName string, va
 	if err != nil {
 		return errors.Wrap(err, "failed to delete variable")
 	}
+
+	o.AddMessageUserProvided("Variable Deleted:", variableKey)
+
 	return nil
 }
 
