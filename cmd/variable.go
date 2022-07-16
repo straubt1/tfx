@@ -21,7 +21,6 @@ package cmd
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 
 	"github.com/fatih/color"
@@ -170,7 +169,8 @@ func init() {
 }
 
 func variableList(c TfxClientContext, orgName string, workspaceName string) error {
-	o.AddMessageInfo("Variables for Workspace:", color.GreenString(workspaceName))
+	// o.AddMessageInfo("Variables for Workspace:", color.GreenString(workspaceName))
+	o.AddMessageUserProvided("Variable for Workspace:", workspaceName)
 	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
@@ -191,11 +191,11 @@ func variableList(c TfxClientContext, orgName string, workspaceName string) erro
 		t.SetStyle(table.StyleRounded)
 		t.Render()
 	} else {
-		b, err := json.Marshal(items)
+		_, err := json.Marshal(items)
 		if err != nil {
 			return errors.Wrap(err, "failed to json marshal")
 		}
-		o.AddJsonString(string(b))
+		// o.AddJsonString(string(b))
 	}
 
 	return nil
@@ -281,7 +281,7 @@ func variableUpdate(c TfxClientContext, orgName string, workspaceName string,
 }
 
 func variableShow(c TfxClientContext, orgName string, workspaceName string, variableKey string) error {
-	o.AddMessageInfo("Variable for Workspace:", color.GreenString(workspaceName))
+	o.AddMessageUserProvided("Variable for Workspace:", workspaceName)
 	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
@@ -297,13 +297,21 @@ func variableShow(c TfxClientContext, orgName string, workspaceName string, vari
 		return errors.Wrap(err, "unable to read variable")
 	}
 
-	o.AddMessageInfo(color.BlueString("ID:          "), variable.ID)
-	o.AddMessageInfo(color.BlueString("Key:         "), variable.Key)
-	o.AddMessageInfo(color.BlueString("Value:       "), variable.Value)
-	o.AddMessageInfo(fmt.Sprintf(color.BlueString("Sensitive:   %s"), variable.Sensitive))
-	o.AddMessageInfo(fmt.Sprintf(color.BlueString("HCL:         %s"), variable.HCL))
-	o.AddMessageInfo(fmt.Sprintf(color.BlueString("Category:    %s"), variable.Category))
-	o.AddMessageInfo(color.BlueString("Description: "), variable.Description)
+	o.AddDeferredMessageRead("ID", variable.ID)
+	o.AddDeferredMessageRead("Key", variable.Key)
+	o.AddDeferredMessageRead("Value", variable.Value)
+	o.AddDeferredMessageRead("Sensitive", variable.Sensitive)
+	o.AddDeferredMessageRead("HCL", variable.HCL)
+	o.AddDeferredMessageRead("Category", variable.Category)
+	o.AddDeferredMessageRead("Description", variable.Description)
+	// o.AddMessageInfo(color.BlueString("Key:         "), variable.Key)
+	// o.AddMessageInfo(color.BlueString("Value:       "), variable.Value)
+	// o.AddMessageInfo(fmt.Sprintf(color.BlueString("Sensitive:   %s"), variable.Sensitive))
+	// o.AddMessageInfo(fmt.Sprintf(color.BlueString("HCL:         %s"), variable.HCL))
+	// o.AddMessageInfo(fmt.Sprintf(color.BlueString("Category:    %s"), variable.Category))
+	// o.AddMessageInfo(color.BlueString("Description: "), variable.Description)
+
+	o.Close()
 
 	return nil
 }
