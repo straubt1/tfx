@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.0.4-dev] - 2022.07.17
 
 ### Added
 
@@ -39,13 +39,12 @@ New Commands:
 * `tfx variable show` - Show details of a workspace variable
 * `tfx variable delete` - Delete a workspace variable
 
-
-
 ### Changed
 
 * PMR Module uploading - Removed helper code (shim) in favor of the now available the go-tfe functions
 * Lots of refactoring within some commands
 * Added optional `--json` flag framework to allow output to be in JSON for non-interactive use
+* Started the migrating to "github.com/fatih/color" from "github.com/logrusorgru/aurora" for text colors 
 
 ### Removed
 
