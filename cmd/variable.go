@@ -57,6 +57,9 @@ var (
 			if value == "" && valueFile == "" {
 				return errors.New("required flag \"key\" or \"keyFile\" not set")
 			}
+			if value != "" && valueFile != "" {
+				return errors.New("too many flags, only \"key\" or \"keyFile\" can be set, not both")
+			}
 
 			if valueFile != "" {
 				if !isFile(valueFile) {
@@ -93,6 +96,9 @@ var (
 			valueFile := *viperString("valueFile")
 			if value == "" && valueFile == "" {
 				return errors.New("required flag \"key\" or \"keyFile\" not set")
+			}
+			if value != "" && valueFile != "" {
+				return errors.New("too many flags, only \"key\" or \"keyFile\" can be set, not both")
 			}
 
 			if valueFile != "" {
@@ -157,8 +163,8 @@ func init() {
 	// `tfx variable create` command
 	variableCreateCmd.Flags().StringP("workspace", "w", "", "Name of the Workspace")
 	variableCreateCmd.Flags().StringP("key", "k", "", "Key of the Variable")
-	variableCreateCmd.Flags().StringP("value", "v", "", "Value of the Variable")
-	variableCreateCmd.Flags().StringP("valueFile", "f", "", "Path to a variable text file, the contents of the file will be used")
+	variableCreateCmd.Flags().StringP("value", "v", "", "Value of the Variable (value or valueFile must be set)")
+	variableCreateCmd.Flags().StringP("valueFile", "f", "", "Path to a variable text file, the contents of the file will be used (value or valueFile must be set)")
 	variableCreateCmd.Flags().StringP("description", "d", "", "Description of the Variable (optional)")
 	variableCreateCmd.Flags().BoolP("env", "e", false, "Variable is an Environment Variable (optional, defaults to false)")
 	variableCreateCmd.Flags().BoolP("hcl", "", false, "Value of Variable is HCL (optional, defaults to false)")
@@ -172,8 +178,8 @@ func init() {
 	// `tfx variable update` command
 	variableUpdateCmd.Flags().StringP("workspace", "w", "", "Name of the Workspace")
 	variableUpdateCmd.Flags().StringP("key", "k", "", "Key of the Variable")
-	variableUpdateCmd.Flags().StringP("value", "v", "", "Value of the Variable")
-	variableUpdateCmd.Flags().StringP("valueFile", "f", "", "Path to a variable text file, the contents of the file will be used")
+	variableUpdateCmd.Flags().StringP("value", "v", "", "Value of the Variable (value or valueFile must be set)")
+	variableUpdateCmd.Flags().StringP("valueFile", "f", "", "Path to a variable text file, the contents of the file will be used (value or valueFile must be set)")
 	variableUpdateCmd.Flags().StringP("description", "d", "", "Description of the Variable (optional)")
 	variableUpdateCmd.Flags().BoolP("env", "e", false, "Variable is an Environment Variable (optional, defaults to false)")
 	variableUpdateCmd.Flags().BoolP("hcl", "", false, "Value of Variable is HCL (optional, defaults to false)")
