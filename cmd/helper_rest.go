@@ -258,11 +258,11 @@ type TfeReleaseUrl struct {
 	ImagelessURL string `json:"imageless_url"`
 }
 
-func GetTFEBinary(password string, licenseId string, releaseSequence string) (*TfeReleaseUrl, error) {
+func GetTFEBinary(password string, licenseId string, releaseSequence int) (*TfeReleaseUrl, error) {
 	passwordB64 := b64.URLEncoding.EncodeToString([]byte(password))
 	// create url "https://api.replicated.com/market/v1/airgap/images/url?license_id=${LICENSE_ID}&sequence=${release_sequence}"
 	url := fmt.Sprintf(
-		"https://api.replicated.com/market/v1/airgap/images/url?license_id=%s&sequence=%s",
+		"https://api.replicated.com/market/v1/airgap/images/url?license_id=%s&sequence=%d",
 		licenseId,
 		releaseSequence,
 	)
