@@ -122,7 +122,7 @@ func releaseTfeList(licenseId string, password string, maxResults int) error {
 
 	o.AddTableHeader("Sequence", "Label", "Required", "Release Date")
 	for index, i := range tfeBinaries.Releases {
-		o.AddTableRows(i.ReleaseSequence, i.Label, i.Required, i.ReleaseDate.String())
+		o.AddTableRows(i.ReleaseSequence, i.Label, i.Required, FormatDateTime(i.ReleaseDate))
 		if index+1 >= maxResults {
 			break
 		}
@@ -147,7 +147,7 @@ func releaseTfeShow(licenseId string, password string, releaseSequence int) erro
 
 	o.AddDeferredMessageRead("Release Sequence", tfeRelease.ReleaseSequence)
 	o.AddDeferredMessageRead("Label", tfeRelease.Label)
-	o.AddDeferredMessageRead("Release Date", tfeRelease.ReleaseDate)
+	o.AddDeferredMessageRead("Release Date", FormatDateTime(tfeRelease.ReleaseDate))
 	o.AddDeferredMessageRead("Required", tfeRelease.Required)
 	o.AddDeferredMessageRead("Release Notes", "\n"+tfeRelease.ReleaseNotes)
 	o.Close()

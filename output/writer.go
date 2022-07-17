@@ -44,15 +44,6 @@ func New(outputType string) Output {
 
 // Add display information to show progress to terminal users
 // This will be printed immediately for DefaultOutput
-func (o Output) AddMessageInfo(m ...string) {
-	// only output for default
-	if o.OutputType == DefaultOutput {
-		fmt.Println(m)
-	}
-}
-
-// Add display information to show progress to terminal users
-// This will be printed immediately for DefaultOutput
 func (o Output) AddMessageUserProvided(description string, value string) {
 	// only output for default
 	if o.OutputType != DefaultOutput {
@@ -60,6 +51,17 @@ func (o Output) AddMessageUserProvided(description string, value string) {
 	}
 
 	fmt.Println(description, aurora.Green(value))
+}
+
+// Add display information to show progress to terminal users
+// This will be printed immediately for DefaultOutput
+func (o Output) AddMessageCalculated(description string, value string) {
+	// only output for default
+	if o.OutputType != DefaultOutput {
+		return
+	}
+
+	fmt.Println(description, aurora.Yellow(value))
 }
 
 // Adds a message that will not print immediate.

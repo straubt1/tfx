@@ -23,7 +23,6 @@ package cmd
 import (
 	"log"
 
-	"github.com/fatih/color"
 	"github.com/logrusorgru/aurora"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -123,7 +122,7 @@ func initConfig() {
 	o = output.New(*viperString("output"))
 	// Print if config file was found
 	if isConfigFile {
-		o.AddMessageInfo("Using config file:", color.YellowString(viper.ConfigFileUsed()))
+		o.AddMessageCalculated("Using config file:", viper.ConfigFileUsed())
 	}
 }
 

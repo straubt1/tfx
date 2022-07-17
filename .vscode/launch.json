@@ -167,6 +167,19 @@
       ]
     },
     {
+      "name": "TFX - TFE Download",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${fileDirname}/../main.go",
+      "args": [
+        "release",
+        "tfe",
+        "download", 
+        "-r=639"
+      ]
+    },
+    {
       "name": "TFX - Replicated List",
       "type": "go",
       "request": "launch",
