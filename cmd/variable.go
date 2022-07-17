@@ -52,12 +52,30 @@ var (
 		Short: "Create a Variable",
 		Long:  "Create a Variable in a Workspace. ",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			value := *viperString("value")
+			valueFile := *viperString("valueFile")
+			if value == "" && valueFile == "" {
+				return errors.New("required flag \"key\" or \"keyFile\" not set")
+			}
+
+			if valueFile != "" {
+				if !isFile(valueFile) {
+					return errors.New("valueFile does not exist")
+				}
+				o.AddMessageUserProvided("Variable Filename was contents will be used: ", valueFile)
+				var err error
+				value, err = readFile(valueFile) //override value
+				if err != nil {
+					return errors.Wrap(err, "unable to read the file passed")
+				}
+			}
+
 			return variableCreate(
 				getTfxClientContext(),
 				*viperString("tfeOrganization"),
 				*viperString("workspace"),
 				*viperString("key"),
-				*viperString("value"),
+				value,
 				*viperString("description"),
 				*viperBool("env"),
 				*viperBool("hcl"),
@@ -71,12 +89,30 @@ var (
 		Short: "Update a Variable",
 		Long:  "Update a Variable in a Workspace. ",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			value := *viperString("value")
+			valueFile := *viperString("valueFile")
+			if value == "" && valueFile == "" {
+				return errors.New("required flag \"key\" or \"keyFile\" not set")
+			}
+
+			if valueFile != "" {
+				if !isFile(valueFile) {
+					return errors.New("valueFile does not exist")
+				}
+				o.AddMessageUserProvided("Variable Filename was contents will be used: ", valueFile)
+				var err error
+				value, err = readFile(valueFile) //override value
+				if err != nil {
+					return errors.Wrap(err, "unable to read the file passed")
+				}
+			}
+
 			return variableUpdate(
 				getTfxClientContext(),
 				*viperString("tfeOrganization"),
 				*viperString("workspace"),
 				*viperString("key"),
-				*viperString("value"),
+				value,
 				*viperString("description"),
 				*viperBool("env"),
 				*viperBool("hcl"),
@@ -121,26 +157,32 @@ func init() {
 	// `tfx variable create` command
 	variableCreateCmd.Flags().StringP("workspace", "w", "", "Name of the Workspace")
 	variableCreateCmd.Flags().StringP("key", "k", "", "Key of the Variable")
-	variableCreateCmd.Flags().StringP("value", "v", "", "Value of the Variable - Can be a path to a file, if so the contents of the file will be used")
+	variableCreateCmd.Flags().StringP("value", "v", "", "Value of the Variable")
+	variableCreateCmd.Flags().StringP("valueFile", "f", "", "Path to a variable text file, the contents of the file will be used")
 	variableCreateCmd.Flags().StringP("description", "d", "", "Description of the Variable (optional)")
 	variableCreateCmd.Flags().BoolP("env", "e", false, "Variable is an Environment Variable (optional, defaults to false)")
 	variableCreateCmd.Flags().BoolP("hcl", "", false, "Value of Variable is HCL (optional, defaults to false)")
 	variableCreateCmd.Flags().BoolP("sensitive", "", false, "Variable is Sensitive (optional, defaults to false)")
 	variableCreateCmd.MarkFlagRequired("workspace")
 	variableCreateCmd.MarkFlagRequired("key")
-	variableCreateCmd.MarkFlagRequired("value")
+	// command code to ensure ONE of these is set
+	// variableCreateCmd.MarkFlagRequired("value")
+	// variableCreateCmd.MarkFlagRequired("valueFile")
 
 	// `tfx variable update` command
 	variableUpdateCmd.Flags().StringP("workspace", "w", "", "Name of the Workspace")
 	variableUpdateCmd.Flags().StringP("key", "k", "", "Key of the Variable")
 	variableUpdateCmd.Flags().StringP("value", "v", "", "Value of the Variable")
+	variableUpdateCmd.Flags().StringP("valueFile", "f", "", "Path to a variable text file, the contents of the file will be used")
 	variableUpdateCmd.Flags().StringP("description", "d", "", "Description of the Variable (optional)")
 	variableUpdateCmd.Flags().BoolP("env", "e", false, "Variable is an Environment Variable (optional, defaults to false)")
 	variableUpdateCmd.Flags().BoolP("hcl", "", false, "Value of Variable is HCL (optional, defaults to false)")
 	variableUpdateCmd.Flags().BoolP("sensitive", "", false, "Variable is Sensitive (optional, defaults to false)")
 	variableUpdateCmd.MarkFlagRequired("workspace")
 	variableUpdateCmd.MarkFlagRequired("key")
-	variableUpdateCmd.MarkFlagRequired("value")
+	// command code to ensure ONE of these is set
+	// variableUpdateCmd.MarkFlagRequired("value")
+	// variableUpdateCmd.MarkFlagRequired("valueFile")
 
 	// `tfx variable show` command
 	variableShowCmd.Flags().StringP("workspace", "w", "", "Name of the Workspace")
