@@ -191,8 +191,8 @@ func variableCreate(c TfxClientContext, orgName string, workspaceName string,
 		return errors.Wrap(err, "unable to read workspace id")
 	}
 
-	// check if value is a file
-	// TODO: fix this, it is not updating the variableValue var correctly
+	// check if value is a file, if so use the contents
+	// TODO: consider moving this to a different arg/command?
 	if isFile(variableValue) {
 		o.AddMessageUserProvided("Value passed as a filename, contents will be used: ", variableValue)
 		variableValue, err = readFile(variableValue)

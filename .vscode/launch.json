@@ -236,6 +236,21 @@
       ]
     },
     {
+      "name": "TFX - variable create",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${fileDirname}/../main.go",
+      "args": [
+        "variable",
+        "create",
+        "-w=tfx-test",
+        "-k=variable7",
+        "-v=./map.hcl",
+        "--hcl"
+      ]
+    },
+    {
       "name": "TFX - variable show",
       "type": "go",
       "request": "launch",
