@@ -13,7 +13,7 @@ The initial focus of _tfx_ was to execute the API-Driven workflow for a Workspac
 
 ## Documentation
 
-Questions about a Command? Check out the [docs](docs/docs.md)
+Questions about a Command? Check out the [docs](docs/)
 
 ## Why does this CLI exist?
 
