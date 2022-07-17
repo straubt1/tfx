@@ -9,15 +9,6 @@ import (
 	"github.com/logrusorgru/aurora"
 )
 
-// OutputType represents how to return info
-type OutputType string
-
-// List of output types
-const (
-	DefaultOutput OutputType = "default"
-	JsonOutput    OutputType = "json"
-)
-
 type Message struct {
 	Description string
 	Value       interface{}
@@ -25,19 +16,17 @@ type Message struct {
 
 // Store OutputType for reference when posting messages
 type Output struct {
-	OutputType   OutputType
+	// OutputType   OutputType
+	jsonOutput   bool
 	messages     []*Message
 	tableHeaders []interface{}
 	tableRows    [][]interface{}
 }
 
-func New(outputType string) Output {
-	ot := DefaultOutput
-	if outputType == string(JsonOutput) {
-		ot = JsonOutput
-	}
+func New(jsonOutput bool) Output {
 	o := Output{
-		OutputType: ot,
+		// OutputType: ot,
+		jsonOutput: jsonOutput,
 	}
 	return o
 }
@@ -46,7 +35,7 @@ func New(outputType string) Output {
 // This will be printed immediately for DefaultOutput
 func (o Output) AddMessageUserProvided(description string, value string) {
 	// only output for default
-	if o.OutputType != DefaultOutput {
+	if o.jsonOutput {
 		return
 	}
 
@@ -57,7 +46,7 @@ func (o Output) AddMessageUserProvided(description string, value string) {
 // This will be printed immediately for DefaultOutput
 func (o Output) AddMessageCalculated(description string, value string) {
 	// only output for default
-	if o.OutputType != DefaultOutput {
+	if o.jsonOutput {
 		return
 	}
 
@@ -132,19 +121,19 @@ func (o Output) closeTableJson() {
 
 func (o *Output) Close() {
 	if len(o.messages) > 0 {
-		if o.OutputType == DefaultOutput {
-			o.closeMessagesDefault()
-		} else {
+		if o.jsonOutput {
 			o.closeMessagesJson()
+		} else {
+			o.closeMessagesDefault()
 		}
 		o.messages = o.messages[:0]
 	}
 
 	if len(o.tableHeaders) > 0 {
-		if o.OutputType == DefaultOutput {
-			o.closeTableDefault()
-		} else {
+		if o.jsonOutput {
 			o.closeTableJson()
+		} else {
+			o.closeTableDefault()
 		}
 		o.tableHeaders = o.tableHeaders[:0]
 		o.tableRows = o.tableRows[:0]

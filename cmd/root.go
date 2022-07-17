@@ -75,9 +75,9 @@ func init() {
 	rootCmd.PersistentFlags().String("tfeOrganization", "", "The name of the TFx Organization. Can also be set with the environment variable TFE_ORGANIZATION.")
 	rootCmd.PersistentFlags().String("tfeToken", "", "The API token used to authenticate to TFx. Can also be set with the environment variable TFE_TOKEN.")
 
-	// Add output option, but hide during development
-	rootCmd.PersistentFlags().StringP("output", "o", string(output.DefaultOutput), "Output type ['default','json'].")
-	rootCmd.PersistentFlags().MarkHidden("output")
+	// Add json output option, but hide during development
+	rootCmd.PersistentFlags().BoolP("json", "j", false, "Will output command results as JSON.")
+	rootCmd.PersistentFlags().MarkHidden("json")
 
 	// required
 	rootCmd.MarkPersistentFlagRequired("tfeOrganization")
@@ -119,7 +119,7 @@ func initConfig() {
 	postInitCommands(rootCmd.Commands())
 
 	// Initialize output
-	o = output.New(*viperString("output"))
+	o = output.New(*viperBool("json"))
 	// Print if config file was found
 	if isConfigFile {
 		o.AddMessageCalculated("Using config file:", viper.ConfigFileUsed())
