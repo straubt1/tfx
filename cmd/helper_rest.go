@@ -145,12 +145,12 @@ type GPGList struct {
 	// } `json:"links"`
 }
 
-func ListGPGKeys(token string, tfeHostname string, tfeOrganization string) (*GPGList, error) {
+func ListGPGKeys(c TfxClientContext) (*GPGList, error) {
 	// create url "https://${HOST}/api/registry/private/v2/gpg-keys?filter%5Bnamespace%5D=${provider_namespace}"
 	url := fmt.Sprintf(
 		"https://%s/api/registry/private/v2/gpg-keys?filter[namespace]=%s",
-		tfeHostname,
-		tfeOrganization,
+		c.Hostname,
+		c.OrganizationName,
 	)
 	// create http Client to make calls
 	client := &http.Client{}
@@ -162,7 +162,7 @@ func ListGPGKeys(token string, tfeHostname string, tfeOrganization string) (*GPG
 	}
 
 	// add headers
-	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Authorization", "Bearer "+c.Token)
 	req.Header.Set("Accept", "application/vnd.api+json")
 
 	// make request
@@ -258,11 +258,11 @@ type TfeReleaseUrl struct {
 	ImagelessURL string `json:"imageless_url"`
 }
 
-func GetTFEBinary(password string, licenseId string, releaseSequence string) (*TfeReleaseUrl, error) {
+func GetTFEBinary(password string, licenseId string, releaseSequence int) (*TfeReleaseUrl, error) {
 	passwordB64 := b64.URLEncoding.EncodeToString([]byte(password))
 	// create url "https://api.replicated.com/market/v1/airgap/images/url?license_id=${LICENSE_ID}&sequence=${release_sequence}"
 	url := fmt.Sprintf(
-		"https://api.replicated.com/market/v1/airgap/images/url?license_id=%s&sequence=%s",
+		"https://api.replicated.com/market/v1/airgap/images/url?license_id=%s&sequence=%d",
 		licenseId,
 		releaseSequence,
 	)

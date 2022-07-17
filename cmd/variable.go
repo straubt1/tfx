@@ -20,12 +20,7 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
-
-	"github.com/fatih/color"
 	tfe "github.com/hashicorp/go-tfe"
-	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -57,12 +52,33 @@ var (
 		Short: "Create a Variable",
 		Long:  "Create a Variable in a Workspace. ",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			value := *viperString("value")
+			valueFile := *viperString("valueFile")
+			if value == "" && valueFile == "" {
+				return errors.New("required flag \"key\" or \"keyFile\" not set")
+			}
+			if value != "" && valueFile != "" {
+				return errors.New("too many flags, only \"key\" or \"keyFile\" can be set, not both")
+			}
+
+			if valueFile != "" {
+				if !isFile(valueFile) {
+					return errors.New("valueFile does not exist")
+				}
+				o.AddMessageUserProvided("Variable Filename was contents will be used: ", valueFile)
+				var err error
+				value, err = readFile(valueFile) //override value
+				if err != nil {
+					return errors.Wrap(err, "unable to read the file passed")
+				}
+			}
+
 			return variableCreate(
 				getTfxClientContext(),
 				*viperString("tfeOrganization"),
 				*viperString("workspace"),
 				*viperString("key"),
-				*viperString("value"),
+				value,
 				*viperString("description"),
 				*viperBool("env"),
 				*viperBool("hcl"),
@@ -76,12 +92,33 @@ var (
 		Short: "Update a Variable",
 		Long:  "Update a Variable in a Workspace. ",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			value := *viperString("value")
+			valueFile := *viperString("valueFile")
+			if value == "" && valueFile == "" {
+				return errors.New("required flag \"key\" or \"keyFile\" not set")
+			}
+			if value != "" && valueFile != "" {
+				return errors.New("too many flags, only \"key\" or \"keyFile\" can be set, not both")
+			}
+
+			if valueFile != "" {
+				if !isFile(valueFile) {
+					return errors.New("valueFile does not exist")
+				}
+				o.AddMessageUserProvided("Variable Filename was contents will be used: ", valueFile)
+				var err error
+				value, err = readFile(valueFile) //override value
+				if err != nil {
+					return errors.Wrap(err, "unable to read the file passed")
+				}
+			}
+
 			return variableUpdate(
 				getTfxClientContext(),
 				*viperString("tfeOrganization"),
 				*viperString("workspace"),
 				*viperString("key"),
-				*viperString("value"),
+				value,
 				*viperString("description"),
 				*viperBool("env"),
 				*viperBool("hcl"),
@@ -126,26 +163,32 @@ func init() {
 	// `tfx variable create` command
 	variableCreateCmd.Flags().StringP("workspace", "w", "", "Name of the Workspace")
 	variableCreateCmd.Flags().StringP("key", "k", "", "Key of the Variable")
-	variableCreateCmd.Flags().StringP("value", "v", "", "Value of the Variable - Can be a path to a file, if so the contents of the file will be used")
+	variableCreateCmd.Flags().StringP("value", "v", "", "Value of the Variable (value or valueFile must be set)")
+	variableCreateCmd.Flags().StringP("valueFile", "f", "", "Path to a variable text file, the contents of the file will be used (value or valueFile must be set)")
 	variableCreateCmd.Flags().StringP("description", "d", "", "Description of the Variable (optional)")
 	variableCreateCmd.Flags().BoolP("env", "e", false, "Variable is an Environment Variable (optional, defaults to false)")
 	variableCreateCmd.Flags().BoolP("hcl", "", false, "Value of Variable is HCL (optional, defaults to false)")
 	variableCreateCmd.Flags().BoolP("sensitive", "", false, "Variable is Sensitive (optional, defaults to false)")
 	variableCreateCmd.MarkFlagRequired("workspace")
 	variableCreateCmd.MarkFlagRequired("key")
-	variableCreateCmd.MarkFlagRequired("value")
+	// command code to ensure ONE of these is set
+	// variableCreateCmd.MarkFlagRequired("value")
+	// variableCreateCmd.MarkFlagRequired("valueFile")
 
 	// `tfx variable update` command
 	variableUpdateCmd.Flags().StringP("workspace", "w", "", "Name of the Workspace")
 	variableUpdateCmd.Flags().StringP("key", "k", "", "Key of the Variable")
-	variableUpdateCmd.Flags().StringP("value", "v", "", "Value of the Variable")
+	variableUpdateCmd.Flags().StringP("value", "v", "", "Value of the Variable (value or valueFile must be set)")
+	variableUpdateCmd.Flags().StringP("valueFile", "f", "", "Path to a variable text file, the contents of the file will be used (value or valueFile must be set)")
 	variableUpdateCmd.Flags().StringP("description", "d", "", "Description of the Variable (optional)")
 	variableUpdateCmd.Flags().BoolP("env", "e", false, "Variable is an Environment Variable (optional, defaults to false)")
 	variableUpdateCmd.Flags().BoolP("hcl", "", false, "Value of Variable is HCL (optional, defaults to false)")
 	variableUpdateCmd.Flags().BoolP("sensitive", "", false, "Variable is Sensitive (optional, defaults to false)")
 	variableUpdateCmd.MarkFlagRequired("workspace")
 	variableUpdateCmd.MarkFlagRequired("key")
-	variableUpdateCmd.MarkFlagRequired("value")
+	// command code to ensure ONE of these is set
+	// variableUpdateCmd.MarkFlagRequired("value")
+	// variableUpdateCmd.MarkFlagRequired("valueFile")
 
 	// `tfx variable show` command
 	variableShowCmd.Flags().StringP("workspace", "w", "", "Name of the Workspace")
@@ -168,7 +211,7 @@ func init() {
 }
 
 func variableList(c TfxClientContext, orgName string, workspaceName string) error {
-	fmt.Println("Variables for Workspace:", color.GreenString(workspaceName))
+	o.AddMessageUserProvided("List Variables for Workspace:", workspaceName)
 	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
@@ -179,35 +222,32 @@ func variableList(c TfxClientContext, orgName string, workspaceName string) erro
 		return errors.Wrap(err, "failed to list variables")
 	}
 
-	t := table.NewWriter()
-	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"Id", "Key", "Value", "Sensitive", "HCL", "Category", "Description"})
+	o.AddTableHeader("Id", "Key", "Value", "Sensitive", "HCL", "Category", "Description")
 	for _, i := range items {
-		t.AppendRow(table.Row{i.ID, i.Key, i.Value, i.Sensitive, i.HCL, i.Category, i.Description})
+		o.AddTableRows(i.ID, i.Key, i.Value, i.Sensitive, i.HCL, i.Category, i.Description)
 	}
-	t.SetStyle(table.StyleRounded)
-	t.Render()
+	o.Close()
 
 	return nil
 }
 
 func variableCreate(c TfxClientContext, orgName string, workspaceName string,
 	variableKey string, variableValue string, description string, isEnvironment bool, isHcl bool, isSensitive bool) error {
-	fmt.Println("Create Variable for Workspace:", color.GreenString(workspaceName))
+	o.AddMessageUserProvided("Create Variable for Workspace:", workspaceName)
 	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
 	}
 
-	// check if value is a file
+	// check if value is a file, if so use the contents
+	// TODO: consider moving this to a different arg/command?
 	if isFile(variableValue) {
-		fmt.Println("Value passed as a filename, contents will be used: ", color.GreenString(variableValue))
+		o.AddMessageUserProvided("Value passed as a filename, contents will be used: ", variableValue)
 		variableValue, err = readFile(variableValue)
 		if err != nil {
 			return errors.Wrap(err, "unable to read the file passed")
 		}
 	}
-	fmt.Println(workspaceId)
 
 	var category *tfe.CategoryType
 	if isEnvironment {
@@ -227,15 +267,22 @@ func variableCreate(c TfxClientContext, orgName string, workspaceName string,
 		return errors.Wrap(err, "Failed to Create Variable")
 	}
 
-	fmt.Println(color.BlueString("ID:  "), variable.ID)
-	fmt.Println(color.BlueString("Key: "), variable.Key)
+	o.AddMessageUserProvided("Variable Created:", variableKey)
+	o.AddDeferredMessageRead("ID", variable.ID)
+	o.AddDeferredMessageRead("Key", variable.Key)
+	o.AddDeferredMessageRead("Value", variable.Value)
+	o.AddDeferredMessageRead("Sensitive", variable.Sensitive)
+	o.AddDeferredMessageRead("HCL", variable.HCL)
+	o.AddDeferredMessageRead("Category", variable.Category)
+	o.AddDeferredMessageRead("Description", variable.Description)
+	o.Close()
 
 	return nil
 }
 
 func variableUpdate(c TfxClientContext, orgName string, workspaceName string,
 	variableKey string, variableValue string, description string, isEnvironment bool, isHcl bool, isSensitive bool) error {
-	fmt.Println("Create Variable for Workspace:", color.GreenString(workspaceName))
+	o.AddMessageUserProvided("Update Variable for Workspace:", workspaceName)
 	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
@@ -264,14 +311,21 @@ func variableUpdate(c TfxClientContext, orgName string, workspaceName string,
 		return errors.Wrap(err, "Failed to Update Variable")
 	}
 
-	fmt.Println(color.BlueString("ID:  "), variable.ID)
-	fmt.Println(color.BlueString("Key: "), variable.Key)
+	o.AddMessageUserProvided("Variable Updated", workspaceName)
+	o.AddDeferredMessageRead("ID", variable.ID)
+	o.AddDeferredMessageRead("Key", variable.Key)
+	o.AddDeferredMessageRead("Value", variable.Value)
+	o.AddDeferredMessageRead("Sensitive", variable.Sensitive)
+	o.AddDeferredMessageRead("HCL", variable.HCL)
+	o.AddDeferredMessageRead("Category", variable.Category)
+	o.AddDeferredMessageRead("Description", variable.Description)
+	o.Close()
 
 	return nil
 }
 
 func variableShow(c TfxClientContext, orgName string, workspaceName string, variableKey string) error {
-	fmt.Println("Variable for Workspace:", color.GreenString(workspaceName))
+	o.AddMessageUserProvided("Show Variable for Workspace:", workspaceName)
 	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
@@ -287,20 +341,21 @@ func variableShow(c TfxClientContext, orgName string, workspaceName string, vari
 		return errors.Wrap(err, "unable to read variable")
 	}
 
-	fmt.Println(color.BlueString("ID:          "), variable.ID)
-	fmt.Println(color.BlueString("Key:         "), variable.Key)
-	fmt.Println(color.BlueString("Value:       "), variable.Value)
-	fmt.Println(color.BlueString("Sensitive:   "), variable.Sensitive)
-	fmt.Println(color.BlueString("HCL:         "), variable.HCL)
-	fmt.Println(color.BlueString("Category:    "), variable.Category)
-	fmt.Println(color.BlueString("Description: "), variable.Description)
+	o.AddDeferredMessageRead("ID", variable.ID)
+	o.AddDeferredMessageRead("Key", variable.Key)
+	o.AddDeferredMessageRead("Value", variable.Value)
+	o.AddDeferredMessageRead("Sensitive", variable.Sensitive)
+	o.AddDeferredMessageRead("HCL", variable.HCL)
+	o.AddDeferredMessageRead("Category", variable.Category)
+	o.AddDeferredMessageRead("Description", variable.Description)
+	o.Close()
 
 	return nil
 }
 
 func variableDelete(c TfxClientContext, orgName string, workspaceName string, variableKey string) error {
 	// TODO: Add ability to delete multiple keys at once: https://github.com/spf13/cobra/issues/661
-	fmt.Println("Delete Variable for Workspace:", color.GreenString(workspaceName))
+	o.AddMessageUserProvided("Delete Variable for Workspace:", workspaceName)
 	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
@@ -315,6 +370,11 @@ func variableDelete(c TfxClientContext, orgName string, workspaceName string, va
 	if err != nil {
 		return errors.Wrap(err, "failed to delete variable")
 	}
+
+	o.AddMessageUserProvided("Variable Deleted:", variableKey)
+	o.AddDeferredMessageRead("Status", "Success")
+	o.Close()
+
 	return nil
 }
 

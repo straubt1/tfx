@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+New Commands:
+
 * `tfx cv download` - Download a Configuration Version and unpack onto disk.
 * `tfx gpg list` - List GPG Keys of an Organization
 * `tfx gpg create` - Create a GPG Key for an Organization
@@ -32,14 +34,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `tfx registry provider version platform show` - Show details of a Platform Version for a Provider in the Registry
 * `tfx registry provider version platform delete` - Delete a Platform Version for a Provider in the Registry
 * `tfx variable list` - List all workspace variables
-* `tfx variable create` - Create a workspace variable
-* `tfx variable update` - Update an existing workspace variable
+* `tfx variable create` - Create a workspace variable, optionally the value can read from a filename
+* `tfx variable update` - Update an existing workspace variable, optionally the value can read from a filename
 * `tfx variable show` - Show details of a workspace variable
-* `tfx variable delete` - Delete a workspace variable 
+* `tfx variable delete` - Delete a workspace variable
+
+
 
 ### Changed
 
 * PMR Module uploading - Removed helper code (shim) in favor of the now available the go-tfe functions
+* Lots of refactoring within some commands
+* Added optional `--json` flag framework to allow output to be in JSON for non-interactive use
 
 ### Removed
 
