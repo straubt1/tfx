@@ -211,7 +211,7 @@ func init() {
 }
 
 func variableList(c TfxClientContext, orgName string, workspaceName string) error {
-	o.AddMessageUserProvided("Variable for Workspace:", workspaceName)
+	o.AddMessageUserProvided("List Variables for Workspace:", workspaceName)
 	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
@@ -372,6 +372,8 @@ func variableDelete(c TfxClientContext, orgName string, workspaceName string, va
 	}
 
 	o.AddMessageUserProvided("Variable Deleted:", variableKey)
+	o.AddDeferredMessageRead("Status", "Success")
+	o.Close()
 
 	return nil
 }

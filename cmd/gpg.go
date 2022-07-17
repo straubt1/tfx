@@ -5,13 +5,10 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"fmt"
 	"io/ioutil"
-	"os"
 
-	"github.com/fatih/color"
 	tfe "github.com/hashicorp/go-tfe"
-	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -28,9 +25,9 @@ var (
 		Short: "List GPG Keys",
 		Long:  "List GPG Keys of a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return gpgList()
+			return gpgList(
+				getTfxClientContext())
 		},
-		PreRun: bindPFlags,
 	}
 
 	gpgCreateCmd = &cobra.Command{
@@ -38,9 +35,16 @@ var (
 		Short: "Create GPG Key",
 		Long:  "Create GPG Key for a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return gpgCreate()
+			if !isFile(*viperString("publicKey")) {
+				return errors.New("publicKey file does not exist")
+			}
+
+			return gpgCreate(
+				getTfxClientContext(),
+				*viperString("namespace"),
+				*viperString("publicKey"),
+				*viperString("registryName"))
 		},
-		PreRun: bindPFlags,
 	}
 
 	gpgShowCmd = &cobra.Command{
@@ -48,9 +52,11 @@ var (
 		Short: "Show GPG Key",
 		Long:  "Show GPG Key for a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return gpgShow()
+			return gpgShow(
+				getTfxClientContext(),
+				*viperString("namespace"),
+				*viperString("keyId"))
 		},
-		PreRun: bindPFlags,
 	}
 
 	gpgDeleteCmd = &cobra.Command{
@@ -58,34 +64,35 @@ var (
 		Short: "Delete GPG Key",
 		Long:  "Delete GPG Key for a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return gpgDelete()
+			return gpgDelete(
+				getTfxClientContext(),
+				*viperString("namespace"),
+				*viperString("keyId"))
 		},
-		PreRun: bindPFlags,
 	}
 )
 
 func init() {
 	// `tfx gpg list`
-	// none
 
 	// `tfx gpg create`
 	gpgCreateCmd.Flags().StringP("namespace", "n", "", "Namespace (typically the organization name)")
 	gpgCreateCmd.Flags().StringP("publicKey", "k", "", "File path to the public GPG key")
-	gpgCreateCmd.Flags().StringP("registryName", "r", "private", "Registry name (optional, defaults to 'private')")
+	gpgCreateCmd.Flags().StringP("registryName", "r", "private", "Registry name")
 	gpgCreateCmd.MarkFlagRequired("namespace")
 	gpgCreateCmd.MarkFlagRequired("publicKey")
 
 	// `tfx gpg show`
 	gpgShowCmd.Flags().StringP("namespace", "n", "", "Namespace (typically the organization name)")
 	gpgShowCmd.Flags().StringP("keyId", "k", "", "GPG key Id")
-	gpgShowCmd.Flags().StringP("registryName", "r", "private", "Registry name (optional, defaults to 'private')")
+	gpgShowCmd.Flags().StringP("registryName", "r", "private", "Registry name")
 	gpgShowCmd.MarkFlagRequired("namespace")
 	gpgShowCmd.MarkFlagRequired("keyId")
 
 	// `tfx gpg delete`
 	gpgDeleteCmd.Flags().StringP("namespace", "n", "", "Namespace (typically the organization name)")
 	gpgDeleteCmd.Flags().StringP("keyId", "k", "", "GPG key Id")
-	gpgDeleteCmd.Flags().StringP("registryName", "r", "private", "Registry name (optional, defaults to 'private')")
+	gpgDeleteCmd.Flags().StringP("registryName", "r", "private", "Registry name")
 	gpgDeleteCmd.MarkFlagRequired("namespace")
 	gpgDeleteCmd.MarkFlagRequired("keyId")
 
@@ -96,103 +103,84 @@ func init() {
 	gpgCmd.AddCommand(gpgDeleteCmd)
 }
 
-func gpgList() error {
-	// Validate flags
-	hostname := *viperString("tfeHostname")
-	token := *viperString("tfeToken")
-	orgName := *viperString("tfeOrganization")
-
-	// Read all GPG Keys in Org
-	fmt.Println("Reading GPG Keys for Organization:", color.GreenString(orgName))
-	gpg, err := ListGPGKeys(token, hostname, orgName)
+func gpgList(c TfxClientContext) error {
+	o.AddMessageUserProvided("List GPG Keys for Organization:", c.OrganizationName)
+	gpg, err := ListGPGKeys(c)
 	if err != nil {
-		logError(err, "failed to read GPG Keys")
+		return errors.Wrap(err, "unable to list gpg keys")
 	}
 
-	t := table.NewWriter()
-	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"Key Id", "Namespace", "Updated At", "Created At"})
+	o.AddTableHeader("Key Id", "Namespace", "Updated At", "Created At")
 	for _, i := range gpg.Keys {
-		t.AppendRow(table.Row{i.Attributes.KeyID, i.Attributes.Namespace, i.Attributes.UpdatedAt.String(), i.Attributes.CreatedAt.String()})
+		o.AddTableRows(i.Attributes.KeyID, i.Attributes.Namespace, FormatDateTime(i.Attributes.UpdatedAt), FormatDateTime(i.Attributes.CreatedAt))
 	}
-	t.SetStyle(table.StyleRounded)
-	t.Render()
+	o.Close()
 
 	return nil
 }
 
-func gpgCreate() error {
-	// Validate flags
-	namespace := *viperString("namespace")
-	publicKey := *viperString("publicKey")
-	registryName := *viperString("registryName")
-	client, ctx := getClientContext()
-
-	// Verify file exists
+func gpgCreate(c TfxClientContext, namespace string, publicKey string, registryName string) error {
+	o.AddMessageUserProvided("Create GPG Key for Organization:", c.OrganizationName)
 	b, err := ioutil.ReadFile(publicKey)
 	if err != nil {
-		fmt.Print(err)
+		return errors.Wrap(err, "failed to read publicKey file")
 	}
 	publicKeyContents := string(b)
 
-	// Create GPG Key
-	fmt.Print("Creating GPG Key ", color.GreenString(namespace), "/", color.GreenString(registryName), " ... ")
-	key, err := client.GPGKeys.Create(ctx, tfe.RegistryName(registryName), tfe.GPGKeyCreateOptions{
+	g, err := c.Client.GPGKeys.Create(c.Context, tfe.RegistryName(registryName), tfe.GPGKeyCreateOptions{
 		Namespace:  namespace,
 		AsciiArmor: publicKeyContents,
 	})
 	if err != nil {
-		logError(err, "failed to create GPG Key")
+		return errors.Wrap(err, "failed to create gpg key")
 	}
-	fmt.Println(" Created with ID: ", color.BlueString(key.KeyID))
+
+	o.AddMessageUserProvided("GPG Key Created", "")
+	o.AddDeferredMessageRead("ID", g.ID)
+	o.AddDeferredMessageRead("Created", FormatDateTime(g.CreatedAt))
+	o.AddDeferredMessageRead("Updated", FormatDateTime(g.UpdatedAt))
+	o.AddDeferredMessageRead("AsciiArmor", "\n"+g.AsciiArmor)
+	o.Close()
 
 	return nil
 }
 
-func gpgShow() error {
-	// Validate flags
-	namespace := *viperString("namespace")
-	keyId := *viperString("keyId")
-	client, ctx := getClientContext()
-
-	// Show GPG Key
-	fmt.Print("Showing GPG Key ", color.GreenString(namespace), "/", color.GreenString(keyId), " ...")
-	pmr, err := client.GPGKeys.Read(ctx, tfe.GPGKeyID{
+func gpgShow(c TfxClientContext, namespace string, keyId string) error {
+	o.AddMessageUserProvided("Show a GPG Key for Organization:", c.OrganizationName)
+	g, err := c.Client.GPGKeys.Read(c.Context, tfe.GPGKeyID{
 		Namespace:    namespace,
 		RegistryName: tfe.PrivateRegistry,
 		KeyID:        keyId,
 	})
 	if err != nil {
-		logError(err, "failed to show module")
+		return errors.Wrap(err, "failed to read gpg key")
 	}
-	fmt.Println(" Found")
-	fmt.Println(color.BlueString("ID:        "), pmr.KeyID)
-	fmt.Println(color.BlueString("Created:   "), pmr.CreatedAt)
-	fmt.Println(color.BlueString("Updated:   "), pmr.UpdatedAt)
-	fmt.Println(color.BlueString("Status:    "), pmr.AsciiArmor)
+
+	o.AddMessageUserProvided("GPG Key Found", "")
+	o.AddDeferredMessageRead("ID", g.ID)
+	o.AddDeferredMessageRead("Created", FormatDateTime(g.CreatedAt))
+	o.AddDeferredMessageRead("Updated", FormatDateTime(g.UpdatedAt))
+	o.AddDeferredMessageRead("AsciiArmor", "\n"+g.AsciiArmor)
+	o.Close()
 
 	return nil
 }
 
-func gpgDelete() error {
-	// Validate flags
-	namespace := *viperString("namespace")
-	keyId := *viperString("keyId")
-	client, ctx := getClientContext()
-
+func gpgDelete(c TfxClientContext, namespace string, keyId string) error {
+	o.AddMessageUserProvided("Delete GPG Key for Organization:", c.OrganizationName)
 	// TODO: verify GPG key is not in use before deleting
 
-	// Delete GPG Key
-	fmt.Print("Deleting GPG Key ", color.GreenString(namespace), "/", color.GreenString(keyId), " ... ")
-	err := client.GPGKeys.Delete(ctx, tfe.GPGKeyID{
+	err := c.Client.GPGKeys.Delete(c.Context, tfe.GPGKeyID{
 		Namespace:    namespace,
 		RegistryName: tfe.PrivateRegistry,
 		KeyID:        keyId,
 	})
 	if err != nil {
-		logError(err, "failed to delete GPG Key")
+		return errors.Wrap(err, "failed to delete gpg key")
 	}
-	fmt.Println(" Deleted")
+	o.AddMessageUserProvided("GPG Key Deleted", "")
+	o.AddDeferredMessageRead("Status", "Success")
+	o.Close()
 
 	return nil
 }

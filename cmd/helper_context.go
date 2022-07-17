@@ -26,8 +26,11 @@ func getClientContext() (*tfe.Client, context.Context) {
 }
 
 type TfxClientContext struct {
-	Client  *tfe.Client
-	Context context.Context
+	Client           *tfe.Client
+	Context          context.Context
+	Hostname         string
+	OrganizationName string
+	Token            string
 }
 
 func getTfxClientContext() TfxClientContext {
@@ -45,5 +48,5 @@ func getTfxClientContext() TfxClientContext {
 	// Create a context
 	ctx := context.Background()
 
-	return TfxClientContext{client, ctx}
+	return TfxClientContext{client, ctx, *viperString("tfeHostname"), *viperString("tfeOrganization"), *viperString("tfeToken")}
 }
