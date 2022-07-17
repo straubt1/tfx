@@ -20,13 +20,11 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
-	"github.com/fatih/color"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/exp/slices"
 )
@@ -119,7 +117,7 @@ func releaseTfeList(licenseId string, password string, maxResults int) error {
 	o.AddMessageUserProvided("List Available Terraform Enterprise Releases", "")
 	tfeBinaries, err := ListTFEBinaries(password, licenseId)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to list TFE releases")
 	}
 
 	o.AddTableHeader("Sequence", "Label", "Required", "Release Date")
@@ -138,13 +136,12 @@ func releaseTfeShow(licenseId string, password string, releaseSequence int) erro
 	o.AddMessageUserProvided("Show Release details for Terraform Enterprise:", strconv.Itoa(releaseSequence))
 	tfeBinaries, err := ListTFEBinaries(password, licenseId)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to list TFE releases")
 	}
 
 	idx := slices.IndexFunc(tfeBinaries.Releases, func(c TFERelease) bool { return c.ReleaseSequence == releaseSequence })
 	if idx < 0 {
-		fmt.Println(color.RedString("Error: "), "Unable to find release sequence: ", releaseSequence)
-		return nil
+		return errors.Wrap(err, "unable to fine release sequence in available TFE releases")
 	}
 	tfeRelease := tfeBinaries.Releases[idx]
 
@@ -163,17 +160,10 @@ func releaseTfeDownload(licenseId string, password string, releaseSequence int, 
 	o.AddMessageUserProvided("Download Release binary for Terraform Enterprise:", strconv.Itoa(releaseSequence))
 	tfeUrl, err := GetTFEBinary(password, licenseId, releaseSequence)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to get TFE releases")
 	}
 
-	// Verify directory
-	_, err = os.Stat(directory)
-	if err != nil {
-		fmt.Println(color.RedString("Error: Invalid directory "), directory)
-		return err
-	}
-
-	// Verify trailing, if not add it
+	// Verify trailing slash, if not add it
 	if !strings.HasSuffix(directory, "/") {
 		directory += "/"
 	}
@@ -182,7 +172,7 @@ func releaseTfeDownload(licenseId string, password string, releaseSequence int, 
 	//Download file
 	err = DownloadBinary(tfeUrl.URL, path)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to list download TFE binary")
 	}
 
 	o.AddMessageUserProvided("Release Downloaded!", "")

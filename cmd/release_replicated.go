@@ -20,11 +20,11 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/mmcdole/gofeed"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -84,7 +84,10 @@ func init() {
 func releaseReplicatedList(maxResults int) error {
 	o.AddMessageUserProvided("List Available Replicated Releases", "")
 	fp := gofeed.NewParser()
-	feed, _ := fp.ParseURL("https://release-notes.replicated.com/index.xml")
+	feed, err := fp.ParseURL("https://release-notes.replicated.com/index.xml")
+	if err != nil {
+		return errors.Wrap(err, "failed to build replicated url")
+	}
 
 	o.AddTableHeader("Version", "Published Date")
 	for index, i := range feed.Items {
@@ -116,7 +119,7 @@ func releaseReplicatedDownload(directory string, version string) error {
 	//Download file
 	err := DownloadBinary(url, path)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to download replicated binary")
 	}
 
 	o.AddMessageUserProvided("Release Downloaded!", "")
