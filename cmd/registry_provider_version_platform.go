@@ -135,6 +135,7 @@ func init() {
 	registryProviderVersionPlatformListCmd.Flags().StringP("name", "n", "", "Name of the Provider")
 	registryProviderVersionPlatformListCmd.Flags().StringP("version", "v", "", "Version of Provider (i.e. 0.0.1)")
 	registryProviderVersionPlatformListCmd.MarkFlagRequired("name")
+	registryProviderVersionPlatformListCmd.MarkFlagRequired("version")
 
 	// `tfx registry provider version platform create` arguments
 	registryProviderVersionPlatformCreateCmd.Flags().StringP("name", "n", "", "Name of the Provider")
