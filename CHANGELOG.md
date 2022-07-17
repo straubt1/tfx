@@ -41,10 +41,11 @@ New Commands:
 
 ### Changed
 
+* Upgraded to Go 1.18.4
 * PMR Module uploading - Removed helper code (shim) in favor of the now available the go-tfe functions
 * Lots of refactoring within some commands
 * Added optional `--json` flag framework to allow output to be in JSON for non-interactive use
-* Started the migrating to "github.com/fatih/color" from "github.com/logrusorgru/aurora" for text colors 
+* Started the migrating to "github.com/fatih/color" from "github.com/logrusorgru/aurora" for text colors
 
 ### Removed
 
