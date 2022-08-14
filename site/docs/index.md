@@ -27,7 +27,7 @@ For convenience, creating a file with the name `.tfx.hcl` and placing it in one 
 
 - Local path of where `tfx` commands are run from, `./.tfx.hcl`
 - Home directory, `~/.tfx.hcl`
-- Any directory you like, must specify with this path, `--config /private/somelocation/.tfx.hcl`
+- Any directory you like, must specify with this path, `--config /private/somefolder/.tfx.hcl`
 
 **Example `./.tfx.hcl`:**
 ```hcl
