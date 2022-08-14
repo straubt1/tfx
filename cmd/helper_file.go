@@ -32,3 +32,23 @@ func readFile(filename string) (string, error) {
 
 	return string(b), nil
 }
+
+// Given a directory, validate it is a real directory
+// If no directory, create a temp directory
+// Return path
+func getDirectory(directory string) (string, error) {
+	if directory != "" {
+		if !isDirectory(directory) {
+			return "", errors.New("directory is not valid")
+		}
+	} else {
+		o.AddMessageUserProvided("Directory not supplied, creating a temp directory", "")
+		dst, err := ioutil.TempDir("", "slug")
+		if err != nil {
+			return "", errors.New("failed to create temp directory")
+		}
+		directory = dst
+	}
+
+	return directory, nil
+}

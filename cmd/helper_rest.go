@@ -40,14 +40,16 @@ import (
 	"github.com/hashicorp/go-tfe"
 )
 
-func DownloadModule(token string, tfeHostname string, tfeOrganization string, moduleName string,
+func DownloadModule(token string, tfeHostname string, orgName string, moduleName string,
 	providerName string, moduleVersion string, directory string) (string, error) {
 
 	tfeClient, ctx := getClientContext()
 	pmr, err := tfeClient.RegistryModules.Read(ctx, tfe.RegistryModuleID{
-		Organization: tfeOrganization,
+		Organization: orgName,
 		Name:         moduleName,
 		Provider:     providerName,
+		Namespace:    orgName,
+		RegistryName: tfe.PrivateRegistry,
 	})
 	if err != nil || pmr == nil {
 		return "", errors.New("can't find module")
@@ -57,7 +59,7 @@ func DownloadModule(token string, tfeHostname string, tfeOrganization string, mo
 	url := fmt.Sprintf(
 		"https://%s/api/registry/v1/modules/%s/%s/%s/%s/download",
 		tfeHostname,
-		tfeOrganization,
+		orgName,
 		moduleName,
 		providerName,
 		moduleVersion,

@@ -161,11 +161,11 @@ func init() {
 	tfvDeleteCmd.Flags().StringP("version", "v", "", "Terraform Version (i.e. 0.15.0)")
 
 	// `tfx tfv disable`
-	tfvDisableCmd.Flags().StringSliceP("versions", "v", []string{}, "Versions to disable, can be comma seperated (i.e. 0.11.0,0.11.1)")
+	tfvDisableCmd.Flags().StringSliceP("versions", "v", []string{}, "Versions to disable, can be comma separated (i.e. 0.11.0,0.11.1)")
 	tfvDisableCmd.MarkFlagRequired("versions")
 
 	// `tfx tfv enable`
-	tfvEnableCmd.Flags().StringSliceP("versions", "v", []string{}, "Versions to enable, can be comma seperated (i.e. 0.11.0,0.11.1)")
+	tfvEnableCmd.Flags().StringSliceP("versions", "v", []string{}, "Versions to enable, can be comma separated (i.e. 0.11.0,0.11.1)")
 	tfvEnableCmd.MarkFlagRequired("versions")
 
 	rootCmd.AddCommand(tfvCmd)

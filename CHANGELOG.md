@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+* `tfx workspace lock all` and `tfx workspace unlock all` now support a `--search` argument to filter affected workspaces by name search.
+
+### Changed
+
+* Updated all of the `tfx registry module` commands to support JSON (`--json`) output.
+* Moved Module Registry commands from the `pmr` command, the new commands are:
+  * `tfx registry module list`
+  * `tfx registry module create`
+  * `tfx registry module show`
+  * `tfx registry module delete`
+  * `tfx registry module version list`
+  * `tfx registry module version create`
+  * `tfx registry module version delete`
+  * `tfx registry module version download`
+* Updated all of the `tfx registry provider` commands to support JSON (`--json`) output.
+* Updated `tfx workspace` commands to support JSON (`--json`) output.
+  * `tfx workspace list`
+  * `tfx workspace show`
+  * `tfx workspace lock`
+  * `tfx workspace lock all`
+  * `tfx workspace unlock`
+  * `tfx workspace unlock all`
+* Updated all of the `tfx workspace configuration-version` commands to support JSON (`--json`) output.
+* Moved Configuration Version commands from the `cv` command, there is an alias for `cv` to make typing commands easier, the new commands are:
+  * `tfx workspace configuration-version list` or `tfx workspace cv list`
+  * `tfx workspace configuration-version create` or `tfx workspace cv create`
+  * `tfx workspace configuration-version show` or `tfx workspace cv show`
+  * `tfx workspace configuration-version download` or `tfx workspace cv download`
+
+
+* Updated all of the `tfx workspace state-version` commands to support JSON (`--json`) output.
+* Moved State Version commands from the `state` command, there is an alias for `sv` to make typing commands easier, the new commands are:
+  * `tfx workspace state-version list` or `tfx workspace sv list`
+  * `tfx workspace state-version create` or `tfx workspace sv create`
+  * `tfx workspace state-version show` or `tfx workspace sv show`
+  * `tfx workspace state-version download` or `tfx workspace sv download`
+
+### Removed
+
+
 ## [0.0.4-dev] - 2022.07.17
 
 ### Added

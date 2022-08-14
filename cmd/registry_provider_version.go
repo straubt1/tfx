@@ -21,11 +21,8 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
-	"github.com/fatih/color"
 	tfe "github.com/hashicorp/go-tfe"
-	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -42,7 +39,7 @@ var (
 	registryProviderVersionListCmd = &cobra.Command{
 		Use:   "list",
 		Short: "List Provider Versions in a Private Registry",
-		Long:  "List Provider Versions for a Provider in a Private Registry of a TFx Organization. ",
+		Long:  "List Provider Versions for a Provider in a Private Registry of a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return registryProviderVersionList(
 				getTfxClientContext(),
@@ -55,7 +52,7 @@ var (
 	registryProviderVersionCreateCmd = &cobra.Command{
 		Use:   "create",
 		Short: "Create a Provider Version in a Private Registry",
-		Long:  "Create a Provider Version for a Provider in a Private Registry of a TFx Organization. ",
+		Long:  "Create a Provider Version for a Provider in a Private Registry of a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !isFile(*viperString("shasums")) {
 				return errors.New("shasums file does not exist")
@@ -64,7 +61,8 @@ var (
 				return errors.New("shasumssig file does not exist")
 			}
 
-			return registryProviderVersionCreate(getTfxClientContext(),
+			return registryProviderVersionCreate(
+				getTfxClientContext(),
 				*viperString("tfeOrganization"),
 				*viperString("name"),
 				*viperString("version"),
@@ -79,7 +77,7 @@ var (
 	registryProviderVersionShowCmd = &cobra.Command{
 		Use:   "show",
 		Short: "Show details of a Provider Version in a Private Registry",
-		Long:  "Show details of a Provider Version for a Provider in a Private Registry of a TFx Organization. ",
+		Long:  "Show details of a Provider Version for a Provider in a Private Registry of a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return registryProviderVersionShow(getTfxClientContext(),
 				*viperString("tfeOrganization"),
@@ -92,7 +90,7 @@ var (
 	registryProviderVersionDeleteCmd = &cobra.Command{
 		Use:   "delete",
 		Short: "Delete a Provider Version in a Private Registry",
-		Long:  "Delete a Provider Version for a Provider in a Private Registry of a TFx Organization. ",
+		Long:  "Delete a Provider Version for a Provider in a Private Registry of a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return registryProviderVersionDelete(getTfxClientContext(),
 				*viperString("tfeOrganization"),
@@ -169,29 +167,25 @@ func registryProviderVersionsListAll(c TfxClientContext, orgName string, provide
 }
 
 func registryProviderVersionList(c TfxClientContext, orgName string, providerName string) error {
-	fmt.Println("Provider Versions for Organization:", color.GreenString(orgName))
-	fmt.Println("Provider Name:", color.GreenString(providerName))
+	o.AddMessageUserProvided("List Provider Versions in Registry for Organization:", orgName)
+	o.AddMessageUserProvided("Provider Name:", providerName)
 	items, err := registryProviderVersionsListAll(c, orgName, providerName)
 	if err != nil {
-		return errors.Wrap(err, "Failed to List Provider Versions")
+		return errors.Wrap(err, "Failed to list provider versions")
 	}
 
-	t := table.NewWriter()
-	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"Name", "Registry", "Published", "SHASUM Uploaded", "SHASUM Sig Uploaded"})
+	o.AddTableHeader("Name", "Registry", "Published", "SHASUM Uploaded", "SHASUM Sig Uploaded")
 	for _, i := range items {
-
-		t.AppendRow(table.Row{i.ID, i.Version, i.UpdatedAt, i.ShasumsUploaded, i.ShasumsSigUploaded})
+		o.AddTableRows(i.ID, i.Version, i.UpdatedAt, i.ShasumsUploaded, i.ShasumsSigUploaded)
 	}
-	t.SetStyle(table.StyleRounded)
-	t.Render()
+	o.Close()
 
 	return nil
 }
 
 func registryProviderVersionCreate(c TfxClientContext, orgName string, providerName string, providerVersion string, keyId string, shasums string, shasumssig string) error {
-	fmt.Println("Create Provider for Organization:", color.GreenString(orgName))
-	fmt.Println("Provider Name:", color.GreenString(providerName))
+	o.AddMessageUserProvided("Create Provider Version in Registry for Organization:", orgName)
+	o.AddMessageUserProvided("Provider Name:", providerName)
 	p, err := c.Client.RegistryProviderVersions.Create(c.Context, tfe.RegistryProviderID{
 		OrganizationName: orgName,
 		Namespace:        orgName, // always org name for RegistryName "private"
@@ -203,10 +197,10 @@ func registryProviderVersionCreate(c TfxClientContext, orgName string, providerN
 		// Protocols: []string{},
 	})
 	if err != nil {
-		return errors.Wrap(err, "Failed to Create Provider Version")
+		return errors.Wrap(err, "failed to create provider version")
 	}
 
-	fmt.Println(p.Links["shasums-upload"], p.Links["shasums-sig-upload"], p.CreatedAt)
+	o.AddMessageUserProvided("Uploading shasums and sig", "")
 	err = UploadBinary(p.Links["shasums-upload"].(string), shasums)
 	if err != nil {
 		logError(err, "failed to upload shasums")
@@ -216,10 +210,19 @@ func registryProviderVersionCreate(c TfxClientContext, orgName string, providerN
 		logError(err, "failed to upload shasums sig")
 	}
 	fmt.Println(shasums, shasumssig, p.CreatedAt)
+
+	o.AddMessageUserProvided("Provider Version Created", "")
+	o.AddDeferredMessageRead("Name", providerName)
+	o.AddDeferredMessageRead("ID", p.ID)
+	o.AddDeferredMessageRead("Version", p.Version)
+	o.AddDeferredMessageRead("Created", p.UpdatedAt)
+	o.Close()
+
 	return nil
 }
 
 func registryProviderVersionShow(c TfxClientContext, orgName string, providerName string, providerVersion string) error {
+	o.AddMessageUserProvided("Show Provider Version in Registry for Organization:", orgName)
 	provider, err := c.Client.RegistryProviderVersions.Read(c.Context, tfe.RegistryProviderVersionID{
 		RegistryProviderID: tfe.RegistryProviderID{
 			OrganizationName: orgName,
@@ -230,30 +233,30 @@ func registryProviderVersionShow(c TfxClientContext, orgName string, providerNam
 		Version: providerVersion,
 	})
 	if err != nil {
-		return errors.Wrap(err, "Failed to Read Provider Version")
+		return errors.Wrap(err, "failed to read provider version")
 	}
 
-	fmt.Println(color.BlueString("Name:                 "), provider.RegistryProvider.Name)
-	fmt.Println(color.BlueString("Version:              "), provider.Version)
-	fmt.Println(color.BlueString("ID:                   "), provider.ID)
-	fmt.Println(color.BlueString("Shasums Uploaded:     "), provider.ShasumsUploaded)
-	fmt.Println(color.BlueString("Shasums Sig Uploaded: "), provider.ShasumsSigUploaded)
-
+	o.AddDeferredMessageRead("Name", providerName)
+	o.AddDeferredMessageRead("Version", provider.Version)
+	o.AddDeferredMessageRead("ID", provider.ID)
+	o.AddDeferredMessageRead("Shasums Uploaded", provider.ShasumsUploaded)
+	o.AddDeferredMessageRead("Shasums Sig Uploaded", provider.ShasumsSigUploaded)
 	// If the Shasums have been uploaded, display them (might be a better place for this?)
 	if provider.ShasumsUploaded {
 		sha, err := DownloadTextFile(provider.Links["shasums-download"].(string))
 		if err != nil {
 			return errors.Wrap(err, "Failed to read shasums download link")
 		}
-		fmt.Println(color.BlueString("Shasums:"))
-		fmt.Println(sha)
+		o.AddDeferredMessageRead("Shasums", "\n"+sha)
 	}
+
+	o.Close()
 
 	return nil
 }
 
 func registryProviderVersionDelete(c TfxClientContext, orgName string, providerName string, providerVersion string) error {
-	fmt.Println("Delete Provider Version in Registry for Organization:", color.GreenString(orgName))
+	o.AddMessageUserProvided("Delete Provider Version in Registry for Organization:", orgName)
 	err := c.Client.RegistryProviderVersions.Delete(c.Context, tfe.RegistryProviderVersionID{
 		RegistryProviderID: tfe.RegistryProviderID{
 			OrganizationName: orgName,
@@ -267,6 +270,9 @@ func registryProviderVersionDelete(c TfxClientContext, orgName string, providerN
 		return errors.Wrap(err, "Failed to Delete Provider Version")
 	}
 
-	fmt.Println(color.BlueString("Provider Deleted: "), providerName, providerVersion)
+	o.AddMessageUserProvided("Provider Version Deleted:", providerName)
+	o.AddDeferredMessageRead("Status", "Success")
+	o.Close()
+
 	return nil
 }

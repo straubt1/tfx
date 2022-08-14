@@ -20,7 +20,7 @@ Questions about a Command? Check out the [docs](docs/)
 As a consumer of Terraform Cloud or Terraform Enterprise I want to leverage the full capabilities without having to write curl/python/(insert other) libraries to call the API.
 
 Often times these tasks are part of a delivery pipeline, but could also be administrative tasks that are done from a local machine.
-The goal of this tool is to allow users to interact with the platform easily without having to create a lot of hard to maintain code.
+The goal of this tool is to allow users to interact with the platform easily without having to create a lot of code to maintain.
 
 **Common API-Driven Workflow Challenges:**
 
@@ -98,7 +98,8 @@ _Contributing guide coming soon_
 
 ## References
 
-This CLI could not be possible without the amazing work done in these project:
+https://github.com/hashicorp/go-tfe
 
-- https://github.com/hashicorp/go-tfe
-- https://github.com/spf13/cobra
+https://github.com/spf13/cobra#installing
+
+https://mholt.github.io/json-to-go/
