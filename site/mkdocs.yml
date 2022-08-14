@@ -18,7 +18,6 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  # - Commands: commands.md
   - Commands: 
     - Workspace: 
       - General: commands/workspace.md
@@ -30,3 +29,8 @@ nav:
       - Modules: commands/registry_module.md
       - Providers: commands/registry_provider.md
     - Releases: commands/release.md
+  - About:
+    - Release Notes: about/release_notes.md
+    - Contributing: about/contributing.md
+    # - Release Notes: https://github.com/straubt1/tfx/blob/main/CHANGELOG.md
+    # - Contributing: https://github.com/straubt1/tfx/blob/main/CONTRIBUTING.md

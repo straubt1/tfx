@@ -24,6 +24,11 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
 
+      - name: Copy Release Notes for docs site
+          uses: canastro/copy-file-action@master
+          with:
+            source: "CHANGELOG.md"
+            target: "site/release_notes.md"
       - name: Deploy MkDocs
         # You may pin to the exact commit or the version.
         uses: mhausenblas/mkdocs-deploy-gh-pages@1.25

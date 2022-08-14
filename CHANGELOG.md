@@ -38,7 +38,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * `tfx workspace configuration-version show` or `tfx workspace cv show`
   * `tfx workspace configuration-version download` or `tfx workspace cv download`
 
-
 * Updated all of the `tfx workspace state-version` commands to support JSON (`--json`) output.
 * Moved State Version commands from the `state` command, there is an alias for `sv` to make typing commands easier, the new commands are:
   * `tfx workspace state-version list` or `tfx workspace sv list`

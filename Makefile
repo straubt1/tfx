@@ -12,5 +12,8 @@ update:
 	go get -u
 	go mod tidy
 
+site-local:
+	mkdocs serve -f site/mkdocs.yml
+
 format:
 	go fmt
