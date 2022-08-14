@@ -37,6 +37,6 @@ jobs:
         uses: mhausenblas/mkdocs-deploy-gh-pages@1.25
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CUSTOM_DOMAIN: tfx.rocks
+          # CUSTOM_DOMAIN: tfx.rocks
           CONFIG_FILE: site/mkdocs.yml
           EXTRA_PACKAGES: build-base
