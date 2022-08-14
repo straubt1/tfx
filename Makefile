@@ -7,6 +7,7 @@ build:
 	-X 'github.com/straubt1/tfx/version.Build=local' \
 	-X 'github.com/straubt1/tfx/version.BuiltBy=tstraub' \
 	-X 'github.com/straubt1/tfx/version.Date=$(shell date)'"
+	rm -rf bin/
 
 update:
 	go get -u

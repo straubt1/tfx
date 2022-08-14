@@ -2,22 +2,22 @@
 
 Manage Workspace Variables.
 
-## `tfx variable list`
+## `tfx workspace variable list`
 
 List all workspace variables
 
-## `tfx variable create`
+## `tfx workspace variable create`
 
 Create a workspace variable, optionally the value can read from a filename
 
-## `tfx variable update`
+## `tfx workspace variable update`
 
 Update an existing workspace variable, optionally the value can read from a filename
 
-## `tfx variable show`
+## `tfx workspace variable show`
 
 Show details of a workspace variable
 
-## `tfx variable delete`
+## `tfx workspace variable delete`
 
 Delete a workspace variable 

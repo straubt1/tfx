@@ -202,7 +202,7 @@ func init() {
 	variableDeleteCmd.MarkFlagRequired("workspace")
 	variableDeleteCmd.MarkFlagRequired("key")
 
-	rootCmd.AddCommand(variableCmd)
+	workspaceCmd.AddCommand(variableCmd)
 	variableCmd.AddCommand(variableListCmd)
 	variableCmd.AddCommand(variableCreateCmd)
 	variableCmd.AddCommand(variableUpdateCmd)
