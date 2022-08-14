@@ -35,7 +35,7 @@ import (
 
 var (
 	cfgFile string
-	o       output.Output
+	o       *output.Output
 
 	// Required to leverage viper defaults for optional Flags
 	bindPFlags = func(cmd *cobra.Command, args []string) {
@@ -62,8 +62,12 @@ var rootCmd = &cobra.Command{
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
+	// Close output stream always before exiting
 	if err := rootCmd.Execute(); err != nil {
+		o.Close()
 		log.Fatal(aurora.Red(err))
+	} else {
+		o.Close()
 	}
 }
 
@@ -87,6 +91,9 @@ func init() {
 	viper.BindEnv("tfeHostname", "TFE_HOSTNAME")
 	viper.BindEnv("tfeOrganization", "TFE_ORGANIZATION")
 	viper.BindEnv("tfeToken", "TFE_TOKEN")
+
+	// Turn off completion option
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
 }
 
 // initConfig reads in config file and ENV variables if set.

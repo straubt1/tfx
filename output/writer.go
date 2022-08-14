@@ -23,17 +23,17 @@ type Output struct {
 	tableRows    [][]interface{}
 }
 
-func New(jsonOutput bool) Output {
-	o := Output{
-		// OutputType: ot,
+func New(jsonOutput bool) *Output {
+	o := &Output{
 		jsonOutput: jsonOutput,
 	}
+
 	return o
 }
 
 // Add display information to show progress to terminal users
 // This will be printed immediately for DefaultOutput
-func (o Output) AddMessageUserProvided(description string, value string) {
+func (o *Output) AddMessageUserProvided(description string, value interface{}) {
 	// only output for default
 	if o.jsonOutput {
 		return
@@ -42,15 +42,37 @@ func (o Output) AddMessageUserProvided(description string, value string) {
 	fmt.Println(description, aurora.Green(value))
 }
 
+// Add FORMATTED display information to show progress to terminal users
+// This will be printed immediately for DefaultOutput
+func (o *Output) AddFormattedMessageUserProvided(description string, value interface{}) {
+	// only output for default
+	if o.jsonOutput {
+		return
+	}
+
+	fmt.Printf(description+"\n", aurora.Yellow(value))
+}
+
 // Add display information to show progress to terminal users
 // This will be printed immediately for DefaultOutput
-func (o Output) AddMessageCalculated(description string, value string) {
+func (o Output) AddMessageCalculated(description string, value interface{}) {
 	// only output for default
 	if o.jsonOutput {
 		return
 	}
 
 	fmt.Println(description, aurora.Yellow(value))
+}
+
+// Add FORMATTED display information to show progress to terminal users
+// This will be printed immediately for DefaultOutput
+func (o Output) AddFormattedMessageCalculated(description string, value interface{}) {
+	// only output for default
+	if o.jsonOutput {
+		return
+	}
+
+	fmt.Printf(description+"\n", aurora.Yellow(value))
 }
 
 // Adds a message that will not print immediate.
@@ -120,6 +142,9 @@ func (o Output) closeTableJson() {
 }
 
 func (o *Output) Close() {
+	if o == nil { // in the case this has not been initialized yet
+		return
+	}
 	if len(o.messages) > 0 {
 		if o.jsonOutput {
 			o.closeMessagesJson()

@@ -26,9 +26,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/fatih/color"
 	tfe "github.com/hashicorp/go-tfe"
-	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -45,7 +43,7 @@ var (
 	registryProviderVersionPlatformListCmd = &cobra.Command{
 		Use:   "list",
 		Short: "List Provider Version Platforms in a Private Registry",
-		Long:  "List Provider Version Platforms for a Provider in a Private Registry of a TFx Organization. ",
+		Long:  "List Provider Version Platforms for a Provider in a Private Registry of a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			providerVersion, err := viperSemanticVersionString("version")
 			if err != nil {
@@ -64,7 +62,7 @@ var (
 	registryProviderVersionPlatformCreateCmd = &cobra.Command{
 		Use:   "create",
 		Short: "Create/Update a Provider Version Platform in a Private Registry",
-		Long:  "Create/Update a Provider Version Platform for a Provider Version in a Private Registry of a TFx Organization. ",
+		Long:  "Create/Update a Provider Version Platform for a Provider Version in a Private Registry of a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			providerVersion, err := viperSemanticVersionString("version")
 			if err != nil {
@@ -91,7 +89,7 @@ var (
 	registryProviderVersionPlatformShowCmd = &cobra.Command{
 		Use:   "show",
 		Short: "Show details about a Provider Version Platform in a Private Registry",
-		Long:  "Show details about a Provider Version Platform for a Provider Version in a Private Registry of a TFx Organization. ",
+		Long:  "Show details about a Provider Version Platform for a Provider Version in a Private Registry of a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			providerVersion, err := viperSemanticVersionString("version")
 			if err != nil {
@@ -112,7 +110,7 @@ var (
 	registryProviderVersionPlatformDeleteCmd = &cobra.Command{
 		Use:   "delete",
 		Short: "Delete a Provider Version Platform in a Private Registry",
-		Long:  "Delete a Provider Version Platform for a Provider Version in a Private Registry of a TFx Organization. ",
+		Long:  "Delete a Provider Version Platform for a Provider Version in a Private Registry of a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			providerVersion, err := viperSemanticVersionString("version")
 			if err != nil {
@@ -212,33 +210,32 @@ func registryProviderVersionPlatformsListAll(c TfxClientContext, orgName string,
 }
 
 func registryProviderVersionPlatformList(c TfxClientContext, orgName string, providerName string, providerVersion string) error {
-	fmt.Println("Reading Providers Platforms for Organization:", color.GreenString(orgName))
-	fmt.Println("Provider Name:", color.GreenString(providerName))
-	fmt.Println("Provider Version:", color.GreenString(providerVersion))
+	o.AddMessageUserProvided("List Provider Platforms in Registry for Organization:", orgName)
+	o.AddMessageUserProvided("Provider Name:", providerName)
+	o.AddMessageUserProvided("Provider Version:", providerVersion)
 	items, err := registryProviderVersionPlatformsListAll(c, orgName, providerName, providerVersion)
 	if err != nil {
-		return errors.Wrap(err, "Failed to List Provider Version Platforms")
+		return errors.Wrap(err, "failed to list provider version platforms")
 	}
 
-	t := table.NewWriter()
-	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"OS", "Arch", "ID", "Filename", "Shasum"})
+	o.AddTableHeader("OS", "Arch", "ID", "Filename", "Shasum")
 	for _, i := range items {
-		t.AppendRow(table.Row{i.OS, i.Arch, i.ID, i.Filename, i.Shasum})
+		o.AddTableRows(i.OS, i.Arch, i.ID, i.Filename, i.Shasum)
 	}
-	t.SetStyle(table.StyleRounded)
-	t.Render()
+	o.Close()
 
 	return nil
 }
 
 func registryProviderVersionPlatformCreate(c TfxClientContext, orgName string, providerName string, providerVersion string, providerOS string, providerARCH string, providerFilename string) error {
+	o.AddMessageUserProvided("Create Provider Platform in Registry for Organization:", orgName)
 	f, err := os.Open(providerFilename)
 	if err != nil {
-		return errors.Wrap(err, "Failed to Open File")
+		return errors.Wrap(err, "failed to open provider file")
 	}
 	defer f.Close()
 
+	o.AddMessageUserProvided("Hashing Provider File", "")
 	hash := sha256.New()
 	if _, err := io.Copy(hash, f); err != nil {
 		return errors.Wrap(err, "Failed to Hash File")
@@ -250,8 +247,8 @@ func registryProviderVersionPlatformCreate(c TfxClientContext, orgName string, p
 		providerVersion,
 		providerOS,
 		providerARCH)
+	o.AddMessageUserProvided("Building Provider Filename", filename)
 
-	fmt.Println("Create Provider Platforms for Organization:", color.GreenString(orgName))
 	rpp, err := c.Client.RegistryProviderPlatforms.Create(c.Context, tfe.RegistryProviderVersionID{
 		RegistryProviderID: tfe.RegistryProviderID{
 			OrganizationName: orgName,
@@ -267,20 +264,27 @@ func registryProviderVersionPlatformCreate(c TfxClientContext, orgName string, p
 		Filename: filename,
 	})
 	if err != nil {
-		return errors.Wrap(err, "Failed to Create Provider Version Platform")
+		return errors.Wrap(err, "failed to create provider version platform")
 	}
 
-	fmt.Println("Uploading Provider Version Platform...")
+	o.AddMessageUserProvided("Uploading Provider Version Platform", "")
 	err = UploadBinary(rpp.Links["provider-binary-upload"].(string), providerFilename)
 	if err != nil {
-		return errors.Wrap(err, "Failed to Upload Binary to Provider Version Platform")
+		return errors.Wrap(err, "failed to upload binary to provider version platform")
 	}
-	fmt.Println("Provider Version Platform Uploaded!")
+
+	o.AddMessageUserProvided("Provider Platform Created:", "")
+	o.AddDeferredMessageRead("ID", rpp.ID)
+	o.AddDeferredMessageRead("OS", rpp.OS)
+	o.AddDeferredMessageRead("Arch", rpp.Arch)
+	o.AddDeferredMessageRead("Created", rpp.RegistryProviderVersion.CreatedAt)
+	o.Close()
+
 	return nil
 }
 
 func registryProviderVersionPlatformShow(c TfxClientContext, orgName string, providerName string, providerVersion string, providerOS string, providerARCH string) error {
-	fmt.Println("Delete Provider Version Platform in Registry for Organization:", color.GreenString(orgName))
+	o.AddMessageUserProvided("Show Provider Platform in Registry for Organization:", orgName)
 	rpp, err := c.Client.RegistryProviderPlatforms.Read(c.Context, tfe.RegistryProviderPlatformID{
 		RegistryProviderVersionID: tfe.RegistryProviderVersionID{
 			RegistryProviderID: tfe.RegistryProviderID{
@@ -295,22 +299,23 @@ func registryProviderVersionPlatformShow(c TfxClientContext, orgName string, pro
 		Arch: providerARCH,
 	})
 	if err != nil {
-		return errors.Wrap(err, "Failed to Read Provider Version Platform")
+		return errors.Wrap(err, "failed to read provider version platform")
 	}
 
-	fmt.Println(color.BlueString("Name:     "), providerName)
-	fmt.Println(color.BlueString("ID:       "), rpp.ID)
-	fmt.Println(color.BlueString("Version:  "), providerVersion)
-	fmt.Println(color.BlueString("OS:       "), rpp.OS)
-	fmt.Println(color.BlueString("ARCH:     "), rpp.Arch)
-	fmt.Println(color.BlueString("Filename: "), rpp.Filename)
-	fmt.Println(color.BlueString("Shasum:   "), rpp.Shasum)
+	o.AddDeferredMessageRead("Name", providerName)
+	o.AddDeferredMessageRead("ID", rpp.ID)
+	o.AddDeferredMessageRead("Version", providerVersion)
+	o.AddDeferredMessageRead("OS", rpp.OS)
+	o.AddDeferredMessageRead("ARCH", rpp.Arch)
+	o.AddDeferredMessageRead("Filename", rpp.Filename)
+	o.AddDeferredMessageRead("Shasum", rpp.Shasum)
+	o.Close()
 
 	return nil
 }
 
 func registryProviderVersionPlatformDelete(c TfxClientContext, orgName string, providerName string, providerVersion string, providerOS string, providerARCH string) error {
-	fmt.Println("Delete Provider Version Platform in Registry for Organization:", color.GreenString(orgName))
+	o.AddMessageUserProvided("Delete Provider Platform in Registry for Organization:", orgName)
 	err := c.Client.RegistryProviderPlatforms.Delete(c.Context, tfe.RegistryProviderPlatformID{
 		RegistryProviderVersionID: tfe.RegistryProviderVersionID{
 			RegistryProviderID: tfe.RegistryProviderID{
@@ -326,9 +331,12 @@ func registryProviderVersionPlatformDelete(c TfxClientContext, orgName string, p
 	})
 
 	if err != nil {
-		return errors.Wrap(err, "Failed to Delete Provider Version Platform")
+		return errors.Wrap(err, "failed to delete provider version platform")
 	}
 
-	fmt.Println(color.BlueString("Provider Version Platform Deleted: "), providerName, providerVersion)
+	o.AddMessageUserProvided("Provider Version Deleted:", providerName)
+	o.AddDeferredMessageRead("Status", "Success")
+	o.Close()
+
 	return nil
 }

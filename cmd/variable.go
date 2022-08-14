@@ -37,7 +37,7 @@ var (
 	variableListCmd = &cobra.Command{
 		Use:   "list",
 		Short: "List Variables",
-		Long:  "List Variables in a Workspace. ",
+		Long:  "List Variables in a Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return variableList(
 				getTfxClientContext(),
@@ -50,7 +50,7 @@ var (
 	variableCreateCmd = &cobra.Command{
 		Use:   "create",
 		Short: "Create a Variable",
-		Long:  "Create a Variable in a Workspace. ",
+		Long:  "Create a Variable in a Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			value := *viperString("value")
 			valueFile := *viperString("valueFile")
@@ -90,7 +90,7 @@ var (
 	variableUpdateCmd = &cobra.Command{
 		Use:   "update",
 		Short: "Update a Variable",
-		Long:  "Update a Variable in a Workspace. ",
+		Long:  "Update a Variable in a Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			value := *viperString("value")
 			valueFile := *viperString("valueFile")
@@ -130,7 +130,7 @@ var (
 	variableShowCmd = &cobra.Command{
 		Use:   "show",
 		Short: "Show details of a Variable",
-		Long:  "Show details of a Variable in a Workspace. ",
+		Long:  "Show details of a Variable in a Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return variableShow(
 				getTfxClientContext(),
@@ -144,7 +144,7 @@ var (
 	variableDeleteCmd = &cobra.Command{
 		Use:   "delete",
 		Short: "Delete a Variable",
-		Long:  "Delete a Variable in a Workspace. ",
+		Long:  "Delete a Variable in a Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return variableDelete(
 				getTfxClientContext(),
@@ -202,12 +202,36 @@ func init() {
 	variableDeleteCmd.MarkFlagRequired("workspace")
 	variableDeleteCmd.MarkFlagRequired("key")
 
-	rootCmd.AddCommand(variableCmd)
+	workspaceCmd.AddCommand(variableCmd)
 	variableCmd.AddCommand(variableListCmd)
 	variableCmd.AddCommand(variableCreateCmd)
 	variableCmd.AddCommand(variableUpdateCmd)
 	variableCmd.AddCommand(variableShowCmd)
 	variableCmd.AddCommand(variableDeleteCmd)
+}
+
+func variablesListAll(c TfxClientContext, workspaceId string) ([]*tfe.Variable, error) {
+	allItems := []*tfe.Variable{}
+	opts := tfe.VariableListOptions{
+		ListOptions: tfe.ListOptions{
+			PageNumber: 1,
+			PageSize:   100,
+		},
+	}
+	for {
+		items, err := c.Client.Variables.List(c.Context, workspaceId, &opts)
+		if err != nil {
+			return nil, err
+		}
+
+		allItems = append(allItems, items.Items...)
+		if items.CurrentPage >= items.TotalPages {
+			break
+		}
+		opts.PageNumber = items.NextPage
+	}
+
+	return allItems, nil
 }
 
 func variableList(c TfxClientContext, orgName string, workspaceName string) error {
@@ -376,40 +400,6 @@ func variableDelete(c TfxClientContext, orgName string, workspaceName string, va
 	o.Close()
 
 	return nil
-}
-
-// Other Functions
-func variablesListAll(c TfxClientContext, workspaceId string) ([]*tfe.Variable, error) {
-	allItems := []*tfe.Variable{}
-	opts := tfe.VariableListOptions{
-		ListOptions: tfe.ListOptions{
-			PageNumber: 1,
-			PageSize:   100,
-		},
-	}
-	for {
-		items, err := c.Client.Variables.List(c.Context, workspaceId, &opts)
-		if err != nil {
-			return nil, err
-		}
-
-		allItems = append(allItems, items.Items...)
-		if items.CurrentPage >= items.TotalPages {
-			break
-		}
-		opts.PageNumber = items.NextPage
-	}
-
-	return allItems, nil
-}
-
-func getWorkspaceId(c TfxClientContext, orgName string, workspaceName string) (string, error) {
-	w, err := c.Client.Workspaces.Read(c.Context, orgName, workspaceName)
-	if err != nil {
-		return "", err
-	}
-
-	return w.ID, nil
 }
 
 func getVariableId(c TfxClientContext, workspaceId string, variableKey string) (string, error) {

@@ -22,97 +22,57 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"context"
-	"errors"
-	"fmt"
-	"os"
-	"sort"
-	"strconv"
-	"strings"
-
-	"github.com/fatih/color"
 	"github.com/hashicorp/go-tfe"
-	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
 // workspaceCmd represents the workspace command
 var (
+	// `tfx workspace` commands
 	workspaceCmd = &cobra.Command{
 		Use:     "workspace",
 		Aliases: []string{"ws"},
-		Short:   "Workspaces",
+		Short:   "Workspace Commands",
 		Long:    "Work with TFx Workspaces",
 	}
 
+	// `tfx workspace list` command
 	workspaceListCmd = &cobra.Command{
 		Use:   "list",
 		Short: "List Workspaces",
-		Long:  "List Workspaces of a TFx Organization.",
+		Long:  "List Workspaces in a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return workspaceList()
+			if !validateRunStatus(*viperString("run-status")) {
+				return errors.New("run status given is now allowed")
+			}
+
+			if *viperBool("all") {
+				return workspaceListAll(
+					getTfxClientContext(),
+					*viperString("search"),
+					*viperString("run-status"))
+			} else {
+				return workspaceList(
+					getTfxClientContext(),
+					*viperString("tfeOrganization"),
+					*viperString("search"),
+					*viperString("run-status"))
+			}
 		},
-		PreRun: bindPFlags,
 	}
 
-	workspaceListAllCmd = &cobra.Command{
-		Use:   "all",
-		Short: "List All Workspaces",
-		Long:  "List Workspaces of all TFx Organizations.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return workspaceListAll()
-		},
-		PreRun: bindPFlags,
-	}
-
+	// `tfx workspace show` command
 	workspaceShowCmd = &cobra.Command{
 		Use:   "show",
 		Short: "Show Workspace",
-		Long:  "Show Workspace of a TFx Organization.",
+		Long:  "Show Workspace in a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return workspaceShow()
+			return workspaceShow(
+				getTfxClientContext(),
+				*viperString("tfeOrganization"),
+				*viperString("workspaceName"))
 		},
-		PreRun: bindPFlags,
-	}
-
-	workspaceLockCmd = &cobra.Command{
-		Use:   "lock",
-		Short: "Lock Workspace",
-		Long:  "Lock Workspace of a TFx Organization.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return workspaceLock()
-		},
-		PreRun: bindPFlags,
-	}
-
-	workspaceLockAllCmd = &cobra.Command{
-		Use:   "all",
-		Short: "Lock All Workspaces",
-		Long:  "Lock All Workspaces of a TFx Organization.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return workspaceLockAll()
-		},
-		PreRun: bindPFlags,
-	}
-
-	workspaceUnlockCmd = &cobra.Command{
-		Use:   "unlock",
-		Short: "Unlock Workspace",
-		Long:  "Unlock Workspace of a TFx Organization.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return workspaceUnlock()
-		},
-		PreRun: bindPFlags,
-	}
-
-	workspaceUnlockAllCmd = &cobra.Command{
-		Use:   "all",
-		Short: "Unlock All Workspaces",
-		Long:  "Unlock All Workspaces of a TFx Organization.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return workspaceUnlockAll()
-		},
-		PreRun: bindPFlags,
 	}
 )
 
@@ -120,204 +80,168 @@ func init() {
 	// `tfx workspace list`
 	workspaceListCmd.Flags().StringP("search", "s", "", "Search string for Workspace Name (optional).")
 	workspaceListCmd.Flags().String("run-status", "", "Filter on current run status (optional).")
-
-	// `tfx workspace list all`
-	workspaceListAllCmd.Flags().StringP("search", "s", "", "Search string for Workspace Name (optional).")
+	workspaceListCmd.Flags().BoolP("all", "a", false, "List All Organizations Workspaces (optional).")
 
 	// `tfx workspace show`
 	workspaceShowCmd.Flags().StringP("workspaceName", "w", "", "Workspace name")
 	workspaceShowCmd.MarkFlagRequired("workspaceName")
 
-	// `tfx workspace lock`
-	workspaceLockCmd.Flags().StringP("workspaceName", "w", "", "Workspace name")
-	workspaceLockCmd.MarkFlagRequired("workspaceName")
-
-	// `tfx workspace unlock`
-	workspaceUnlockCmd.Flags().StringP("workspaceName", "w", "", "Workspace name")
-	workspaceUnlockCmd.MarkFlagRequired("workspaceName")
-
 	rootCmd.AddCommand(workspaceCmd)
 	workspaceCmd.AddCommand(workspaceListCmd)
-	workspaceListCmd.AddCommand(workspaceListAllCmd)
 	workspaceCmd.AddCommand(workspaceShowCmd)
-	workspaceCmd.AddCommand(workspaceLockCmd)
-	workspaceLockCmd.AddCommand(workspaceLockAllCmd)
-	workspaceCmd.AddCommand(workspaceUnlockCmd)
-	workspaceUnlockCmd.AddCommand(workspaceUnlockAllCmd)
 }
 
-func workspaceList() error {
-	orgName := *viperString("tfeOrganization")
-	searchString := *viperString("search")
-	runStatus := *viperString("run-status")
-	if !validateRunStatus(runStatus) {
-		logError(errors.New("run status given is now allowed"), "failed to supply a valid run status")
+func workspaceListAllForOrganization(c TfxClientContext, orgName string, searchString string) ([]*tfe.Workspace, error) {
+	allItems := []*tfe.Workspace{}
+	opts := tfe.WorkspaceListOptions{
+		ListOptions: tfe.ListOptions{PageNumber: 1, PageSize: 100},
+		Search:      searchString,
+		// Tags:        "",
+		// ExcludeTags: "",
+		Include: []tfe.WSIncludeOpt{"organization", "current_run"},
+	}
+	for {
+		items, err := c.Client.Workspaces.List(c.Context, orgName, &opts)
+		if err != nil {
+			return nil, err
+		}
+
+		allItems = append(allItems, items.Items...)
+		if items.CurrentPage >= items.TotalPages {
+			break
+		}
+		opts.PageNumber = items.NextPage
 	}
 
-	client, ctx := getClientContext()
+	return allItems, nil
+}
 
-	if searchString == "" {
-		fmt.Println("Reading Workspaces for Organization:", color.GreenString(orgName))
-	} else {
-		fmt.Println("Reading Workspaces for Organization:", color.GreenString(orgName), "with workspace search string:", color.GreenString(searchString))
+func organizationListAll(c TfxClientContext) ([]*tfe.Organization, error) {
+	allItems := []*tfe.Organization{}
+	opts := tfe.OrganizationListOptions{
+		ListOptions: tfe.ListOptions{
+			PageNumber: 1,
+			PageSize:   100},
 	}
-	workspaceList, err := getAllWorkspaces(ctx, client, orgName, searchString)
+	for {
+		items, err := c.Client.Organizations.List(c.Context, &opts)
+		if err != nil {
+			return nil, err
+		}
+
+		allItems = append(allItems, items.Items...)
+		if items.CurrentPage >= items.TotalPages {
+			break
+		}
+		opts.PageNumber = items.NextPage
+	}
+
+	return allItems, nil
+
+	// var err error
+	// var ol *tfe.OrganizationList
+	// var organizationItems []*tfe.Organization
+	// pageNumber := 1
+	// for {
+	// 	ol, err = c.Client.Organizations.List(c.Context, &tfe.OrganizationListOptions{
+	// 		ListOptions: tfe.ListOptions{
+	// 			PageSize: 100,
+	// 		}})
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+
+	// 	organizationItems = append(organizationItems, ol.Items...)
+	// 	if ol.NextPage == 0 {
+	// 		break
+	// 	}
+	// 	pageNumber++
+	// }
+
+	// return organizationItems, nil
+}
+
+func workspaceList(c TfxClientContext, orgName string, searchString string, runStatus string) error {
+	o.AddMessageUserProvided("List Workspaces for Organization:", orgName)
+	items, err := workspaceListAllForOrganization(c, orgName, searchString)
 	if err != nil {
-		logError(err, "failed to list workspaces")
+		return errors.Wrap(err, "failed to list variables")
 	}
 
 	if runStatus != "" {
-		workspaceList, err = filterWorkspaces(workspaceList, runStatus)
+		items, err = filterWorkspaces(items, runStatus)
 		if err != nil {
 			logError(err, "failed to filter workspaces by run status")
 		}
+		o.AddFormattedMessageCalculated("Found %d Filtered Workspaces", len(items))
+	} else {
+		o.AddFormattedMessageCalculated("Found %d Workspaces", len(items))
 	}
 
-	t := table.NewWriter()
-	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"Name", "Id", "Current Run Created", "Status", "Locked"})
-	for _, i := range workspaceList {
+	o.AddTableHeader("Name", "Id", "Current Run Created", "Status", "Repository", "Locked")
+	for _, i := range items {
 		cr_created_at := ""
 		cr_status := ""
 		if i.CurrentRun != nil {
-			cr_created_at = timestamp(i.CurrentRun.CreatedAt)
+			cr_created_at = FormatDateTime(i.CurrentRun.CreatedAt)
 			cr_status = string(i.CurrentRun.Status)
 		}
-		t.AppendRow(table.Row{i.Name, i.ID, cr_created_at, cr_status, i.Locked})
-	}
-	t.SetStyle(table.StyleRounded)
-	t.Render()
+		ws_repo := ""
+		if i.VCSRepo != nil {
+			ws_repo = i.VCSRepo.DisplayIdentifier
+		}
 
-	if searchString == "" {
-		fmt.Println("Workspaces Found:", color.BlueString(strconv.Itoa(len(workspaceList))))
-	} else {
-		fmt.Println("Workspaces Found:", color.BlueString(strconv.Itoa(len(workspaceList))), "with workspace search string:", color.GreenString(searchString))
+		o.AddTableRows(i.Name, i.ID, cr_created_at, cr_status, ws_repo, i.Locked)
 	}
+	o.Close()
 
 	return nil
 }
 
-func workspaceListAll() error {
-	searchString := *viperString("search")
-	client, ctx := getClientContext()
-
-	//
-	orgs, err := getAllOrganizations(ctx, client)
+func workspaceListAll(c TfxClientContext, searchString string, runStatus string) error {
+	o.AddMessageUserProvided("List Workspaces for all available Organizations", "")
+	orgs, err := organizationListAll(c)
 	if err != nil {
 		logError(err, "failed to list organizations")
 	}
 
-	aString := make([]string, len(orgs))
-	for i, v := range orgs {
-		aString[i] = v.Name
-	}
-	if searchString == "" {
-		fmt.Println("Reading Workspaces for Organizations:", color.BlueString(strings.Join(aString, ", ")))
-	} else {
-		fmt.Println("Reading Workspaces for Organizations:", color.BlueString(strings.Join(aString, ", ")), "with workspace search string:", color.GreenString(searchString))
-	}
-
 	var allWorkspaceList []*tfe.Workspace
 	for _, v := range orgs {
-		workspaceList, err := getAllWorkspaces(ctx, client, v.Name, searchString)
+		workspaceList, err := workspaceListAllForOrganization(c, v.Name, searchString)
 		if err != nil {
-			logError(err, "failed to list workspaces")
+			logError(err, "failed to list workspaces for organization")
 		}
 		allWorkspaceList = append(allWorkspaceList, workspaceList...)
 	}
 
-	t := table.NewWriter()
-	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"Organization", "Name", "Id", "Current Run Created", "Status", "Locked"})
+	if runStatus != "" {
+		allWorkspaceList, err = filterWorkspaces(allWorkspaceList, runStatus)
+		if err != nil {
+			logError(err, "failed to filter workspaces by run status")
+		}
+		o.AddFormattedMessageCalculated("Found %d Filtered Workspaces", len(allWorkspaceList))
+	} else {
+		o.AddFormattedMessageCalculated("Found %d Workspaces", len(allWorkspaceList))
+	}
+
+	o.AddTableHeader("Organization", "Name", "Id", "Current Run Created", "Status", "Repository", "Locked")
 	for _, i := range allWorkspaceList {
 		cr_created_at := ""
 		cr_status := ""
 		if i.CurrentRun != nil {
-			cr_created_at = timestamp(i.CurrentRun.CreatedAt)
+			cr_created_at = FormatDateTime(i.CurrentRun.CreatedAt)
 			cr_status = string(i.CurrentRun.Status)
 		}
-		t.AppendRow(table.Row{i.Organization.Name, i.Name, i.ID, cr_created_at, cr_status, i.Locked})
-	}
-	t.SetStyle(table.StyleRounded)
-	t.Render()
+		ws_repo := ""
+		if i.VCSRepo != nil {
+			ws_repo = i.VCSRepo.DisplayIdentifier
+		}
 
-	if searchString == "" {
-		fmt.Println("Workspaces Found:", color.BlueString(strconv.Itoa(len(allWorkspaceList))))
-	} else {
-		fmt.Println("Workspaces Found:", color.BlueString(strconv.Itoa(len(allWorkspaceList))), "with workspace search string:", color.GreenString(searchString))
+		o.AddTableRows(i.Organization.Name, i.Name, i.ID, cr_created_at, cr_status, ws_repo, i.Locked)
 	}
+	o.Close()
 
 	return nil
-}
-
-func getAllOrganizations(ctx context.Context, client *tfe.Client) ([]*tfe.Organization, error) {
-	var err error
-	var ol *tfe.OrganizationList
-	var organizationItems []*tfe.Organization
-	pageNumber := 1
-	for {
-		ol, err = client.Organizations.List(ctx, &tfe.OrganizationListOptions{
-			ListOptions: tfe.ListOptions{
-				PageSize: 100,
-			}})
-		if err != nil {
-			return nil, err
-		}
-
-		organizationItems = append(organizationItems, ol.Items...)
-		if ol.NextPage == 0 {
-			break
-		}
-		pageNumber++
-	}
-
-	return organizationItems, nil
-}
-
-func getAllWorkspaces(ctx context.Context, client *tfe.Client, orgName string, search string) ([]*tfe.Workspace, error) {
-	var err error
-	var wsl *tfe.WorkspaceList
-	var workspaceItems []*tfe.Workspace
-	pageNumber := 1
-	for {
-		wsl, err = client.Workspaces.List(ctx, orgName, &tfe.WorkspaceListOptions{
-			ListOptions: tfe.ListOptions{
-				PageSize:   100,
-				PageNumber: pageNumber,
-			},
-			Search:  search,
-			Include: []tfe.WSIncludeOpt{"organization", "current_run"},
-		})
-
-		// 	ListOptions: tfe.ListOptions{
-		// 		PageSize:   100,
-		// 		PageNumber: pageNumber,
-		// 	},
-		// 	Include: tfe.String("organization,current_run"),
-		// 	Search:  tfe.String(search),
-		// 	// A search string (partial workspace name) used to filter the results.
-		// 	// Search *string `url:"search[name],omitempty"`
-
-		// 	// A list of relations to include. See available resources https://www.terraform.io/docs/cloud/api/workspaces.html#available-related-resources
-		// 	// Include *string `url:"include"`
-		// })
-		if err != nil {
-			return nil, err
-		}
-
-		workspaceItems = append(workspaceItems, wsl.Items...)
-		if wsl.NextPage == 0 {
-			break
-		}
-		pageNumber++
-	}
-
-	// Sort by Name
-	sort.Slice(workspaceItems, func(i, j int) bool {
-		return workspaceItems[i].Name < workspaceItems[j].Name
-	})
-
-	return workspaceItems, nil
 }
 
 func filterWorkspaces(list []*tfe.Workspace, runStatus string) ([]*tfe.Workspace, error) {
@@ -333,41 +257,36 @@ func filterWorkspaces(list []*tfe.Workspace, runStatus string) ([]*tfe.Workspace
 	return result, nil
 }
 
-func workspaceShow() error {
-	orgName := *viperString("tfeOrganization")
-	wsName := *viperString("workspaceName")
-	client, ctx := getClientContext()
-
-	fmt.Print("Reading Workspace ", color.GreenString(wsName), "...")
-	w, err := client.Workspaces.Read(ctx, orgName, wsName)
+func workspaceShow(c TfxClientContext, orgName string, workspaceName string) error {
+	o.AddMessageUserProvided("Show Workspace:", workspaceName)
+	w, err := c.Client.Workspaces.Read(c.Context, orgName, workspaceName)
 	if err != nil {
-		logError(err, "failed to read workspace id")
+		logError(err, "failed to read workspace")
 	}
-	fmt.Println(" Found")
 
-	fmt.Println(color.BlueString("Id:                 "), w.ID)
-	fmt.Println(color.BlueString("Terraform Version:  "), w.TerraformVersion)
-	fmt.Println(color.BlueString("Execution Mode:     "), w.ExecutionMode)
-	// TODO: not populating
-	// fmt.Println(color.BlueString("Last Updated:       "), timestamp(w.UpdatedAt))
-	fmt.Println(color.BlueString("Auto Apply:         "), w.AutoApply)
-	fmt.Println(color.BlueString("Working Directory:  "), w.WorkingDirectory)
-	fmt.Println(color.BlueString("Locked:             "), w.Locked)
+	o.AddDeferredMessageRead("ID", w.ID)
+	o.AddDeferredMessageRead("Terraform Version", w.TerraformVersion)
+	o.AddDeferredMessageRead("Execution Mode", w.ExecutionMode)
+	o.AddDeferredMessageRead("Auto Apply", w.AutoApply)
+	o.AddDeferredMessageRead("Working Directory", w.WorkingDirectory)
+	o.AddDeferredMessageRead("Locked", w.Locked)
+
 	if w.CurrentRun == nil {
-		fmt.Println(color.BlueString("Current Run:         "), "")
+		o.AddDeferredMessageRead("Current Run", "none")
 	} else {
-		run, err := client.Runs.ReadWithOptions(ctx, w.CurrentRun.ID, &tfe.RunReadOptions{
+		run, err := c.Client.Runs.ReadWithOptions(c.Context, w.CurrentRun.ID, &tfe.RunReadOptions{
 			Include: []tfe.RunIncludeOpt{},
 		})
 		if err != nil {
 			logError(err, "failed to read workspace current run")
 		}
 
-		fmt.Println(color.BlueString("Current Run"))
-		fmt.Println(color.BlueString("  Id:         "), run.ID)
-		fmt.Println(color.BlueString("  Created At: "), timestamp(run.CreatedAt))
-		fmt.Println(color.BlueString("  Status:     "), run.Status)
+		o.AddDeferredMessageRead("Current Run Id", run.ID)
+		o.AddDeferredMessageRead("Current Run Status", run.Status)
+		o.AddDeferredMessageRead("Current Run Created", FormatDateTime(run.CreatedAt))
 	}
+
+	o.Close()
 
 	return nil
 }
@@ -383,118 +302,4 @@ func validateRunStatus(s string) bool {
 		}
 	}
 	return false
-}
-
-// Lock
-func workspaceLock() error {
-	orgName := *viperString("tfeOrganization")
-	wsName := *viperString("workspaceName")
-	client, ctx := getClientContext()
-
-	err := setWorkspaceLock(ctx, client, orgName, wsName, true)
-	if err != nil {
-		logError(err, "")
-	}
-	return nil
-}
-
-func workspaceLockAll() error {
-	orgName := *viperString("tfeOrganization")
-	client, ctx := getClientContext()
-
-	workspaceList, err := getAllWorkspaces(ctx, client, orgName, "")
-	if err != nil {
-		logError(err, "failed to list workspaces")
-	}
-	totalWorkspaces := len(workspaceList)
-	lockedWorkspaces := 0
-
-	for _, ws := range workspaceList {
-		err := setWorkspaceLock(ctx, client, orgName, ws.Name, true)
-		if err != nil {
-			fmt.Println(color.RedString("Error: " + err.Error()))
-		} else {
-			lockedWorkspaces++
-		}
-	}
-
-	fmt.Println()
-	fmt.Println(color.BlueString("Workspace Count:    "), totalWorkspaces)
-	fmt.Println(color.BlueString("Locked Workspaces:  "), lockedWorkspaces)
-	return nil
-}
-
-func workspaceUnlock() error {
-	orgName := *viperString("tfeOrganization")
-	wsName := *viperString("workspaceName")
-	client, ctx := getClientContext()
-
-	err := setWorkspaceLock(ctx, client, orgName, wsName, false)
-	if err != nil {
-		logError(err, "")
-	}
-	return nil
-}
-
-func workspaceUnlockAll() error {
-	orgName := *viperString("tfeOrganization")
-	client, ctx := getClientContext()
-
-	workspaceList, err := getAllWorkspaces(ctx, client, orgName, "")
-	if err != nil {
-		logError(err, "failed to list workspaces")
-	}
-	totalWorkspaces := len(workspaceList)
-	unlockedWorkspaces := 0
-
-	for _, ws := range workspaceList {
-		err := setWorkspaceLock(ctx, client, orgName, ws.Name, false)
-		if err != nil {
-			fmt.Println(color.RedString("Error: " + err.Error()))
-		} else {
-			unlockedWorkspaces++
-		}
-	}
-
-	fmt.Println()
-	fmt.Println(color.BlueString("Workspace Count:      "), totalWorkspaces)
-	fmt.Println(color.BlueString("Unlocked Workspaces:  "), unlockedWorkspaces)
-	return nil
-}
-
-func setWorkspaceLock(ctx context.Context, client *tfe.Client, orgName string, wsName string, lockSet bool) error {
-	// Read workspace
-	w, err := client.Workspaces.Read(ctx, orgName, wsName)
-	if err != nil {
-		return errors.New("failed to read workspace id")
-	}
-
-	fmt.Print("Locking Workspace ", color.GreenString(wsName), "(", color.BlueString(w.ID), ")... ")
-	if lockSet {
-		if w.Locked {
-			fmt.Println("Workspace already locked")
-			return nil
-		}
-		_, err := client.Workspaces.Lock(ctx, w.ID, tfe.WorkspaceLockOptions{
-			Reason: tfe.String("Locked via TFx"),
-		})
-		if err != nil {
-			return err
-		}
-		fmt.Println("locked")
-	} else {
-		if !w.Locked {
-			fmt.Println("Workspace already unlocked")
-			return nil
-		}
-		// TODO: Force unlocking here to get around unlocking a WS that has an active run pending. Revisit impact.
-		_, err := client.Workspaces.ForceUnlock(ctx, w.ID)
-		// _, err := client.Workspaces.Unlock(ctx, w.ID)
-		if err != nil {
-			return err
-		}
-		fmt.Println("unlocked")
-	}
-
-	return nil
 }
