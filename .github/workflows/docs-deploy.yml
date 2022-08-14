@@ -29,7 +29,7 @@ jobs:
         uses: canastro/copy-file-action@master
         with:
           source: "CHANGELOG.md"
-          target: "site/release_notes.md"
+          target: "site/docs/about/release_notes.md"
       - name: Deploy MkDocs
         # You may pin to the exact commit or the version.
         uses: mhausenblas/mkdocs-deploy-gh-pages@1.25
