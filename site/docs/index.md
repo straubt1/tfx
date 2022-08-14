@@ -2,7 +2,7 @@
 
 _tfx_ is a standalone CLI for Terraform Cloud and Terraform Enterprise.
 
-You can find important information about the cli and how to use it.
+The initial focus of _tfx_ was to execute the API-Driven workflow for a Workspace but has grown to manage multiple aspects of the platform.
 
 !!! warning ""
     Note: This CLI is still under active development and subject to change!
@@ -86,7 +86,7 @@ Most commands support a `--json` (or `-j` for short) flag that will return a pro
 
 **Default Output:**
 
-```sh
+```
 $ tfx variable list -w tfx-test               
 Using config file: /Users/tstraub/.tfx.hcl
 List Variables for Workspace: tfx-test

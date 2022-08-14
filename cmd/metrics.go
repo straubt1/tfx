@@ -62,7 +62,7 @@ func init() {
 	// `tfx metrics workspace`
 	metricsWorkspaceCmd.Flags().StringP("since", "s", "", "Start time when querying runs in the format MM/DD/YYYY hh:mm:ss. Examples: ['01/31/2021 10:30', '02/28/2021 10:30 AM', '03/20/2021'] (optional).")
 
-	rootCmd.AddCommand(metricsCmd)
+	adminCmd.AddCommand(metricsCmd)
 	metricsCmd.AddCommand(metricsWorkspaceCmd)
 }
 

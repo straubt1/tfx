@@ -38,7 +38,8 @@ import (
 
 var (
 	tfvCmd = &cobra.Command{
-		Use:   "tfv",
+		Use:   "terraform-version",
+		Aliases: []string{"tfv"},
 		Short: "Terraform Versions",
 		Long:  "Work with Terraform Versions of a TFx install.",
 	}
@@ -168,7 +169,7 @@ func init() {
 	tfvEnableCmd.Flags().StringSliceP("versions", "v", []string{}, "Versions to enable, can be comma separated (i.e. 0.11.0,0.11.1)")
 	tfvEnableCmd.MarkFlagRequired("versions")
 
-	rootCmd.AddCommand(tfvCmd)
+	adminCmd.AddCommand(tfvCmd)
 	tfvCmd.AddCommand(tfvListCmd)
 	tfvCmd.AddCommand(tfvCreateCmd)
 	tfvCreateCmd.AddCommand(tfvCreateOfficialCmd)

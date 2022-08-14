@@ -1,18 +1,22 @@
 # GPG Commands
 
-## `tfx gpg list`
+Managing GPG Keys in an Organization.
+
+Currently these are only used for creating Providers in the Private Registry.
+
+## `tfx admin gpg list`
 
 List GPG Keys of an Organization.
 
-## `tfx gpg create`
+## `tfx admin gpg create`
 
 Create a GPG Key for an Organization using the public key contents.
 
-## `tfx gpg show`
+## `tfx admin gpg show`
 
 Show details of a GPG Key for an Organization.
 
-## `tfx gpg delete`
+## `tfx admin gpg delete`
 
 Delete GPG Key for an Organization.
 

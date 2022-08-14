@@ -112,7 +112,7 @@ func init() {
 	gpgDeleteCmd.MarkFlagRequired("namespace")
 	gpgDeleteCmd.MarkFlagRequired("keyId")
 
-	rootCmd.AddCommand(gpgCmd)
+	adminCmd.AddCommand(gpgCmd)
 	gpgCmd.AddCommand(gpgListCmd)
 	gpgCmd.AddCommand(gpgCreateCmd)
 	gpgCmd.AddCommand(gpgShowCmd)

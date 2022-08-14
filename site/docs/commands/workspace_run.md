@@ -2,14 +2,14 @@
 
 Managing Workspace Runs.
 
-## `tfx run list`
+## `tfx workspace run list`
 
 List all Runs for a supplied Workspace
 
-## `tfx run create`
+## `tfx workspace run create`
 
 Create a Run for a supplied Workspace
 
-## `tfx run show`
+## `tfx workspace run show`
 
 Show Run details for a supplied Run

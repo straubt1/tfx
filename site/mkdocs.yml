@@ -29,8 +29,10 @@ nav:
       - Modules: commands/registry_module.md
       - Providers: commands/registry_provider.md
     - Releases: commands/release.md
+    - Admin:
+      - GPG Keys: commands/admin_gpg.md
+      - Terraform Versions: commands/admin_terraformversion.md
   - About:
+    - Why TFx?: about/purpose.md
     - Release Notes: about/release_notes.md
     - Contributing: about/contributing.md
-    # - Release Notes: https://github.com/straubt1/tfx/blob/main/CHANGELOG.md
-    # - Contributing: https://github.com/straubt1/tfx/blob/main/CONTRIBUTING.md

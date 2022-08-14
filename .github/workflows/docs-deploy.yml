@@ -30,11 +30,13 @@ jobs:
         with:
           source: "CHANGELOG.md"
           target: "site/docs/about/release_notes.md"
-      - name: Deploy MkDocs
-        # You may pin to the exact commit or the version.
-        uses: mhausenblas/mkdocs-deploy-gh-pages@1.25
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CUSTOM_DOMAIN: tfx.rocks
-          CONFIG_FILE: site/mkdocs.yml
-          EXTRA_PACKAGES: build-base
+      - name: test copy
+        run: ll site/docs/about 
+      # - name: Deploy MkDocs
+      #   # You may pin to the exact commit or the version.
+      #   uses: mhausenblas/mkdocs-deploy-gh-pages@1.25
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     CUSTOM_DOMAIN: tfx.rocks
+      #     CONFIG_FILE: site/mkdocs.yml
+      #     EXTRA_PACKAGES: build-base
