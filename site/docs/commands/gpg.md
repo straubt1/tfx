@@ -1,18 +1,18 @@
-## GPG Commands
+# GPG Commands
 
-### `tfx gpg list`
+## `tfx gpg list`
 
 List GPG Keys of an Organization.
 
-### `tfx gpg create`
+## `tfx gpg create`
 
 Create a GPG Key for an Organization using the public key contents.
 
-### `tfx gpg show`
+## `tfx gpg show`
 
 Show details of a GPG Key for an Organization.
 
-### `tfx gpg delete`
+## `tfx gpg delete`
 
 Delete GPG Key for an Organization.
 

@@ -1,15 +1,50 @@
-## Welcome to TFx Docs
+# Welcome to TFx Docs
 
-Here you can find important information about TFx and how to use it.
+_tfx_ is a standalone CLI for Terraform Cloud and Terraform Enterprise.
 
-### Commands
+You can find important information about the cli and how to use it.
+
+!!! warning ""
+    Note: This CLI is still under active development and subject to change!
+
+## Installation
+
+Binaries are created as part of release, check out the [Release Page](https://github.com/straubt1/tfx/releases) for the latest release.
+
+**MacOs Installation**
+```sh
+version="0.0.3-dev"
+curl -L -o tfx "https://github.com/straubt1/tfx/releases/download/${version}/tfx_darwin_amd64"
+chmod +x tfx
+```
+
+**Linux Installation**
+```sh
+version="0.0.3-dev"
+curl -L -o tfx "https://github.com/straubt1/tfx/releases/download/${version}/tfx_linux_amd64"
+chmod +x tfx
+```
+
+**Windows Installation**
+```sh
+version="0.0.3-dev"
+curl -L -o tfx.exe "https://github.com/straubt1/tfx/releases/download/${version}/tfx_windows_amd64"
+```
+
+**Go Installation**
+From Go version 1.18, the following is supported. `@latest` can be `@$VERSION`
+```sh
+go install github.com/straubt1/tfx@latest
+```
+
+<!-- ### Commands
 
 * [`tfx workspace`](commands/workspace.md) - Commands to work with Workspaces
 * [`tfx registry`](commands/registry.md) - Commands to manage the Private Registry
 * [`tfx gpg`](commands/gpg.md) - Commands to manage GPG Keys (for use with the Private Registry)
-* [`tfx release`](commands/release.md) - Commands to view and download Releases
+* [`tfx release`](commands/release.md) - Commands to view and download Releases -->
 
-### Configuration File
+## Configuration File
 
 Each command has the ability to pass in parameters via flags, however there are several that are required for every command.
 
@@ -43,12 +78,64 @@ This only works for the following:
 - TFE_ORGANIZATION
 - TFE_TOKEN
 
+## Output Types
 
-### Disclaimer
+Most commands support a `--json` (or `-j` for short) flag that will return a proper JSON response.
+
+> Note: Not all commands today support this flag and will ignore it.
+
+**Default Output:**
+
+```sh
+$ tfx variable list -w tfx-test               
+Using config file: /Users/tstraub/.tfx.hcl
+List Variables for Workspace: tfx-test
+╭──────────────────────┬───────────┬────────────────┬───────────┬───────┬───────────┬──────────────────────╮
+│ ID                   │ KEY       │ VALUE          │ SENSITIVE │ HCL   │ CATEGORY  │ DESCRIPTION          │
+├──────────────────────┼───────────┼────────────────┼───────────┼───────┼───────────┼──────────────────────┤
+│ var-7XYNuuo4tMjXeXG4 │ variable7 │ {              │ false     │ true  │ terraform │ I am a map in a file │
+│                      │           │   "a" = "1",   │           │       │           │                      │
+│                      │           │   "b" = "zoo", │           │       │           │                      │
+│                      │           │   "c" = "42"   │           │       │           │                      │
+│                      │           │ }              │           │       │           │                      │
+│ var-MJaLJ7czxKuU48eu │ variable3 │ It is friday   │ false     │ false │ env       │ I am environmental   │
+╰──────────────────────┴───────────┴────────────────┴───────────┴───────┴───────────┴──────────────────────╯
+```
+
+**JSON Output:**
+
+```sh
+$ tfx variable list -w tfx-test --json | jq .
+[
+  {
+    "Category": "terraform",
+    "Description": "I am a map in a file",
+    "HCL": true,
+    "Id": "var-7XYNuuo4tMjXeXG4",
+    "Key": "variable7",
+    "Sensitive": false,
+    "Value": "{\n  \"a\" = \"1\",\n  \"b\" = \"zoo\",\n  \"c\" = \"42\"\n}"
+  },
+  {
+    "Category": "env",
+    "Description": "I am environmental",
+    "HCL": false,
+    "Id": "var-MJaLJ7czxKuU48eu",
+    "Key": "variable3",
+    "Sensitive": false,
+    "Value": "It is friday"
+  }
+]
+```
+
+## Disclaimer
 
 TFx is an open source project built for use with Terraform Cloud and Terraform Enterprise under the [MIT License (MIT)](https://github.com/straubt1/tfx/blob/main/LICENSE).
 
 !!! note ""
     While this tool is not officially supported by HashiCorp, it's current primary contributors are current or former HashiCorp employees.
 
-### References
+## References
+
+https://github.com/hashicorp/go-tfe
+https://github.com/spf13/cobra

@@ -98,8 +98,7 @@ _Contributing guide coming soon_
 
 ## References
 
-https://github.com/hashicorp/go-tfe
+This CLI could not be possible without the amazing work done in these project:
 
-https://github.com/spf13/cobra#installing
-
-https://mholt.github.io/json-to-go/
+- https://github.com/hashicorp/go-tfe
+- https://github.com/spf13/cobra

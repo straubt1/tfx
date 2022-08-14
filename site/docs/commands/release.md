@@ -1,4 +1,4 @@
-## Release Commands
+# Release Commands
 
 Manage <a href="https://www.terraform.io/enterprise" target="_blank">Terraform Enterprise</a> and <a href="https://www.replicated.com/" target="_blank">Replicated</a> releases and binaries needed for airgap installations.
 
@@ -8,7 +8,7 @@ These commands are typically used for those running the Self-Managed Terraform E
 
 Authentication does not use an API Token, rather a "License Id" and "Password", these values are given to Customers after purchasing Terraform Enterprise.
 
-### `tfx release tfe list`
+## `tfx release tfe list`
 
 List available Terraform Enterprise releases.
 
@@ -38,7 +38,7 @@ List Available Terraform Enterprise Releases
 ╰──────────┴───────────┴──────────┴───────────────────────╯
 ```
 
-### `tfx release tfe show`
+## `tfx release tfe show`
 
 Show details of a Terraform Enterprise release, including release notes.
 
@@ -60,7 +60,7 @@ CHANGES SINCE v202208-1:
 <redacted>
 ```
 
-### `tfx release tfe download`
+## `tfx release tfe download`
 
 Download a Terraform Enterprise airgap binary to a directory of your choice (defaults to local directory).
 
@@ -84,7 +84,7 @@ Download Started: ./tfe-651.release
 Release Downloaded! 
 ```
 
-### `tfx release replicated list`
+## `tfx release replicated list`
 
 List available Replicated releases.
 
@@ -114,7 +114,7 @@ List Available Replicated Releases
 ╰─────────┴─────────────────────────────────╯
 ```
 
-### `tfx release replicated download`
+## `tfx release replicated download`
 
 Download a Replicated release binary to a directory of your choice (defaults to local directory).
 

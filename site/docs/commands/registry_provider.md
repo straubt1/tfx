@@ -1,4 +1,4 @@
-## Provider Commands
+# Private Registry Provider Commands
 
 The ability to manage Providers within an Organization was added to Terraform Enterprise in release v202206-1.
 These commands make the management of these providers via the API (the only way to manage said providers) easier.
@@ -17,7 +17,7 @@ There are several "resources" needed to create a Provider in the Registry that h
       - (OS, Example: Linux)
       - (Arch, Example: amd64) 
 
-### `tfx registry provider list`
+## `tfx registry provider list`
 
 List Providers in the Registry.
 
@@ -36,7 +36,7 @@ List Providers in Registry for Organization: firefly
 ╰─────────┴──────────┴───────────────────────┴──────────────────────────╯
 ```
 
-### `tfx registry provider create`
+## `tfx registry provider create`
 
 Create a Provider in the Registry.
 
@@ -52,7 +52,7 @@ Namespace: firefly
 Created:   2022-08-13T17:34:38.067Z
 ```
 
-### `tfx registry provider show`
+## `tfx registry provider show`
 
 Show details of a Provider in the Registry.
 
@@ -68,7 +68,7 @@ Namespace: firefly
 Created:   2022-08-13T17:34:38.067Z
 ```
 
-### `tfx registry provider delete`
+## `tfx registry provider delete`
 
 Delete a Provider in the Registry.
 
@@ -82,15 +82,15 @@ Provider Deleted: google
 Status: Success
 ```
 
-### `tfx registry provider version list`
+## `tfx registry provider version list`
 
 List Versions for a Provider in the Registry.
 
-### `tfx registry provider version platform list`
+## `tfx registry provider version platform list`
 
 List Platforms for a Provider Version in the Registry.
 
-### `tfx registry provider version create`
+## `tfx registry provider version create`
 
 Create a Version for a Provider in the Registry.
 
@@ -114,7 +114,7 @@ d0df94d3112a25de609dfb55c5e3b0d119dea519a2bdd8099e64a8d63f22b683  terraform-prov
 
 `--shasumssig` Is required to be set to the path to shasums signature file. This file is a binary
 
-### `tfx registry provider version show`
+## `tfx registry provider version show`
 
 Show details a Version for a Provider in the Registry.
 
@@ -143,18 +143,18 @@ d0df94d3112a25de609dfb55c5e3b0d119dea519a2bdd8099e64a8d63f22b683  terraform-prov
 766f9aef619cfd23e924aee523791acccd30b6d8f1cc0ed1a7b5c953bf8c5392  terraform-provider-aws_4.3.0_windows_amd64.zip
 ```
 
-### `tfx registry provider version delete`
+## `tfx registry provider version delete`
 
 Delete a Version for a Provider in the Registry
 
-### `tfx registry provider version platform create`
+## `tfx registry provider version platform create`
 
 Create a Platform Version for a Provider in the Registry
 
-### `tfx registry provider version platform show`
+## `tfx registry provider version platform show`
 
 Show details of a Platform Version for a Provider in the Registry
 
-### `tfx registry provider version platform delete`
+## `tfx registry provider version platform delete`
 
 Delete a Platform Version for a Provider in the Registry

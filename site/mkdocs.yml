@@ -18,4 +18,15 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Commands: commands.md
+  # - Commands: commands.md
+  - Commands: 
+    - Workspace: 
+      - General: commands/workspace.md
+      - Variables: commands/workspace_variable.md
+      - Runs: commands/workspace_run.md
+      - State Versions: commands/workspace_stateversion.md
+      - Configuration Versions: commands/workspace_configurationversion.md
+    - Private Registry:
+      - Modules: commands/registry_module.md
+      - Providers: commands/registry_provider.md
+    - Releases: commands/release.md
