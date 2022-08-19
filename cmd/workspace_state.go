@@ -182,7 +182,11 @@ func stateList(c TfxClientContext, workspaceName string, maxItems int) error {
 
 	o.AddTableHeader("Id", "Terraform Version", "Serial", "Run Id", "Created")
 	for _, i := range items {
-		o.AddTableRows(i.ID, i.TerraformVersion, i.Serial, i.Run.ID, FormatDateTime(i.CreatedAt))
+		runId := ""
+		if i.Run != nil {
+			runId = i.Run.ID
+		}
+		o.AddTableRows(i.ID, i.TerraformVersion, i.Serial, runId, FormatDateTime(i.CreatedAt))
 	}
 	o.Close()
 

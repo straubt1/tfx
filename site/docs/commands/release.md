@@ -12,7 +12,7 @@ Authentication does not use an API Token, rather a "License Id" and "Password", 
 
 List available Terraform Enterprise releases.
 
-`--maxResults` defaults to 10, setting this to a higher number will retrieve more releases.
+`--maxResults` defaults to 10, setting this to a higher number will retrieve more items.
 
 > Note: Only releases you are licensed for will show up in this list (typically starting with the latest available version on the date of the purchase).
 
@@ -88,7 +88,7 @@ Release Downloaded!
 
 List available Replicated releases.
 
-`--maxResults` defaults to 10, setting this to a higher number will retrieve more releases.
+`--maxResults` defaults to 10, setting this to a higher number will retrieve more items.
 
 > Note: This file is at least 1GB in size, this command can take a while, but a status will print progress.
 

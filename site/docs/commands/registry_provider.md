@@ -43,7 +43,7 @@ Create a Provider in the Registry.
 **Example:**
 
 ```sh
-$ tfx registry provider create -n google
+$ tfx registry provider create --name google
 Using config file: /Users/tstraub/.tfx.hcl
 Create Provider in Registry for Organization: firefly
 Provider Created: google
@@ -59,7 +59,7 @@ Show details of a Provider in the Registry.
 **Example:**
 
 ```sh
-$ tfx registry provider show -n google
+$ tfx registry provider show --name google
 Using config file: /Users/tstraub/.tfx.hcl
 Show Provider in Registry for Organization: firefly
 Name:      google
@@ -75,7 +75,7 @@ Delete a Provider in the Registry.
 **Example:**
 
 ```sh
-$ tfx registry provider delete -n google
+$ tfx registry provider delete --name google
 Using config file: /Users/tstraub/.tfx.hcl
 Delete Provider in Registry for Organization: firefly
 Provider Deleted: google
@@ -121,7 +121,7 @@ Show details a Version for a Provider in the Registry.
 **Example:**
 
 ```sh
-$ tfx registry provider version show -n aws -v 4.3.0
+$ tfx registry provider version show --name aws --version 4.3.0
 Using config file: /Users/tstraub/.tfx.hcl
 Show Provider Version in Registry for Organization: firefly
 Name:                 aws
