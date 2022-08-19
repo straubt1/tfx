@@ -36,6 +36,14 @@ func viperSemanticVersionString(flag string) (string, error) {
 	return v.String(), nil
 }
 
+func viperShaString(flag string) (*string, error) {
+	v := viperString(flag)
+	if len(*v) != 64 {
+		return nil, errors.New("sha must be 64 characters long")
+	}
+	return v, nil
+}
+
 func viperBool(flag string) *bool {
 	if !viper.GetBool(flag) {
 		// return nil //TODO: figure out why defaults are not working

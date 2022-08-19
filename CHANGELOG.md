@@ -44,6 +44,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * `tfx workspace state-version create` or `tfx workspace sv create`
   * `tfx workspace state-version show` or `tfx workspace sv show`
   * `tfx workspace state-version download` or `tfx workspace sv download`
+* Moved Module Registry commands from the `tfv` command, the new commands are:
+  * `tfx admin terraform-version list`
+  * `tfx admin terraform-version create`
+  * `tfx admin terraform-version create official`
+  * `tfx admin terraform-version show`
+  * `tfx admin terraform-version delete`
+  * `tfx admin terraform-version enable`
+  * `tfx admin terraform-version enable all`
+  * `tfx admin terraform-version disable`
+  * `tfx admin terraform-version disable all`
+* Updated all of the `tfx admin terraform-version` commands to support JSON (`--json`) output.
 
 ### Removed
 

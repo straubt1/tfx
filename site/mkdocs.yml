@@ -7,15 +7,47 @@ edit_uri: edit/main/site/docs
 copyright: "TFx is licensed under the <a href='https://github.com/straubt1/tfx/blob/main/LICENSE'>MIT license</a>"
 
 theme:
-  name: null
-  custom_dir: 'cinder'
-  colorscheme: github
+  name: material
+  favicon: img/favicon.ico
+  # logo: img/favicon.ico
+  # custom_dir: 'cinder'
+  # colorscheme: github
   # highlightjs: true
   # hljs_languages:
+  font:
+    text: Roboto
   #   - hcl
+  palette:
+    # primary: deep purple
+    # # Palette toggle for automatic mode
+    # - media: "(prefers-color-scheme)"
+    #   toggle:
+    #     icon: material/brightness-auto
+    #     name: Switch to light mode
+
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      # primary: blue grey
+      scheme: default 
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to system preference
 
 markdown_extensions:
   - admonition
+  # - pymdownx.highlight:
+      # anchor_linenums: true
+  # - pymdownx.inlinehilite
+  - pymdownx.snippets
+  # - pymdownx.superfences
+
 
 nav:
   - Home: index.md
