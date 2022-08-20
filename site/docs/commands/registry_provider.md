@@ -9,20 +9,20 @@ There are several "resources" needed to create a Provider in the Registry that h
 
 ``` mermaid
 classDiagram
-  Provider <|-- ProviderVersion
-  ProviderVersion <|-- ProviderVersionPlatform
+  Provider --|> ProviderVersion
+  ProviderVersion --|> ProviderVersionPlatform
   class Provider{
-    +String Name (Example: "aws")
+    +String Name, Example: "aws"
   }
   class ProviderVersion{
-    +String Version (Example: "1.0.0")
+    +String Version, Example: "1.0.0"
     +String SHASUMS
     +String SHASUMSSIG
     +String GPG Key Id
   }
   class ProviderVersionPlatform{
-    +String OS (Example: "linux")
-    +String ARCH (Example: "amd64")
+    +String OS, Example: "linux"
+    +String ARCH, Example: "amd64"
     +String Binary
   }
 ```

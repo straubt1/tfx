@@ -4,6 +4,20 @@ Managing modules in the Private Registry.
 
 Namespace will be the Organization Name.
 
+There are several "resources" needed to create a Module in the Registry that have a dependency hierarchy.
+
+``` mermaid
+classDiagram
+  Module --|> ModuleVersion
+  class Module{
+    +String Name, Example: "my-awesome-app"
+    +String Provider, Example: "aws"
+  }
+  class ModuleVersion{
+    +String Version, Example: "1.0.0"
+  }
+```
+
 ## `tfx registry module list`
 
 List all modules in the Private Registry.

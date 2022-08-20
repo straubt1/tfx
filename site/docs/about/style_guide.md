@@ -10,30 +10,30 @@ The goal of this document is to outline the general user experience when dealing
 ## Colors
 
 - User Provided: Green
-  - These values are provided by the user, either through a configuration file or a command flag.
+    - These values are provided by the user, either through a configuration file or a command flag.
 - Calculated: Yellow
-  - These values are calculated, but could be derived from user provided values.
+    - These values are calculated, but could be derived from user provided values.
 - Remote: Blue
-  - These values are read from the external system, such as TFE or TFC.
+    - These values are read from the external system, such as TFE or TFC.
 - Error: Red
-  - It is the way Rick Sanchez would want it...
+    - It is the way Rick Sanchez would want it...
 
 ## Command and Flag Naming
 
 Command and Flag naming will adhere to the following standards:
 
 - When a command or flag spans multiple words, the words will be separated with a dash "-"
-  - Examples:
-    - "Key ID" -> "key-id"
-    - "Configuration Version" -> "configuration-version"
+    - Examples:
+        - "Key ID" -> "key-id"
+        - "Configuration Version" -> "configuration-version"
 - When a name or id is required as an input for a resource that is directly associated with the command, "name" or "id" will be used.
-  - Examples:
-    - "tfx workspace show --name tt-workspace"
-    - "tfx workspace configuration-version show --id cv-e83GeSpjVKXuUGmU"
+    - Examples:
+        - "tfx workspace show --name tt-workspace"
+        - "tfx workspace configuration-version show --id cv-e83GeSpjVKXuUGmU"
 - When a name or id is required as an input for a resource that is indirectly associated with the command, "{resource}-name" or "{resource}-id" will be used.
-  - Examples:
-    - "tfx workspace run list --workspace-name tt-workspace"
-    - "tfx workspace run create --workspace-name tt-workspace --configuration-version-id cv-e83GeSpjVKXuUGmU"
+    - Examples:
+        - "tfx workspace run list --workspace-name tt-workspace"
+        - "tfx workspace run create --workspace-name tt-workspace --configuration-version-id cv-e83GeSpjVKXuUGmU"
 
 ## List Commands
 
