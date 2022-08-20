@@ -12,7 +12,7 @@ List all Workspace variables.
 **Example**
 
 ```sh
-$ tfx workspace variable list -w tt-workspace                  
+$ tfx workspace variable list --workspace-namett-workspace                  
 Using config file: /Users/tstraub/.tfx.hcl
 List Variables for Workspace: tt-workspace
 ╭──────────────────────┬───────────┬──────────────┬───────────┬───────┬───────────┬───────────────────────────────────╮
@@ -34,7 +34,7 @@ Create a Workspace variable, optionally the value can read from a filename.
 **Basic Example**
 
 ```sh
-$ tfx workspace variable create -w tt-workspace -k variable1 -v "It is friday" -d "some important info about this..."
+$ tfx workspace variable create --workspace-namett-workspace -k variable1 -v "It is friday" -d "some important info about this..."
 Using config file: /Users/tstraub/.tfx.hcl
 Create Variable for Workspace: tt-workspace
 Variable Created: variable1
@@ -50,7 +50,7 @@ Description: some important info about this...
 **Sensitive Example**
 
 ```sh
-$ tfx workspace variable create -w tt-workspace -k variable2 -v "It is friday" -d "I am sensitive" --sensitive
+$ tfx workspace variable create --workspace-namett-workspace -k variable2 -v "It is friday" -d "I am sensitive" --sensitive
 Using config file: /Users/tstraub/.tfx.hcl
 Create Variable for Workspace: tt-workspace
 Variable Created: variable2
@@ -66,7 +66,7 @@ Description: I am sensitive.
 **Environment Variable Example**
 
 ```sh
-$ tfx workspace variable create -w tt-workspace -k variable3 -v "It is friday" -d "I am environmental" --env
+$ tfx workspace variable create --workspace-namett-workspace -k variable3 -v "It is friday" -d "I am environmental" --env
 Using config file: /Users/tstraub/.tfx.hcl
 Create Variable for Workspace: tt-workspace
 Variable Created: variable3
@@ -82,7 +82,7 @@ Description: I am environmental
 **HCL String Example**
 
 ```sh
-$ tfx workspace variable create -w tt-workspace -k variable4 -v ./string.hcl -d "I am a string in a file" --hcl
+$ tfx workspace variable create --workspace-namett-workspace -k variable4 -v ./string.hcl -d "I am a string in a file" --hcl
 Using config file: /Users/tstraub/.tfx.hcl
 Create Variable for Workspace: tt-workspace
 Variable Created: variable4
@@ -98,7 +98,7 @@ Description: I am a string in a file
 **HCL List Example**
 
 ```sh
-$ tfx workspace variable create -w tt-workspace -k variable5 -v ./list.hcl -d "I am a list in a file" --hcl
+$ tfx workspace variable create --workspace-namett-workspace -k variable5 -v ./list.hcl -d "I am a list in a file" --hcl
 Using config file: /Users/tstraub/.tfx.hcl
 Create Variable for Workspace: tt-workspace
 Variable Created: variable5
@@ -114,7 +114,7 @@ Description: I am a list in a file
 **HCL Map Example**
 
 ```sh
-$ tfx workspace variable create -w tt-workspace -k variable6 -v ./map.hcl -d "I am a map in a file" --hcl
+$ tfx workspace variable create --workspace-namett-workspace -k variable6 -v ./map.hcl -d "I am a map in a file" --hcl
 Using config file: /Users/tstraub/.tfx.hcl
 Create Variable for Workspace: tt-workspace
 Variable Created: variable6
@@ -136,7 +136,7 @@ Variables do not have an "upsert" functionality, so you either need to delete th
 **Example**
 
 ```sh
-$ tfx workspace variable update -w tt-workspace -k variable1 -v "It is July" -d "(update) I made the mistakes"
+$ tfx workspace variable update --workspace-namett-workspace -k variable1 -v "It is July" -d "(update) I made the mistakes"
 Using config file: /Users/tstraub/.tfx.hcl
 Update Variable for Workspace: tt-workspace
 Variable Updated
@@ -166,7 +166,7 @@ Delete a Workspace Variable.
 **Example**
 
 ```sh
-$ tfx workspace variable delete -w tt-workspace --key variable7
+$ tfx workspace variable delete --workspace-namett-workspace --key variable7
 Using config file: /Users/tstraub/.tfx.hcl
 Delete Variable for Workspace: tt-workspace
 Variable Deleted: variable7

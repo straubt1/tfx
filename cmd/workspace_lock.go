@@ -36,8 +36,7 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return workspaceLock(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
-				*viperString("workspaceName"))
+				*viperString("name"))
 		},
 	}
 
@@ -48,7 +47,6 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return workspaceLockAll(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
 				*viperString("search"))
 		},
 	}
@@ -61,8 +59,7 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return workspaceUnlock(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
-				*viperString("workspaceName"))
+				*viperString("name"))
 		},
 	}
 
@@ -74,7 +71,6 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return workspaceUnlockAll(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
 				*viperString("search"))
 		},
 	}
@@ -82,15 +78,15 @@ var (
 
 func init() {
 	// `tfx workspace lock`
-	workspaceLockCmd.Flags().StringP("workspaceName", "w", "", "Workspace name")
-	workspaceLockCmd.MarkFlagRequired("workspaceName")
+	workspaceLockCmd.Flags().StringP("name", "n", "", "Workspace name")
+	workspaceLockCmd.MarkFlagRequired("name")
 
 	// `tfx workspace lock all`
 	workspaceLockAllCmd.Flags().StringP("search", "s", "", "Search string for Workspace Name (optional).")
 
 	// `tfx workspace unlock`
-	workspaceUnlockCmd.Flags().StringP("workspaceName", "w", "", "Workspace name")
-	workspaceUnlockCmd.MarkFlagRequired("workspaceName")
+	workspaceUnlockCmd.Flags().StringP("name", "n", "", "Workspace name")
+	workspaceUnlockCmd.MarkFlagRequired("name")
 
 	// `tfx workspace unlock all`
 	workspaceUnlockAllCmd.Flags().StringP("search", "s", "", "Search string for Workspace Name (optional).")
@@ -101,22 +97,21 @@ func init() {
 	workspaceUnlockCmd.AddCommand(workspaceUnlockAllCmd)
 }
 
-func workspaceLock(c TfxClientContext, orgName string, workspaceName string) error {
-	o.AddMessageUserProvided("Lock Workspace in Organization:", orgName)
-	status, err := setWorkspaceLock(c, orgName, workspaceName, true)
+func workspaceLock(c TfxClientContext, workspaceName string) error {
+	o.AddMessageUserProvided("Lock Workspace in Organization:", c.OrganizationName)
+	status, err := setWorkspaceLock(c, workspaceName, true)
 	if err != nil {
 		return errors.Wrap(err, "unable to lock workspace")
 	}
 
 	o.AddDeferredMessageRead(workspaceName, status)
-	o.Close()
 
 	return nil
 }
 
-func workspaceLockAll(c TfxClientContext, orgName string, searchString string) error {
-	o.AddMessageUserProvided("Lock All Workspace in Organization:", orgName)
-	workspaceList, err := workspaceListAllForOrganization(c, orgName, searchString)
+func workspaceLockAll(c TfxClientContext, searchString string) error {
+	o.AddMessageUserProvided("Lock All Workspace in Organization:", c.OrganizationName)
+	workspaceList, err := workspaceListAllForOrganization(c, c.OrganizationName, searchString)
 	if err != nil {
 		return errors.Wrap(err, "failed to list workspaces")
 	}
@@ -124,7 +119,7 @@ func workspaceLockAll(c TfxClientContext, orgName string, searchString string) e
 
 	o.AddFormattedMessageCalculated("Locking %d Workspaces, please wait...", totalWorkspaces)
 	for _, ws := range workspaceList {
-		status, err := setWorkspaceLock(c, orgName, ws.Name, true)
+		status, err := setWorkspaceLock(c, ws.Name, true)
 		if err != nil {
 			o.AddDeferredMessageRead(ws.Name, err.Error())
 		} else {
@@ -132,14 +127,12 @@ func workspaceLockAll(c TfxClientContext, orgName string, searchString string) e
 		}
 	}
 
-	o.Close()
-
 	return nil
 }
 
-func workspaceUnlock(c TfxClientContext, orgName string, workspaceName string) error {
-	o.AddMessageUserProvided("Unlock Workspace in Organization:", orgName)
-	status, err := setWorkspaceLock(c, orgName, workspaceName, false)
+func workspaceUnlock(c TfxClientContext, workspaceName string) error {
+	o.AddMessageUserProvided("Unlock Workspace in Organization:", c.OrganizationName)
+	status, err := setWorkspaceLock(c, workspaceName, false)
 	if err != nil {
 		return errors.Wrap(err, "unable to unlock workspace")
 	}
@@ -150,9 +143,9 @@ func workspaceUnlock(c TfxClientContext, orgName string, workspaceName string) e
 	return nil
 }
 
-func workspaceUnlockAll(c TfxClientContext, orgName string, searchString string) error {
-	o.AddMessageUserProvided("Unlock All Workspace in Organization:", orgName)
-	workspaceList, err := workspaceListAllForOrganization(c, orgName, searchString)
+func workspaceUnlockAll(c TfxClientContext, searchString string) error {
+	o.AddMessageUserProvided("Unlock All Workspace in Organization:", c.OrganizationName)
+	workspaceList, err := workspaceListAllForOrganization(c, c.OrganizationName, searchString)
 	if err != nil {
 		return errors.Wrap(err, "failed to list workspaces")
 	}
@@ -160,7 +153,7 @@ func workspaceUnlockAll(c TfxClientContext, orgName string, searchString string)
 
 	o.AddFormattedMessageCalculated("Unlocking %d Workspaces, please wait...", totalWorkspaces)
 	for _, ws := range workspaceList {
-		status, err := setWorkspaceLock(c, orgName, ws.Name, false)
+		status, err := setWorkspaceLock(c, ws.Name, false)
 		if err != nil {
 			o.AddDeferredMessageRead(ws.Name, err.Error())
 		} else {
@@ -173,8 +166,8 @@ func workspaceUnlockAll(c TfxClientContext, orgName string, searchString string)
 	return nil
 }
 
-func setWorkspaceLock(c TfxClientContext, orgName string, workspaceName string, lockSet bool) (string, error) {
-	w, err := c.Client.Workspaces.Read(c.Context, orgName, workspaceName)
+func setWorkspaceLock(c TfxClientContext, workspaceName string, lockSet bool) (string, error) {
+	w, err := c.Client.Workspaces.Read(c.Context, c.OrganizationName, workspaceName)
 	if err != nil {
 		return "", errors.New("failed to read workspace id")
 	}

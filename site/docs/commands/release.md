@@ -6,7 +6,11 @@ These commands are typically used for those running the Self-Managed Terraform E
 
 > Note: These commands do not communicate with Terraform Enterprise but leverage the replicated REST endpoints.
 
-Authentication does not use an API Token, rather a "License Id" and "Password", these values are given to Customers after purchasing Terraform Enterprise.
+**Authentication**
+
+Authentication for `tfx release tfe` Commands do not use an API Token, rather a "License Id" and "Password", these values are given to Customers after purchasing Terraform Enterprise.
+
+There is no authentication needed for `tfx release replicated` Commands.
 
 ## `tfx release tfe list`
 

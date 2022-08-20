@@ -44,8 +44,7 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runList(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
-				*viperString("workspaceName"))
+				*viperString("workspace-name"))
 		},
 	}
 
@@ -57,10 +56,9 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCreate(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
-				*viperString("workspaceName"),
+				*viperString("workspace-name"),
 				*viperString("message"),
-				*viperString("cvId"))
+				*viperString("configuration-version-id"))
 		},
 	}
 
@@ -72,7 +70,7 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runShow(
 				getTfxClientContext(),
-				*viperString("runId"))
+				*viperString("id"))
 		},
 	}
 )
@@ -81,19 +79,19 @@ func init() {
 	// `tfx workspace run` commands
 
 	// `tfx workspace run list` command
-	runListCmd.Flags().StringP("workspaceName", "w", "", "Workspace name")
-	runListCmd.MarkFlagRequired("workspaceName")
+	runListCmd.Flags().StringP("workspace-name", "w", "", "Workspace name")
+	runListCmd.MarkFlagRequired("workspace-name")
 
 	// `tfx workspace run create` command
-	runCreateCmd.Flags().StringP("workspaceName", "w", "", "Workspace name")
+	runCreateCmd.Flags().StringP("workspace-name", "w", "", "Workspace name")
 	// runCreateCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (defaults to current directory)")
 	runCreateCmd.Flags().StringP("message", "m", "", "Run Message (optional)")
-	runCreateCmd.Flags().StringP("cvId", "i", "", "Configuration Version (optional)")
-	runCreateCmd.MarkFlagRequired("workspaceName")
+	runCreateCmd.Flags().StringP("configuration-version-id", "i", "", "Configuration Version (optional)")
+	runCreateCmd.MarkFlagRequired("workspace-name")
 
 	// `tfx workspace run show` command
-	runShowCmd.Flags().StringP("runId", "i", "", "Run Id (i.e. run-*)")
-	runShowCmd.MarkFlagRequired("runId")
+	runShowCmd.Flags().StringP("id", "i", "", "Run Id (i.e. run-*)")
+	runShowCmd.MarkFlagRequired("id")
 
 	workspaceCmd.AddCommand(runCmd)
 	runCmd.AddCommand(runListCmd)
@@ -125,9 +123,9 @@ func workspaceRunListAll(c TfxClientContext, workspaceId string) ([]*tfe.Run, er
 	return allItems, nil
 }
 
-func runList(c TfxClientContext, orgName string, workspaceName string) error {
+func runList(c TfxClientContext, workspaceName string) error {
 	o.AddMessageUserProvided("List Runs for Workspace:", workspaceName)
-	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
+	workspaceId, err := getWorkspaceId(c, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
 	}
@@ -145,10 +143,10 @@ func runList(c TfxClientContext, orgName string, workspaceName string) error {
 	return nil
 }
 
-func runCreate(c TfxClientContext, orgName string, workspaceName string, message string, cvId string) error {
+func runCreate(c TfxClientContext, workspaceName string, message string, cvId string) error {
 	o.AddMessageUserProvided("Create Run for Workspace:", workspaceName)
 	var cv *tfe.ConfigurationVersion
-	w, err := c.Client.Workspaces.Read(c.Context, orgName, workspaceName)
+	w, err := c.Client.Workspaces.Read(c.Context, c.OrganizationName, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "failed to read workspace")
 	}
@@ -179,7 +177,6 @@ func runCreate(c TfxClientContext, orgName string, workspaceName string, message
 	o.AddDeferredMessageRead("Terraform Version", run.TerraformVersion)
 	o.AddDeferredMessageRead("Link",
 		fmt.Sprintf("https://%s/app/%s/workspaces/%s/runs/%s", c.Hostname, c.OrganizationName, workspaceName, run.ID))
-	o.Close()
 
 	return nil
 }
@@ -199,13 +196,12 @@ func runShow(c TfxClientContext, runId string) error {
 	o.AddDeferredMessageRead("Message", run.Message)
 	o.AddDeferredMessageRead("Terraform Version", run.TerraformVersion)
 	o.AddDeferredMessageRead("Created", FormatDateTime(run.CreatedAt))
-	o.Close()
 
 	return nil
 }
 
-func getWorkspaceId(c TfxClientContext, orgName string, workspaceName string) (string, error) {
-	w, err := c.Client.Workspaces.Read(c.Context, orgName, workspaceName)
+func getWorkspaceId(c TfxClientContext, workspaceName string) (string, error) {
+	w, err := c.Client.Workspaces.Read(c.Context, c.OrganizationName, workspaceName)
 	if err != nil {
 		return "", err
 	}

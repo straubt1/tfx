@@ -55,7 +55,6 @@ var (
 			} else {
 				return workspaceList(
 					getTfxClientContext(),
-					*viperString("tfeOrganization"),
 					*viperString("search"),
 					*viperString("run-status"))
 			}
@@ -70,8 +69,7 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return workspaceShow(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
-				*viperString("workspaceName"))
+				*viperString("name"))
 		},
 	}
 )
@@ -83,8 +81,8 @@ func init() {
 	workspaceListCmd.Flags().BoolP("all", "a", false, "List All Organizations Workspaces (optional).")
 
 	// `tfx workspace show`
-	workspaceShowCmd.Flags().StringP("workspaceName", "w", "", "Workspace name")
-	workspaceShowCmd.MarkFlagRequired("workspaceName")
+	workspaceShowCmd.Flags().StringP("name", "n", "", "Name of the workspace.")
+	workspaceShowCmd.MarkFlagRequired("name")
 
 	rootCmd.AddCommand(workspaceCmd)
 	workspaceCmd.AddCommand(workspaceListCmd)
@@ -137,33 +135,11 @@ func organizationListAll(c TfxClientContext) ([]*tfe.Organization, error) {
 	}
 
 	return allItems, nil
-
-	// var err error
-	// var ol *tfe.OrganizationList
-	// var organizationItems []*tfe.Organization
-	// pageNumber := 1
-	// for {
-	// 	ol, err = c.Client.Organizations.List(c.Context, &tfe.OrganizationListOptions{
-	// 		ListOptions: tfe.ListOptions{
-	// 			PageSize: 100,
-	// 		}})
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-
-	// 	organizationItems = append(organizationItems, ol.Items...)
-	// 	if ol.NextPage == 0 {
-	// 		break
-	// 	}
-	// 	pageNumber++
-	// }
-
-	// return organizationItems, nil
 }
 
-func workspaceList(c TfxClientContext, orgName string, searchString string, runStatus string) error {
-	o.AddMessageUserProvided("List Workspaces for Organization:", orgName)
-	items, err := workspaceListAllForOrganization(c, orgName, searchString)
+func workspaceList(c TfxClientContext, searchString string, runStatus string) error {
+	o.AddMessageUserProvided("List Workspaces for Organization:", c.OrganizationName)
+	items, err := workspaceListAllForOrganization(c, c.OrganizationName, searchString)
 	if err != nil {
 		return errors.Wrap(err, "failed to list variables")
 	}
@@ -193,7 +169,6 @@ func workspaceList(c TfxClientContext, orgName string, searchString string, runS
 
 		o.AddTableRows(i.Name, i.ID, cr_created_at, cr_status, ws_repo, i.Locked)
 	}
-	o.Close()
 
 	return nil
 }
@@ -239,7 +214,6 @@ func workspaceListAll(c TfxClientContext, searchString string, runStatus string)
 
 		o.AddTableRows(i.Organization.Name, i.Name, i.ID, cr_created_at, cr_status, ws_repo, i.Locked)
 	}
-	o.Close()
 
 	return nil
 }
@@ -257,9 +231,9 @@ func filterWorkspaces(list []*tfe.Workspace, runStatus string) ([]*tfe.Workspace
 	return result, nil
 }
 
-func workspaceShow(c TfxClientContext, orgName string, workspaceName string) error {
+func workspaceShow(c TfxClientContext, workspaceName string) error {
 	o.AddMessageUserProvided("Show Workspace:", workspaceName)
-	w, err := c.Client.Workspaces.Read(c.Context, orgName, workspaceName)
+	w, err := c.Client.Workspaces.Read(c.Context, c.OrganizationName, workspaceName)
 	if err != nil {
 		logError(err, "failed to read workspace")
 	}
@@ -285,8 +259,6 @@ func workspaceShow(c TfxClientContext, orgName string, workspaceName string) err
 		o.AddDeferredMessageRead("Current Run Status", run.Status)
 		o.AddDeferredMessageRead("Current Run Created", FormatDateTime(run.CreatedAt))
 	}
-
-	o.Close()
 
 	return nil
 }

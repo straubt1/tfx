@@ -44,7 +44,6 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return registryModuleVersionList(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
 				*viperString("name"),
 				*viperString("provider"))
 		},
@@ -66,7 +65,6 @@ var (
 
 			return registryModuleVersionCreate(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
 				*viperString("name"),
 				*viperString("provider"),
 				moduleVersion,
@@ -87,7 +85,6 @@ var (
 
 			return registryModuleVersionDelete(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
 				*viperString("name"),
 				*viperString("provider"),
 				moduleVersion)
@@ -107,7 +104,6 @@ var (
 
 			return registryModuleVersionDownload(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
 				*viperString("name"),
 				*viperString("provider"),
 				moduleVersion,
@@ -156,13 +152,13 @@ func init() {
 	registryModuleVersionCmd.AddCommand(registryModuleVersionDownloadCmd)
 }
 
-func registryModuleVersionList(c TfxClientContext, orgName string, moduleName string, providerName string) error {
-	o.AddMessageUserProvided("List Module Versions for Organization:", orgName)
+func registryModuleVersionList(c TfxClientContext, moduleName string, providerName string) error {
+	o.AddMessageUserProvided("List Module Versions for Organization:", c.OrganizationName)
 	module, err := c.Client.RegistryModules.Read(c.Context, tfe.RegistryModuleID{
-		Organization: orgName,
+		Organization: c.OrganizationName,
 		Name:         moduleName,
 		Provider:     providerName,
-		Namespace:    orgName,
+		Namespace:    c.OrganizationName,
 		RegistryName: tfe.PrivateRegistry,
 	})
 	if err != nil {
@@ -173,19 +169,18 @@ func registryModuleVersionList(c TfxClientContext, orgName string, moduleName st
 	for _, i := range module.VersionStatuses {
 		o.AddTableRows(i.Version, i.Status)
 	}
-	o.Close()
 
 	return nil
 }
 
-func registryModuleVersionCreate(c TfxClientContext, orgName string, moduleName string, providerName string,
+func registryModuleVersionCreate(c TfxClientContext, moduleName string, providerName string,
 	moduleVersion string, directory string) error {
-	o.AddMessageUserProvided("Create Module Version for Organization:", orgName)
+	o.AddMessageUserProvided("Create Module Version for Organization:", c.OrganizationName)
 	module, err := c.Client.RegistryModules.CreateVersion(c.Context, tfe.RegistryModuleID{
-		Organization: orgName,
+		Organization: c.OrganizationName,
 		Name:         moduleName,
 		Provider:     providerName,
-		Namespace:    orgName,
+		Namespace:    c.OrganizationName,
 		RegistryName: tfe.PrivateRegistry,
 	}, tfe.RegistryModuleCreateVersionOptions{
 		Version: &moduleVersion,
@@ -202,19 +197,18 @@ func registryModuleVersionCreate(c TfxClientContext, orgName string, moduleName 
 	o.AddMessageUserProvided("Module Created:", module.RegistryModule.Name)
 	o.AddDeferredMessageRead("ID", module.RegistryModule.ID)
 	o.AddDeferredMessageRead("Created", module.CreatedAt)
-	o.Close()
 
 	return nil
 }
 
-func registryModuleVersionDelete(c TfxClientContext, orgName string, moduleName string, providerName string,
+func registryModuleVersionDelete(c TfxClientContext, moduleName string, providerName string,
 	moduleVersion string) error {
-	o.AddMessageUserProvided("Delete Module Version for Organization:", orgName)
+	o.AddMessageUserProvided("Delete Module Version for Organization:", c.OrganizationName)
 	err := c.Client.RegistryModules.DeleteVersion(c.Context, tfe.RegistryModuleID{
-		Organization: orgName,
+		Organization: c.OrganizationName,
 		Name:         moduleName,
 		Provider:     providerName,
-		Namespace:    orgName,
+		Namespace:    c.OrganizationName,
 		RegistryName: tfe.PrivateRegistry,
 	}, moduleVersion)
 	if err != nil {
@@ -223,12 +217,11 @@ func registryModuleVersionDelete(c TfxClientContext, orgName string, moduleName 
 
 	o.AddMessageUserProvided("Module Version Deleted:", moduleName)
 	o.AddDeferredMessageRead("Status", "Success")
-	o.Close()
 
 	return nil
 }
 
-func registryModuleVersionDownload(c TfxClientContext, orgName string, moduleName string, providerName string,
+func registryModuleVersionDownload(c TfxClientContext, moduleName string, providerName string,
 	moduleVersion string, directory string) error {
 	o.AddMessageUserProvided("Downloading Module Version:", moduleName)
 	var err error
@@ -247,14 +240,13 @@ func registryModuleVersionDownload(c TfxClientContext, orgName string, moduleNam
 	}
 
 	o.AddMessageUserProvided("Module Version Found, download started...", "")
-	_, err = DownloadModule(c.Token, c.Hostname, orgName, moduleName, providerName, moduleVersion, directory)
+	_, err = DownloadModule(c.Token, c.Hostname, c.OrganizationName, moduleName, providerName, moduleVersion, directory)
 	if err != nil {
 		return errors.Wrap(err, "failed to download module")
 	}
 
 	o.AddDeferredMessageRead("Status", "Success")
 	o.AddDeferredMessageRead("Directory", directory)
-	o.Close()
 
 	return nil
 }

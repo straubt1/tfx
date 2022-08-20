@@ -17,7 +17,7 @@ List all Configuration Versions for a supplied Workspace.
 **Example**
 
 ```sh
-$ tfx workspace configuration-version list -w tfx-test
+$ tfx workspace configuration-version list --workspace-name tfx-test
 Using config file: /Users/tstraub/.tfx.hcl
 List Configuration Versions for Workspace: tfx-test
 ╭─────────────────────┬─────────────┬──────────┬──────┬────────┬────────┬─────────╮
@@ -43,7 +43,7 @@ Create a Configuration Version for a supplied Workspace.
 **Example**
 
 ```sh
-$ tfx workspace configuration-version create -w tt-workspace --directory ./tt-workspace-code/
+$ tfx workspace configuration-version create --workspace-name tt-workspace --directory ./tt-workspace-code/
 Using config file: /Users/tstraub/.tfx.hcl
 Create Configuration Version for Workspace: tt-workspace
 Code Directory: ./tt-workspace-code/
@@ -60,7 +60,7 @@ Show Configuration Version details for a supplied Configuration.
 **Example**
 
 ```sh
-$ tfx workspace configuration-version show --configurationId cv-K4EwbnFK4MGG2Qs1
+$ tfx workspace configuration-version show --id cv-K4EwbnFK4MGG2Qs1
 Using config file: /Users/tstraub/.tfx.hcl
 Show Configuration Version for Workspace from Id: cv-K4EwbnFK4MGG2Qs1
 ID:          cv-K4EwbnFK4MGG2Qs1
@@ -75,7 +75,7 @@ Download the Terraform code in a Configuration Version.
 **Temp Folder Example**
 
 ```sh
-$ tfx workspace configuration-version download --configurationId cv-K4EwbnFK4MGG2Qs1
+$ tfx workspace configuration-version download --id cv-K4EwbnFK4MGG2Qs1
 Using config file: /Users/tstraub/.tfx.hcl
 Downloading Configuration Version from Id: cv-K4EwbnFK4MGG2Qs1
 Directory not supplied, creating a temp directory 

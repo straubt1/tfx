@@ -52,7 +52,6 @@ var (
 
 			return registryProviderVersionPlatformList(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
 				*viperString("name"),
 				providerVersion)
 		},
@@ -76,7 +75,6 @@ var (
 
 			return registryProviderVersionPlatformCreate(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
 				*viperString("name"),
 				providerVersion,
 				*viperString("os"),
@@ -98,7 +96,6 @@ var (
 
 			return registryProviderVersionPlatformShow(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
 				*viperString("name"),
 				providerVersion,
 				*viperString("os"),
@@ -119,7 +116,6 @@ var (
 
 			return registryProviderVersionPlatformDelete(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
 				*viperString("name"),
 				providerVersion,
 				*viperString("os"),
@@ -175,7 +171,7 @@ func init() {
 	registryProviderVersionPlatformCmd.AddCommand(registryProviderVersionPlatformDeleteCmd)
 }
 
-func registryProviderVersionPlatformsListAll(c TfxClientContext, orgName string, providerName string, providerVersion string) ([]*tfe.RegistryProviderPlatform, error) {
+func registryProviderVersionPlatformsListAll(c TfxClientContext, providerName string, providerVersion string) ([]*tfe.RegistryProviderPlatform, error) {
 	allItems := []*tfe.RegistryProviderPlatform{}
 	opts := tfe.RegistryProviderPlatformListOptions{
 		ListOptions: tfe.ListOptions{
@@ -187,8 +183,8 @@ func registryProviderVersionPlatformsListAll(c TfxClientContext, orgName string,
 		items, err := c.Client.RegistryProviderPlatforms.List(c.Context,
 			tfe.RegistryProviderVersionID{
 				RegistryProviderID: tfe.RegistryProviderID{
-					OrganizationName: orgName,
-					Namespace:        orgName,
+					OrganizationName: c.OrganizationName,
+					Namespace:        c.OrganizationName,
 					RegistryName:     "private", // for some reason public doesn't work...
 					Name:             providerName,
 				},
@@ -209,11 +205,11 @@ func registryProviderVersionPlatformsListAll(c TfxClientContext, orgName string,
 	return allItems, nil
 }
 
-func registryProviderVersionPlatformList(c TfxClientContext, orgName string, providerName string, providerVersion string) error {
-	o.AddMessageUserProvided("List Provider Platforms in Registry for Organization:", orgName)
+func registryProviderVersionPlatformList(c TfxClientContext, providerName string, providerVersion string) error {
+	o.AddMessageUserProvided("List Provider Platforms in Registry for Organization:", c.OrganizationName)
 	o.AddMessageUserProvided("Provider Name:", providerName)
 	o.AddMessageUserProvided("Provider Version:", providerVersion)
-	items, err := registryProviderVersionPlatformsListAll(c, orgName, providerName, providerVersion)
+	items, err := registryProviderVersionPlatformsListAll(c, providerName, providerVersion)
 	if err != nil {
 		return errors.Wrap(err, "failed to list provider version platforms")
 	}
@@ -222,13 +218,12 @@ func registryProviderVersionPlatformList(c TfxClientContext, orgName string, pro
 	for _, i := range items {
 		o.AddTableRows(i.OS, i.Arch, i.ID, i.Filename, i.Shasum)
 	}
-	o.Close()
 
 	return nil
 }
 
-func registryProviderVersionPlatformCreate(c TfxClientContext, orgName string, providerName string, providerVersion string, providerOS string, providerARCH string, providerFilename string) error {
-	o.AddMessageUserProvided("Create Provider Platform in Registry for Organization:", orgName)
+func registryProviderVersionPlatformCreate(c TfxClientContext, providerName string, providerVersion string, providerOS string, providerARCH string, providerFilename string) error {
+	o.AddMessageUserProvided("Create Provider Platform in Registry for Organization:", c.OrganizationName)
 	f, err := os.Open(providerFilename)
 	if err != nil {
 		return errors.Wrap(err, "failed to open provider file")
@@ -251,8 +246,8 @@ func registryProviderVersionPlatformCreate(c TfxClientContext, orgName string, p
 
 	rpp, err := c.Client.RegistryProviderPlatforms.Create(c.Context, tfe.RegistryProviderVersionID{
 		RegistryProviderID: tfe.RegistryProviderID{
-			OrganizationName: orgName,
-			Namespace:        orgName, // always org name for RegistryName "private
+			OrganizationName: c.OrganizationName,
+			Namespace:        c.OrganizationName, // always org name for RegistryName "private
 			RegistryName:     tfe.PrivateRegistry,
 			Name:             providerName,
 		},
@@ -278,18 +273,17 @@ func registryProviderVersionPlatformCreate(c TfxClientContext, orgName string, p
 	o.AddDeferredMessageRead("OS", rpp.OS)
 	o.AddDeferredMessageRead("Arch", rpp.Arch)
 	o.AddDeferredMessageRead("Created", rpp.RegistryProviderVersion.CreatedAt)
-	o.Close()
 
 	return nil
 }
 
-func registryProviderVersionPlatformShow(c TfxClientContext, orgName string, providerName string, providerVersion string, providerOS string, providerARCH string) error {
-	o.AddMessageUserProvided("Show Provider Platform in Registry for Organization:", orgName)
+func registryProviderVersionPlatformShow(c TfxClientContext, providerName string, providerVersion string, providerOS string, providerARCH string) error {
+	o.AddMessageUserProvided("Show Provider Platform in Registry for Organization:", c.OrganizationName)
 	rpp, err := c.Client.RegistryProviderPlatforms.Read(c.Context, tfe.RegistryProviderPlatformID{
 		RegistryProviderVersionID: tfe.RegistryProviderVersionID{
 			RegistryProviderID: tfe.RegistryProviderID{
-				OrganizationName: orgName,
-				Namespace:        orgName, // always org name for RegistryName "private
+				OrganizationName: c.OrganizationName,
+				Namespace:        c.OrganizationName, // always org name for RegistryName "private
 				RegistryName:     tfe.PrivateRegistry,
 				Name:             providerName,
 			},
@@ -309,18 +303,17 @@ func registryProviderVersionPlatformShow(c TfxClientContext, orgName string, pro
 	o.AddDeferredMessageRead("ARCH", rpp.Arch)
 	o.AddDeferredMessageRead("Filename", rpp.Filename)
 	o.AddDeferredMessageRead("Shasum", rpp.Shasum)
-	o.Close()
 
 	return nil
 }
 
-func registryProviderVersionPlatformDelete(c TfxClientContext, orgName string, providerName string, providerVersion string, providerOS string, providerARCH string) error {
-	o.AddMessageUserProvided("Delete Provider Platform in Registry for Organization:", orgName)
+func registryProviderVersionPlatformDelete(c TfxClientContext, providerName string, providerVersion string, providerOS string, providerARCH string) error {
+	o.AddMessageUserProvided("Delete Provider Platform in Registry for Organization:", c.OrganizationName)
 	err := c.Client.RegistryProviderPlatforms.Delete(c.Context, tfe.RegistryProviderPlatformID{
 		RegistryProviderVersionID: tfe.RegistryProviderVersionID{
 			RegistryProviderID: tfe.RegistryProviderID{
-				OrganizationName: orgName,
-				Namespace:        orgName, // always org name for RegistryName "private
+				OrganizationName: c.OrganizationName,
+				Namespace:        c.OrganizationName, // always org name for RegistryName "private
 				RegistryName:     tfe.PrivateRegistry,
 				Name:             providerName,
 			},
@@ -336,7 +329,6 @@ func registryProviderVersionPlatformDelete(c TfxClientContext, orgName string, p
 
 	o.AddMessageUserProvided("Provider Version Deleted:", providerName)
 	o.AddDeferredMessageRead("Status", "Success")
-	o.Close()
 
 	return nil
 }

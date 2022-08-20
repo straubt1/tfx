@@ -29,7 +29,7 @@ Create a GPG Key for an Organization using the public key contents.
 **Example**
 
 ```sh
-$ tfx admin gpg create --namespace firefly --publicKey ./hashicorp.51852D87348FFC4C.gpg.public 
+$ tfx admin gpg create --namespace firefly --public-key ./hashicorp.51852D87348FFC4C.gpg.public 
 Using config file: /Users/tstraub/.tfx.hcl
 Create GPG Key for Organization: firefly
 GPG Key Created 
@@ -76,7 +76,7 @@ Show details of a GPG Key for an Organization.
 **Example**
 
 ```sh
-$ tfx admin gpg show --namespace firefly --keyId 51852D87348FFC4C
+$ tfx admin gpg show --namespace firefly --id 51852D87348FFC4C
 Using config file: /Users/tstraub/.tfx.hcl
 Show a GPG Key for Organization: firefly
 GPG Key Found 
@@ -126,7 +126,7 @@ Delete GPG Key for an Organization.
 **Example**
 
 ```sh
-$ tfx admin gpg delete --namespace firefly --keyId 51852D87348FFC4C
+$ tfx admin gpg delete --namespace firefly --id 51852D87348FFC4C
 Using config file: /Users/tstraub/.tfx.hcl
 Delete GPG Key for Organization: firefly
 GPG Key Deleted 

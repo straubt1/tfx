@@ -40,8 +40,7 @@ var (
 		Long:  "List Providers in a Private Registry of a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return registryProviderList(
-				getTfxClientContext(),
-				*viperString("tfeOrganization"))
+				getTfxClientContext())
 		},
 	}
 
@@ -53,7 +52,6 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return registryProviderCreate(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
 				*viperString("name"))
 		},
 	}
@@ -66,7 +64,6 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return registryProviderShow(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
 				*viperString("name"))
 		},
 	}
@@ -79,7 +76,6 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return registryProviderDelete(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
 				*viperString("name"))
 		},
 	}
@@ -107,7 +103,7 @@ func init() {
 	registryProviderCmd.AddCommand(registryProviderDeleteCmd)
 }
 
-func registryProviderListAll(c TfxClientContext, orgName string) ([]*tfe.RegistryProvider, error) {
+func registryProviderListAll(c TfxClientContext) ([]*tfe.RegistryProvider, error) {
 	allItems := []*tfe.RegistryProvider{}
 	opts := tfe.RegistryProviderListOptions{
 		// RegistryName: tfe.PrivateRegistry, // Can restrict to just private
@@ -118,7 +114,7 @@ func registryProviderListAll(c TfxClientContext, orgName string) ([]*tfe.Registr
 		// Include: &[]tfe.RegistryProviderIncludeOps{"provider-versions"}, does not work, cant get provider versions from this call?
 	}
 	for {
-		items, err := c.Client.RegistryProviders.List(c.Context, orgName, &opts)
+		items, err := c.Client.RegistryProviders.List(c.Context, c.OrganizationName, &opts)
 		if err != nil {
 			return nil, err
 		}
@@ -133,9 +129,9 @@ func registryProviderListAll(c TfxClientContext, orgName string) ([]*tfe.Registr
 	return allItems, nil
 }
 
-func registryProviderList(c TfxClientContext, orgName string) error {
-	o.AddMessageUserProvided("List Providers in Registry for Organization:", orgName)
-	items, err := registryProviderListAll(c, orgName)
+func registryProviderList(c TfxClientContext) error {
+	o.AddMessageUserProvided("List Providers in Registry for Organization:", c.OrganizationName)
+	items, err := registryProviderListAll(c)
 	if err != nil {
 		return errors.Wrap(err, "failed to list providers")
 	}
@@ -144,16 +140,15 @@ func registryProviderList(c TfxClientContext, orgName string) error {
 	for _, i := range items {
 		o.AddTableRows(i.Name, i.RegistryName, i.ID, i.UpdatedAt)
 	}
-	o.Close()
 
 	return nil
 }
 
-func registryProviderCreate(c TfxClientContext, orgName string, providerName string) error {
-	o.AddMessageUserProvided("Create Provider in Registry for Organization:", orgName)
-	provider, err := c.Client.RegistryProviders.Create(c.Context, orgName, tfe.RegistryProviderCreateOptions{
+func registryProviderCreate(c TfxClientContext, providerName string) error {
+	o.AddMessageUserProvided("Create Provider in Registry for Organization:", c.OrganizationName)
+	provider, err := c.Client.RegistryProviders.Create(c.Context, c.OrganizationName, tfe.RegistryProviderCreateOptions{
 		Name:         providerName,
-		Namespace:    orgName, // always org name for RegistryName "private"
+		Namespace:    c.OrganizationName, // always org name for RegistryName "private"
 		RegistryName: tfe.PrivateRegistry,
 	})
 	if err != nil {
@@ -164,17 +159,16 @@ func registryProviderCreate(c TfxClientContext, orgName string, providerName str
 	o.AddDeferredMessageRead("ID", provider.ID)
 	o.AddDeferredMessageRead("Namespace", provider.Namespace)
 	o.AddDeferredMessageRead("Created", provider.UpdatedAt)
-	o.Close()
 
 	return nil
 }
 
-func registryProviderShow(c TfxClientContext, orgName string, providerName string) error {
-	o.AddMessageUserProvided("Show Provider in Registry for Organization:", orgName)
+func registryProviderShow(c TfxClientContext, providerName string) error {
+	o.AddMessageUserProvided("Show Provider in Registry for Organization:", c.OrganizationName)
 	provider, err := c.Client.RegistryProviders.Read(c.Context, tfe.RegistryProviderID{
-		OrganizationName: orgName,
+		OrganizationName: c.OrganizationName,
 		Name:             providerName,
-		Namespace:        orgName, // always org name for RegistryName "private"
+		Namespace:        c.OrganizationName, // always org name for RegistryName "private"
 		RegistryName:     tfe.PrivateRegistry,
 	}, &tfe.RegistryProviderReadOptions{
 		Include: []tfe.RegistryProviderIncludeOps{},
@@ -187,17 +181,16 @@ func registryProviderShow(c TfxClientContext, orgName string, providerName strin
 	o.AddDeferredMessageRead("ID", provider.ID)
 	o.AddDeferredMessageRead("Namespace", provider.Namespace)
 	o.AddDeferredMessageRead("Created", provider.UpdatedAt)
-	o.Close()
 
 	return nil
 }
 
-func registryProviderDelete(c TfxClientContext, orgName string, providerName string) error {
-	o.AddMessageUserProvided("Delete Provider in Registry for Organization:", orgName)
+func registryProviderDelete(c TfxClientContext, providerName string) error {
+	o.AddMessageUserProvided("Delete Provider in Registry for Organization:", c.OrganizationName)
 	err := c.Client.RegistryProviders.Delete(c.Context, tfe.RegistryProviderID{
-		OrganizationName: orgName,
+		OrganizationName: c.OrganizationName,
 		Name:             providerName,
-		Namespace:        orgName, // always org name for RegistryName "private"
+		Namespace:        c.OrganizationName, // always org name for RegistryName "private"
 		RegistryName:     tfe.PrivateRegistry,
 	})
 	if err != nil {
@@ -206,7 +199,6 @@ func registryProviderDelete(c TfxClientContext, orgName string, providerName str
 
 	o.AddMessageUserProvided("Provider Deleted:", providerName)
 	o.AddDeferredMessageRead("Status", "Success")
-	o.Close()
 
 	return nil
 }

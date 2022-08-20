@@ -52,13 +52,13 @@ var (
 		Short: "List State Versions",
 		Long:  "List State Versions of a TFx Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := *viperInt("maxItems")
+			m := *viperInt("max-items")
 			if *viperBool("all") {
 				m = math.MaxInt
 			}
 			return stateList(
 				getTfxClientContext(),
-				*viperString("workspaceName"),
+				*viperString("workspace-name"),
 				m)
 		},
 	}
@@ -75,7 +75,7 @@ var (
 
 			return stateCreate(
 				getTfxClientContext(),
-				*viperString("workspaceName"),
+				*viperString("workspace-name"),
 				*viperString("filename"))
 		},
 	}
@@ -88,7 +88,7 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return stateShow(
 				getTfxClientContext(),
-				*viperString("stateId"))
+				*viperString("state-id"))
 		},
 	}
 
@@ -105,7 +105,7 @@ var (
 
 			return stateDownload(
 				getTfxClientContext(),
-				*viperString("stateId"),
+				*viperString("state-id"),
 				directory)
 		},
 	}
@@ -113,26 +113,26 @@ var (
 
 func init() {
 	// `tfx workspace state list` command
-	stateListCmd.Flags().StringP("workspaceName", "w", "", "Workspace name")
-	stateListCmd.Flags().IntP("maxItems", "", 10, "Max number of results (optional)")
+	stateListCmd.Flags().StringP("workspace-name", "w", "", "Workspace name")
+	stateListCmd.Flags().IntP("max-items", "", 10, "Max number of results (optional)")
 	stateListCmd.Flags().BoolP("all", "a", false, "Retrieve all results regardless of maxItems flag (optional)")
-	stateListCmd.MarkFlagRequired("workspaceName")
+	stateListCmd.MarkFlagRequired("workspace-name")
 
 	// `tfx workspace state create` command
-	stateCreateCmd.Flags().StringP("workspaceName", "w", "", "Workspace name")
+	stateCreateCmd.Flags().StringP("workspace-name", "w", "", "Workspace name")
 	stateCreateCmd.Flags().StringP("filename", "f", "", "Filename of the state file to create")
-	stateCreateCmd.MarkFlagRequired("workspaceName")
+	stateCreateCmd.MarkFlagRequired("workspace-name")
 	stateCreateCmd.MarkFlagRequired("filename")
 
 	// `tfx workspace state show` command
-	stateShowCmd.Flags().StringP("stateId", "i", "", "State Version Id (i.e. sv-*)")
-	stateShowCmd.MarkFlagRequired("stateId")
+	stateShowCmd.Flags().StringP("state-id", "i", "", "State Version Id (i.e. sv-*)")
+	stateShowCmd.MarkFlagRequired("state-id")
 
 	// `tfx workspace state download` command
-	stateDownloadCmd.Flags().StringP("stateId", "i", "", "State Version Id (i.e. sv-*)")
+	stateDownloadCmd.Flags().StringP("state-id", "i", "", "State Version Id (i.e. sv-*)")
 	stateDownloadCmd.Flags().StringP("directory", "d", "", "Directory of download state version (optional, defaults to a temp directory)")
 	stateDownloadCmd.Flags().StringP("filename", "f", "", "Filename to save State Version as (optional)")
-	stateDownloadCmd.MarkFlagRequired("stateId")
+	stateDownloadCmd.MarkFlagRequired("state-id")
 
 	workspaceCmd.AddCommand(stateCmd)
 	stateCmd.AddCommand(stateListCmd)
@@ -188,7 +188,6 @@ func stateList(c TfxClientContext, workspaceName string, maxItems int) error {
 		}
 		o.AddTableRows(i.ID, i.TerraformVersion, i.Serial, runId, FormatDateTime(i.CreatedAt))
 	}
-	o.Close()
 
 	return nil
 }
@@ -225,7 +224,7 @@ func stateCreate(c TfxClientContext, workspaceName string, filename string) erro
 	o.AddDeferredMessageRead("Provided Lineage", st.Lineage)
 	o.AddDeferredMessageRead("Provided Serial", st.Serial)
 
-	workspaceId, err := getWorkspaceId(c, c.OrganizationName, workspaceName)
+	workspaceId, err := getWorkspaceId(c, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
 	}
@@ -295,7 +294,6 @@ func stateShow(c TfxClientContext, stateId string) error {
 	for _, i := range state.Outputs {
 		o.AddDeferredMessageRead("output_"+i.Name, i.Value)
 	}
-	o.Close()
 
 	return nil
 }
@@ -321,7 +319,6 @@ func stateDownload(c TfxClientContext, stateId string, directory string) error {
 
 	o.AddDeferredMessageRead("Status", "Success")
 	o.AddDeferredMessageRead("File", fullPath)
-	o.Close()
 
 	return nil
 }

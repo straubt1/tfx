@@ -17,7 +17,7 @@ List all State Versions for a supplied Workspace.
 **Example**
 
 ```sh
-$ tfx workspace state-version list -w tt-workspace
+$ tfx workspace state-version list --workspace-name tt-workspace
 Using config file: /Users/tstraub/.tfx.hcl
 List State Versions for Workspace: tt-workspace
 ╭─────────────────────┬───────────────────┬────────┬──────────────────────┬───────────────────────╮
@@ -43,7 +43,7 @@ Show state details for a supplied State Version.
 **Example**
 
 ```sh
-$ tfx workspace state-version show --stateId sv-VfpmiWSw5NUVWe5W
+$ tfx workspace state-version show --state-id sv-VfpmiWSw5NUVWe5W
 Using config file: /Users/tstraub/.tfx.hcl
 Show State Version for Workspace from Id: sv-VfpmiWSw5NUVWe5W
 ID:                sv-VfpmiWSw5NUVWe5W
@@ -62,7 +62,7 @@ Download a specific State Version.
 **Temp Folder Example**
 
 ```sh
-$ tfx workspace state-version download --stateId sv-VfpmiWSw5NUVWe5W
+$ tfx workspace state-version download --state-id sv-VfpmiWSw5NUVWe5W
 Using config file: /Users/tstraub/.tfx.hcl
 Directory not supplied, creating a temp directory 
 Downloading State Version from Id: sv-VfpmiWSw5NUVWe5W
@@ -96,7 +96,7 @@ This command aims to assist in this process by performing the following actions 
 **Example**
 
 ```sh
-$ tfx workspace state-version create -w tt-workspace --filename sv-eoYznk6PbJY1o9XY.state 
+$ tfx workspace state-version create --workspace-name tt-workspace --filename sv-eoYznk6PbJY1o9XY.state 
 Using config file: /Users/tstraub/.tfx.hcl
 Create State Version for Workspace: tt-workspace
 Read state file and Parse: sv-eoYznk6PbJY1o9XY.state

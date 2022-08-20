@@ -51,15 +51,15 @@ var (
 		Short: "Create GPG Key",
 		Long:  "Create GPG Key for a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !isFile(*viperString("publicKey")) {
+			if !isFile(*viperString("public-key")) {
 				return errors.New("publicKey file does not exist")
 			}
 
 			return gpgCreate(
 				getTfxClientContext(),
 				*viperString("namespace"),
-				*viperString("publicKey"),
-				*viperString("registryName"))
+				*viperString("public-key"),
+				*viperString("registry-name"))
 		},
 	}
 
@@ -71,7 +71,7 @@ var (
 			return gpgShow(
 				getTfxClientContext(),
 				*viperString("namespace"),
-				*viperString("keyId"))
+				*viperString("id"))
 		},
 	}
 
@@ -83,7 +83,7 @@ var (
 			return gpgDelete(
 				getTfxClientContext(),
 				*viperString("namespace"),
-				*viperString("keyId"))
+				*viperString("id"))
 		},
 	}
 )
@@ -93,24 +93,24 @@ func init() {
 
 	// `tfx gpg create`
 	gpgCreateCmd.Flags().StringP("namespace", "n", "", "Namespace (typically the organization name)")
-	gpgCreateCmd.Flags().StringP("publicKey", "k", "", "File path to the public GPG key")
-	gpgCreateCmd.Flags().StringP("registryName", "r", "private", "Registry name")
+	gpgCreateCmd.Flags().StringP("public-key", "k", "", "File path to the public GPG key")
+	gpgCreateCmd.Flags().StringP("registry-name", "r", "private", "Registry name")
 	gpgCreateCmd.MarkFlagRequired("namespace")
-	gpgCreateCmd.MarkFlagRequired("publicKey")
+	gpgCreateCmd.MarkFlagRequired("public-key")
 
 	// `tfx gpg show`
 	gpgShowCmd.Flags().StringP("namespace", "n", "", "Namespace (typically the organization name)")
-	gpgShowCmd.Flags().StringP("keyId", "k", "", "GPG key Id")
-	gpgShowCmd.Flags().StringP("registryName", "r", "private", "Registry name")
+	gpgShowCmd.Flags().StringP("id", "i", "", "GPG key Id")
+	gpgShowCmd.Flags().StringP("registry-name", "r", "private", "Registry name")
 	gpgShowCmd.MarkFlagRequired("namespace")
-	gpgShowCmd.MarkFlagRequired("keyId")
+	gpgShowCmd.MarkFlagRequired("id")
 
 	// `tfx gpg delete`
 	gpgDeleteCmd.Flags().StringP("namespace", "n", "", "Namespace (typically the organization name)")
-	gpgDeleteCmd.Flags().StringP("keyId", "k", "", "GPG key Id")
-	gpgDeleteCmd.Flags().StringP("registryName", "r", "private", "Registry name")
+	gpgDeleteCmd.Flags().StringP("id", "i", "", "GPG key Id")
+	gpgDeleteCmd.Flags().StringP("registry-name", "r", "private", "Registry name")
 	gpgDeleteCmd.MarkFlagRequired("namespace")
-	gpgDeleteCmd.MarkFlagRequired("keyId")
+	gpgDeleteCmd.MarkFlagRequired("id")
 
 	adminCmd.AddCommand(gpgCmd)
 	gpgCmd.AddCommand(gpgListCmd)
@@ -130,7 +130,6 @@ func gpgList(c TfxClientContext) error {
 	for _, i := range gpg.Keys {
 		o.AddTableRows(i.Attributes.KeyID, i.Attributes.Namespace, FormatDateTime(i.Attributes.UpdatedAt), FormatDateTime(i.Attributes.CreatedAt))
 	}
-	o.Close()
 
 	return nil
 }
@@ -156,7 +155,6 @@ func gpgCreate(c TfxClientContext, namespace string, publicKey string, registryN
 	o.AddDeferredMessageRead("Created", FormatDateTime(g.CreatedAt))
 	o.AddDeferredMessageRead("Updated", FormatDateTime(g.UpdatedAt))
 	o.AddDeferredMessageRead("AsciiArmor", "\n"+g.AsciiArmor)
-	o.Close()
 
 	return nil
 }
@@ -177,7 +175,6 @@ func gpgShow(c TfxClientContext, namespace string, keyId string) error {
 	o.AddDeferredMessageRead("Created", FormatDateTime(g.CreatedAt))
 	o.AddDeferredMessageRead("Updated", FormatDateTime(g.UpdatedAt))
 	o.AddDeferredMessageRead("AsciiArmor", "\n"+g.AsciiArmor)
-	o.Close()
 
 	return nil
 }
@@ -196,7 +193,6 @@ func gpgDelete(c TfxClientContext, namespace string, keyId string) error {
 	}
 	o.AddMessageUserProvided("GPG Key Deleted", "")
 	o.AddDeferredMessageRead("Status", "Success")
-	o.Close()
 
 	return nil
 }

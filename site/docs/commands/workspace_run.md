@@ -11,9 +11,9 @@ List all Runs for a supplied Workspace.
 **Example**
 
 ```sh
-$ tfx workspace run list -w tt-workspace
+$ tfx workspace run list --workspace-name tt--workspace-nameorkspace
 Using config file: /Users/tstraub/.tfx.hcl
-List Runs for Workspace: tt-workspace
+List Runs for Workspace: tt--workspace-nameorkspace
 ╭──────────────────────┬───────────────────────┬──────────────────────┬───────────┬───────────────────┬───────────────────────┬──────────────────────────────────────────────────╮
 │ ID                   │ CONFIGURATION VERSION │ STATUS               │ PLAN ONLY │ TERRAFORM VERSION │ CREATED               │ MESSAGE                                          │
 ├──────────────────────┼───────────────────────┼──────────────────────┼───────────┼───────────────────┼───────────────────────┼──────────────────────────────────────────────────┤
@@ -35,15 +35,15 @@ Create a Run for a supplied Workspace.
 **Latest Configuration Version Example**
 
 ```sh
-$ tfx workspace run create -w tt-workspace          
+$ tfx workspace run create --workspace-name tt--workspace-nameorkspace          
 Using config file: /Users/tstraub/.tfx.hcl
-Create Run for Workspace: tt-workspace
+Create Run for Workspace: tt--workspace-nameorkspace
 The run will be created using the workspace's latest configuration version 
 Run Created 
 ID:                    run-RZntt2QgVmD5w9xa
 Configuration Version: cv-e83GeSpjVKXuUGmU
 Terraform Version:     1.0.0
-Link:                  https://tfe.rocks/app/firefly/workspaces/tt-workspace/runs/run-RZntt2QgVmD5w9xa
+Link:                  https://tfe.rocks/app/firefly/workspaces/tt--workspace-nameorkspace/runs/run-RZntt2QgVmD5w9xa
 ```
 
 **Specific Configuration Version Example**
@@ -52,7 +52,7 @@ Link:                  https://tfe.rocks/app/firefly/workspaces/tt-workspace/run
   Executing this command with a specific Configuration Version will result in that Configuration Version to be the **latest**
 
 ```sh
-$  tfx workspace run create -w tfx-test -i cv-q9yhRwv73u6UFJdq
+$  tfx workspace run create --workspace-name tfx-test --id cv-q9yhRwv73u6UFJdq
 Using config file: /Users/tstraub/.tfx.hcl
 Create Run for Workspace: tfx-test
 Configuration Version Provided: cv-q9yhRwv73u6UFJdq
@@ -66,7 +66,7 @@ Link:                  https://tfe.rocks/app/firefly/workspaces/tfx-test/runs/ru
 **Message Example**
 
 ```sh
-$ tfx workspace run create -w tfx-test --message "Run created from the TFx CLI"
+$ tfx workspace run create --workspace-name tfx-test --message "Run created from the TFx CLI"
 Using config file: /Users/tstraub/.tfx.hcl
 Create Run for Workspace: tfx-test
 The run will be created using the workspace's latest configuration version 
