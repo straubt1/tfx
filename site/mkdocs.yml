@@ -42,11 +42,7 @@ theme:
 
 markdown_extensions:
   - admonition
-  # - pymdownx.highlight:
-      # anchor_linenums: true
-  # - pymdownx.inlinehilite
   - pymdownx.snippets
-  # - pymdownx.superfences
 
 
 nav:
@@ -69,3 +65,4 @@ nav:
     - Why TFx?: about/purpose.md
     - Release Notes: about/release_notes.md
     - Contributing: about/contributing.md
+    - Style Guide: about/style_guide.md

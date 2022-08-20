@@ -1,9 +1,12 @@
 # Workspace State Version Commands
 
-Managing Workspace State Files (State Versions) in a Workspace.
+Managing Workspace State Versions (State Files).
 
 !!! note ""
     All commands below can be used with a `sv` alias.
+
+!!! note ""
+    Deleting a State Version is not possible at this time.
 
 ## `tfx workspace state-version list`
 
@@ -14,9 +17,9 @@ List all State Versions for a supplied Workspace.
 **Example**
 
 ```sh
-$ tfx workspace state-version list -w tfx-test
+$ tfx workspace state-version list -w tt-workspace
 Using config file: /Users/tstraub/.tfx.hcl
-List State Versions for Workspace: tfx-test
+List State Versions for Workspace: tt-workspace
 ╭─────────────────────┬───────────────────┬────────┬──────────────────────┬───────────────────────╮
 │ ID                  │ TERRAFORM VERSION │ SERIAL │ RUN ID               │ CREATED               │
 ├─────────────────────┼───────────────────┼────────┼──────────────────────┼───────────────────────┤
@@ -72,16 +75,36 @@ File:   /var/folders/99/srh_6psj6g5520gwyv8v3nbw0000gn/T/slug3100435901/sv-Vfpmi
 ## `tfx workspace state-version create`
 
 Create a new State Version with a supplied state file.
-- There is no way to delete State Versions
-- The LAST State Version to be created is the "current" state file that will be used by the Workspace
+
+State Version creation has a few limitations:
+
+- The **last** State Version to be created is the "current" state file that will be used by the Workspace
 - A Workspace must be locked to create new State Version
 - The "serial" attribute must be incremented
 - The "lineage" attribute must be the same for any newly created State Version
-- The API does not return a state versions lineage, you must download the file and parse to get the lineage
+- The API does not return "lineage" of state version, you must download the file and parse to get the lineage
+
+This command aims to assist in this process by performing the following actions in order:
+
+- Reads the **latest** State Version of thew Workspace (if it exists) and its "Serial" property.
+- Parses the provided file.
+- Overwrites the "Serial" property to +1 more than the **latest** State Version (else zero if one does not exist). 
+- Locks the Workspace
+- Creates the new State Version
+- Unlocks the Workspace
 
 **Example**
 
 ```sh
-$ 
+$ tfx workspace state-version create -w tt-workspace --filename sv-eoYznk6PbJY1o9XY.state 
+Using config file: /Users/tstraub/.tfx.hcl
+Create State Version for Workspace: tt-workspace
+Read state file and Parse: sv-eoYznk6PbJY1o9XY.state
+Locking Workspace... 
+Creating State Version... 
+Unlocking Workspace... 
+Provided Lineage: 6fb59365-0cc0-1c28-9dba-829221169747
+Provided Serial:  21
+Existing Serial:  21
+Created Serial:   22
 ```
-

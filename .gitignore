@@ -28,4 +28,6 @@ bin/
 *.airgap
 *.tgz
 *.targz
-styleguide.md
+sv-*
+cv-*
+*.state

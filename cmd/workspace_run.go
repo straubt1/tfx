@@ -86,7 +86,7 @@ func init() {
 
 	// `tfx workspace run create` command
 	runCreateCmd.Flags().StringP("workspaceName", "w", "", "Workspace name")
-	runCreateCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (defaults to current directory)")
+	// runCreateCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (defaults to current directory)")
 	runCreateCmd.Flags().StringP("message", "m", "", "Run Message (optional)")
 	runCreateCmd.Flags().StringP("cvId", "i", "", "Configuration Version (optional)")
 	runCreateCmd.MarkFlagRequired("workspaceName")
@@ -137,12 +137,10 @@ func runList(c TfxClientContext, orgName string, workspaceName string) error {
 		return errors.Wrap(err, "failed to list variables")
 	}
 
-	o.AddTableHeader("Id", "Status", "Plan Only", "Terraform Version", "Created")
+	o.AddTableHeader("Id", "Configuration Version", "Status", "Plan Only", "Terraform Version", "Created", "Message")
 	for _, i := range items {
-		o.AddTableRows(i.ID, i.Status, i.PlanOnly, i.TerraformVersion, FormatDateTime(i.CreatedAt))
+		o.AddTableRows(i.ID, i.ConfigurationVersion.ID, i.Status, i.PlanOnly, i.TerraformVersion, FormatDateTime(i.CreatedAt), i.Message)
 	}
-	o.AddMessageUserProvided("Count:", len(items))
-	o.Close()
 
 	return nil
 }

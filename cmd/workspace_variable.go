@@ -28,9 +28,10 @@ import (
 var (
 	// `tfx variable` commands
 	variableCmd = &cobra.Command{
-		Use:   "variable",
-		Short: "Variable Commands",
-		Long:  "Commands to work with Workspace Variables.",
+		Aliases: []string{"var"},
+		Use:     "variable",
+		Short:   "Variable Commands",
+		Long:    "Commands to work with Workspace Variables.",
 	}
 
 	// `tfx variable list` command
@@ -335,7 +336,7 @@ func variableUpdate(c TfxClientContext, orgName string, workspaceName string,
 		return errors.Wrap(err, "Failed to Update Variable")
 	}
 
-	o.AddMessageUserProvided("Variable Updated", workspaceName)
+	o.AddMessageUserProvided("Variable Updated", "")
 	o.AddDeferredMessageRead("ID", variable.ID)
 	o.AddDeferredMessageRead("Key", variable.Key)
 	o.AddDeferredMessageRead("Value", variable.Value)
