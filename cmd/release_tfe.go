@@ -46,7 +46,7 @@ var (
 			return releaseTfeList(
 				*viperString("license-id"),
 				*viperString("password"),
-				*viperInt("maxResults"))
+				*viperInt("max-items"))
 		},
 	}
 
@@ -86,7 +86,7 @@ func init() {
 	// `tfx release tfe list`
 	releaseTfeListCmd.Flags().StringP("license-id", "l", "", "License Id for TFE/Replicated")
 	releaseTfeListCmd.Flags().StringP("password", "p", "", "Password to authenticate")
-	releaseTfeListCmd.Flags().IntP("maxResults", "r", 10, "The number of results to print")
+	releaseTfeListCmd.Flags().IntP("max-items", "r", 10, "The number of results to print")
 	releaseTfeListCmd.MarkFlagRequired("license-id")
 	releaseTfeListCmd.MarkFlagRequired("password")
 
@@ -113,7 +113,7 @@ func init() {
 	releaseTfeCmd.AddCommand(releaseTfeDownloadCmd)
 }
 
-func releaseTfeList(licenseId string, password string, maxResults int) error {
+func releaseTfeList(licenseId string, password string, maxItems int) error {
 	o.AddMessageUserProvided("List Available Terraform Enterprise Releases", "")
 	tfeBinaries, err := ListTFEBinaries(password, licenseId)
 	if err != nil {
@@ -123,7 +123,7 @@ func releaseTfeList(licenseId string, password string, maxResults int) error {
 	o.AddTableHeader("Sequence", "Label", "Required", "Release Date")
 	for index, i := range tfeBinaries.Releases {
 		o.AddTableRows(i.ReleaseSequence, i.Label, i.Required, FormatDateTime(i.ReleaseDate))
-		if index+1 >= maxResults {
+		if index+1 >= maxItems {
 			break
 		}
 	}

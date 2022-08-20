@@ -12,7 +12,7 @@ Managing Workspace Configuration Versions in a Workspace.
 
 List all Configuration Versions for a supplied Workspace.
 
-`--maxItems` defaults to 10, setting this to a higher number will retrieve more items.
+`--max-items` defaults to 10, setting this to a higher number will retrieve more items.
 
 **Example**
 

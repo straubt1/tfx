@@ -143,10 +143,10 @@ func init() {
 
 func stateListAll(c TfxClientContext, workspaceName string, maxItems int) ([]*tfe.StateVersion, error) {
 	pageSize := 100
-
 	if maxItems < 100 {
 		pageSize = maxItems // Only get what we need in one page
 	}
+
 	allItems := []*tfe.StateVersion{}
 	opts := tfe.StateVersionListOptions{
 		ListOptions:  tfe.ListOptions{PageNumber: 1, PageSize: pageSize},
