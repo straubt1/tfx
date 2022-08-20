@@ -56,7 +56,7 @@ var (
 			if !isFile(*viperString("shasums")) {
 				return errors.New("shasums file does not exist")
 			}
-			if !isFile(*viperString("shasumssig")) {
+			if !isFile(*viperString("shasums-sig")) {
 				return errors.New("shasumssig file does not exist")
 			}
 
@@ -64,9 +64,9 @@ var (
 				getTfxClientContext(),
 				*viperString("name"),
 				*viperString("version"),
-				*viperString("keyId"),
+				*viperString("key-id"),
 				*viperString("shasums"),
-				*viperString("shasumssig"),
+				*viperString("shasums-sig"),
 			)
 		},
 	}
@@ -105,14 +105,14 @@ func init() {
 	// `tfx registry provider version create` arguments
 	registryProviderVersionCreateCmd.Flags().StringP("name", "n", "", "Name of the Provider")
 	registryProviderVersionCreateCmd.Flags().StringP("version", "v", "", "Version of Provider (i.e. 0.0.1)")
-	registryProviderVersionCreateCmd.Flags().StringP("keyId", "", "", "GPG Key Id")
+	registryProviderVersionCreateCmd.Flags().StringP("key-id", "", "", "GPG Key Id")
 	registryProviderVersionCreateCmd.Flags().StringP("shasums", "", "", "Path to shasums")
-	registryProviderVersionCreateCmd.Flags().StringP("shasumssig", "", "", "Path to shasumssig")
+	registryProviderVersionCreateCmd.Flags().StringP("shasums-sig", "", "", "Path to shasumssig")
 	registryProviderVersionCreateCmd.MarkFlagRequired("name")
 	registryProviderVersionCreateCmd.MarkFlagRequired("version")
-	registryProviderVersionCreateCmd.MarkFlagRequired("keyId")
+	registryProviderVersionCreateCmd.MarkFlagRequired("key-id")
 	registryProviderVersionCreateCmd.MarkFlagRequired("shasums")
-	registryProviderVersionCreateCmd.MarkFlagRequired("shasumssig")
+	registryProviderVersionCreateCmd.MarkFlagRequired("shasums-sig")
 
 	// `tfx registry provider version show` arguments
 	registryProviderVersionShowCmd.Flags().StringP("name", "n", "", "Name of the Provider")

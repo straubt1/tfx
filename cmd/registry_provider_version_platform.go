@@ -262,7 +262,7 @@ func registryProviderVersionPlatformCreate(c TfxClientContext, providerName stri
 		return errors.Wrap(err, "failed to create provider version platform")
 	}
 
-	o.AddMessageUserProvided("Uploading Provider Version Platform", "")
+	o.AddMessageUserProvided("Uploading Provider Version Platform...", "")
 	err = UploadBinary(rpp.Links["provider-binary-upload"].(string), providerFilename)
 	if err != nil {
 		return errors.Wrap(err, "failed to upload binary to provider version platform")
@@ -272,7 +272,7 @@ func registryProviderVersionPlatformCreate(c TfxClientContext, providerName stri
 	o.AddDeferredMessageRead("ID", rpp.ID)
 	o.AddDeferredMessageRead("OS", rpp.OS)
 	o.AddDeferredMessageRead("Arch", rpp.Arch)
-	o.AddDeferredMessageRead("Created", rpp.RegistryProviderVersion.CreatedAt)
+	// o.AddDeferredMessageRead("Created", rpp.RegistryProviderVersion.CreatedAt)
 
 	return nil
 }
