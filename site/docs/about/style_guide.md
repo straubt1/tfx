@@ -4,10 +4,10 @@ A good CLI has a consistent and concise feel.
 
 The goal of this document is to outline the general user experience when dealing with the default output. 
 
-!!! Note ""
-  When using the `--json` flag on a command, the output will simply be JSON and this guide does not apply.
-
 ## Colors
+
+!!! Note ""
+  When using the `--json` flag on a command these colors will not apply.
 
 - User Provided: Green
     - These values are provided by the user, either through a configuration file or a command flag.
