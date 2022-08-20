@@ -13,7 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* Moved and updated docs to the `site/` folder and published to tfx.rocks custom domain.
+* Moved and updated docs to the `site/` folder and published to a custom domain [tfx.rocks](tfx.rocks).
+* Created a styleguide and updated Commands, more information can be found at [https://tfx.rocks/about/style_guide/]()
+  * Some of these changes are **BREAKING** changes
+  * Mainly moving away from Command Flags that used camel case (example: "workspaceName" to "workspace-name")
 * Updated all of the `tfx registry module` commands to support JSON (`--json`) output.
 * Moved Module Registry commands from the `pmr` command, the new commands are:
   * `tfx registry module list`
