@@ -41,8 +41,7 @@ var (
 		Long:  "List modules in the Private Module Registry of a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return registryModuleList(
-				getTfxClientContext(),
-				*viperString("tfeOrganization"))
+				getTfxClientContext())
 		},
 	}
 
@@ -54,7 +53,6 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return registryModuleCreate(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
 				*viperString("name"),
 				*viperString("provider"))
 		},
@@ -68,7 +66,6 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return registryModuleShow(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
 				*viperString("name"),
 				*viperString("provider"))
 		},
@@ -82,7 +79,6 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return registryModuleDelete(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
 				*viperString("name"),
 				*viperString("provider"))
 		},
@@ -142,9 +138,9 @@ func registryModuleListAll(c TfxClientContext, orgName string) ([]*tfe.RegistryM
 	return allItems, nil
 }
 
-func registryModuleList(c TfxClientContext, orgName string) error {
-	o.AddMessageUserProvided("List Modules for Organization:", orgName)
-	items, err := registryModuleListAll(c, orgName)
+func registryModuleList(c TfxClientContext) error {
+	o.AddMessageUserProvided("List Modules for Organization:", c.OrganizationName)
+	items, err := registryModuleListAll(c, c.OrganizationName)
 	if err != nil {
 		return errors.Wrap(err, "failed to list modules")
 	}
@@ -153,14 +149,13 @@ func registryModuleList(c TfxClientContext, orgName string) error {
 	for _, i := range items {
 		o.AddTableRows(i.Name, i.Provider, i.ID, i.Status, i.UpdatedAt, len(i.VersionStatuses))
 	}
-	o.Close()
 
 	return nil
 }
 
-func registryModuleCreate(c TfxClientContext, orgName string, moduleName string, providerName string) error {
-	o.AddMessageUserProvided("Create Module for Organization:", orgName)
-	module, err := c.Client.RegistryModules.Create(c.Context, orgName, tfe.RegistryModuleCreateOptions{
+func registryModuleCreate(c TfxClientContext, moduleName string, providerName string) error {
+	o.AddMessageUserProvided("Create Module for Organization:", c.OrganizationName)
+	module, err := c.Client.RegistryModules.Create(c.Context, c.OrganizationName, tfe.RegistryModuleCreateOptions{
 		Name:     &moduleName,
 		Provider: &providerName,
 	})
@@ -173,18 +168,17 @@ func registryModuleCreate(c TfxClientContext, orgName string, moduleName string,
 	o.AddDeferredMessageRead("Namespace", module.Namespace)
 	o.AddDeferredMessageRead("Created", module.CreatedAt)
 	o.AddDeferredMessageRead("Updated", module.CreatedAt)
-	o.Close()
 
 	return nil
 }
 
-func registryModuleShow(c TfxClientContext, orgName string, moduleName string, providerName string) error {
-	o.AddMessageUserProvided("Show Module for Organization:", orgName)
+func registryModuleShow(c TfxClientContext, moduleName string, providerName string) error {
+	o.AddMessageUserProvided("Show Module for Organization:", c.OrganizationName)
 	module, err := c.Client.RegistryModules.Read(c.Context, tfe.RegistryModuleID{
-		Organization: orgName,
+		Organization: c.OrganizationName,
 		Name:         moduleName,
 		Provider:     providerName,
-		Namespace:    orgName,
+		Namespace:    c.OrganizationName,
 		RegistryName: tfe.PrivateRegistry,
 	})
 	if err != nil {
@@ -199,16 +193,15 @@ func registryModuleShow(c TfxClientContext, orgName string, moduleName string, p
 	if len(module.VersionStatuses) > 0 {
 		o.AddDeferredMessageRead("Latest Version", module.VersionStatuses[0].Version)
 	}
-	o.Close()
 
 	return nil
 }
 
-func registryModuleDelete(c TfxClientContext, orgName string, moduleName string, providerName string) error {
-	o.AddMessageUserProvided("Delete Module for Organization:", orgName)
+func registryModuleDelete(c TfxClientContext, moduleName string, providerName string) error {
+	o.AddMessageUserProvided("Delete Module for Organization:", c.OrganizationName)
 	// RegistryModules.DeleteProvider requires the provider as well (if just the name is used, multiple modules could be deleted)
 	err := c.Client.RegistryModules.DeleteProvider(c.Context, tfe.RegistryModuleID{
-		Organization: orgName,
+		Organization: c.OrganizationName,
 		Name:         moduleName,
 		Provider:     providerName,
 		RegistryName: tfe.PrivateRegistry,
@@ -219,7 +212,6 @@ func registryModuleDelete(c TfxClientContext, orgName string, moduleName string,
 
 	o.AddMessageUserProvided("Module Deleted:", moduleName)
 	o.AddDeferredMessageRead("Status", "Success")
-	o.Close()
 
 	return nil
 }

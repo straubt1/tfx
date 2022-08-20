@@ -7,15 +7,25 @@ These commands make the management of these providers via the API (the only way 
 
 There are several "resources" needed to create a Provider in the Registry that have a dependency hierarchy.
 
-- "Provider" 
-  - (Name, Example: "aws")
-  - "Provider Version" 
-    - (Version, Example: "4.0.1") 
-    - (SHASUMS & SHASUMSSIG files)
-    - (GPG Key ID)
-    - "Provider Version Platform"
-      - (OS, Example: Linux)
-      - (Arch, Example: amd64) 
+``` mermaid
+classDiagram
+  Provider --|> ProviderVersion
+  ProviderVersion --|> ProviderVersionPlatform
+  class Provider{
+    +String Name, Example: "aws"
+  }
+  class ProviderVersion{
+    +String Version, Example: "1.0.0"
+    +String SHASUMS
+    +String SHASUMSSIG
+    +String GPG Key Id
+  }
+  class ProviderVersionPlatform{
+    +String OS, Example: "linux"
+    +String ARCH, Example: "amd64"
+    +String Binary
+  }
+```
 
 ## `tfx registry provider list`
 
@@ -43,7 +53,7 @@ Create a Provider in the Registry.
 **Example:**
 
 ```sh
-$ tfx registry provider create -n google
+$ tfx registry provider create --name google
 Using config file: /Users/tstraub/.tfx.hcl
 Create Provider in Registry for Organization: firefly
 Provider Created: google
@@ -59,7 +69,7 @@ Show details of a Provider in the Registry.
 **Example:**
 
 ```sh
-$ tfx registry provider show -n google
+$ tfx registry provider show --name google
 Using config file: /Users/tstraub/.tfx.hcl
 Show Provider in Registry for Organization: firefly
 Name:      google
@@ -75,7 +85,7 @@ Delete a Provider in the Registry.
 **Example:**
 
 ```sh
-$ tfx registry provider delete -n google
+$ tfx registry provider delete --name google
 Using config file: /Users/tstraub/.tfx.hcl
 Delete Provider in Registry for Organization: firefly
 Provider Deleted: google
@@ -96,7 +106,9 @@ Create a Version for a Provider in the Registry.
 
 `--shasums` Is required to be set to the path to shasums file. This file contains all the SHASUMS for each provider version platform you wish to upload.
 
-**Example:**
+`--shasums-sig` Is required to be set to the path to shasums signature binary file.
+
+**SHAMSUM File Content Example:**
 
 ```
 e31c31d00f42ea2dbaab1ad4c245da5cfff63e28399b5a5795b5e6a826c6c8af  terraform-provider-aws_4.3.0_darwin_amd64.zip
@@ -112,7 +124,19 @@ d0df94d3112a25de609dfb55c5e3b0d119dea519a2bdd8099e64a8d63f22b683  terraform-prov
 766f9aef619cfd23e924aee523791acccd30b6d8f1cc0ed1a7b5c953bf8c5392  terraform-provider-aws_4.3.0_windows_amd64.zip
 ```
 
-`--shasumssig` Is required to be set to the path to shasums signature file. This file is a binary
+```sh
+$ tfx registry provider version create --name random --version 4.3.0 --key-id 51852D87348FFC4C --shasums ./terraform-provider-random_3.1.0_SHA256SUMS --shasums-sig=./terraform-provider-random_3.1.0_SHA256SUMS.sig
+Using config file: /Users/tstraub/.tfx.hcl
+Create Provider Version in Registry for Organization: firefly
+Provider Name: random
+Uploading shasums and sig 
+/Users/tstraub/Projects/hashicorp-services.github.com/pmr-providers-guide/providers/random/3.1.0/terraform-provider-random_3.1.0_SHA256SUMS /Users/tstraub/Projects/hashicorp-services.github.com/pmr-providers-guide/providers/random/3.1.0/terraform-provider-random_3.1.0_SHA256SUMS.sig 2022-08-20T18:27:13.859Z
+Provider Version Created 
+Name:    random
+ID:      provver-ujrSC8txwA62a1uz
+Version: 4.3.0
+Created: 2022-08-20T18:27:13.859Z
+```
 
 ## `tfx registry provider version show`
 
@@ -121,7 +145,7 @@ Show details a Version for a Provider in the Registry.
 **Example:**
 
 ```sh
-$ tfx registry provider version show -n aws -v 4.3.0
+$ tfx registry provider version show --name aws --version 4.3.0
 Using config file: /Users/tstraub/.tfx.hcl
 Show Provider Version in Registry for Organization: firefly
 Name:                 aws
@@ -145,16 +169,66 @@ d0df94d3112a25de609dfb55c5e3b0d119dea519a2bdd8099e64a8d63f22b683  terraform-prov
 
 ## `tfx registry provider version delete`
 
-Delete a Version for a Provider in the Registry
+Delete a Version for a Provider in the Registry.
+
+**Example**
+
+```sh
+$ tfx registry provider version delete --name aws --version 4.3.0
+Using config file: /Users/tstraub/.tfx.hcl
+Delete Provider Version in Registry for Organization: firefly
+Provider Version Deleted: aws
+Status: Success
+```
 
 ## `tfx registry provider version platform create`
 
-Create a Platform Version for a Provider in the Registry
+Create a Platform Version for a Provider in the Registry.
+
+**Example**
+
+```sh
+$ tfx registry provider version platform create --name aws --version 4.3.0 --os darwin --arch amd64 -f ./terraform-provider-aws_4.3.0_darwin_amd64.zip
+Using config file: /Users/tstraub/.tfx.hcl
+Create Provider Platform in Registry for Organization: firefly
+Hashing Provider File 
+Building Provider Filename terraform-provider-random_4.3.0_darwin_amd64.zip
+Uploading Provider Version Platform... 
+Provider Platform Created: 
+ID:      provpltfrm-mCPKwkHwLyvhPchS
+OS:      darwin
+Arch:    amd64
+```
 
 ## `tfx registry provider version platform show`
 
-Show details of a Platform Version for a Provider in the Registry
+Show details of a Platform Version for a Provider in the Registry.
+
+**Example**
+
+```sh
+$ tfx registry provider version platform show --name aws --version 4.3.0 --os darwin --arch amd64
+Using config file: /Users/tstraub/.tfx.hcl
+Show Provider Platform in Registry for Organization: firefly
+Name:     aws
+ID:       provpltfrm-mCPKwkHwLyvhPchS
+Version:  4.3.0
+OS:       darwin
+ARCH:     amd64
+Filename: terraform-provider-aws_4.3.0_darwin_amd64.zip
+Shasum:   e31c31d00f42ea2dbaab1ad4c245da5cfff63e28399b5a5795b5e6a826c6c8af
+```
 
 ## `tfx registry provider version platform delete`
 
-Delete a Platform Version for a Provider in the Registry
+Delete a Platform Version for a Provider in the Registry.
+
+**Example**
+
+```sh
+$ tfx registry provider version platform delete --name aws --version 4.3.0 --os darwin --arch amd64
+Using config file: /Users/tstraub/.tfx.hcl
+Delete Provider Platform in Registry for Organization: firefly
+Provider Version Deleted: aws
+Status: Success
+```

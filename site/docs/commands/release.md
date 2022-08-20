@@ -6,13 +6,17 @@ These commands are typically used for those running the Self-Managed Terraform E
 
 > Note: These commands do not communicate with Terraform Enterprise but leverage the replicated REST endpoints.
 
-Authentication does not use an API Token, rather a "License Id" and "Password", these values are given to Customers after purchasing Terraform Enterprise.
+**Authentication**
+
+Authentication for `tfx release tfe` Commands do not use an API Token, rather a "License Id" and "Password", these values are given to Customers after purchasing Terraform Enterprise.
+
+There is no authentication needed for `tfx release replicated` Commands.
 
 ## `tfx release tfe list`
 
 List available Terraform Enterprise releases.
 
-`--maxResults` defaults to 10, setting this to a higher number will retrieve more releases.
+`--max-items` defaults to 10, setting this to a higher number will retrieve more items.
 
 > Note: Only releases you are licensed for will show up in this list (typically starting with the latest available version on the date of the purchase).
 
@@ -88,7 +92,7 @@ Release Downloaded!
 
 List available Replicated releases.
 
-`--maxResults` defaults to 10, setting this to a higher number will retrieve more releases.
+`--max-items` defaults to 10, setting this to a higher number will retrieve more items.
 
 > Note: This file is at least 1GB in size, this command can take a while, but a status will print progress.
 

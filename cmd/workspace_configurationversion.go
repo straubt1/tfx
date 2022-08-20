@@ -22,7 +22,6 @@ package cmd
 
 import (
 	"bytes"
-	"io/ioutil"
 	"math"
 
 	"github.com/hashicorp/go-slug"
@@ -83,7 +82,7 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cvShow(
 				getTfxClientContext(),
-				*viperString("configurationId"))
+				*viperString("id"))
 		},
 	}
 
@@ -93,10 +92,15 @@ var (
 		Short: "Download the Configuration Version",
 		Long:  "Download the Configuration Version code for a TFx Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			directory, err := getDirectory(*viperString("directory"), *viperString("id"))
+			if err != nil {
+				return err
+			}
+
 			return cvDownload(
 				getTfxClientContext(),
-				*viperString("configurationId"),
-				*viperString("directory"))
+				*viperString("id"),
+				directory)
 		},
 	}
 )
@@ -117,13 +121,13 @@ func init() {
 	cvCreateCmd.MarkFlagRequired("workspaceName")
 
 	// `tfx cv show`
-	cvShowCmd.Flags().StringP("configurationId", "i", "", "Configuration Version Id (i.e. cv-*)")
-	cvShowCmd.MarkFlagRequired("configurationId")
+	cvShowCmd.Flags().StringP("id", "i", "", "Configuration Version Id (i.e. cv-*)")
+	cvShowCmd.MarkFlagRequired("id")
 
 	// `tfx cv download`
-	cvDownloadCmd.Flags().StringP("configurationId", "i", "", "Configuration Version Id (i.e. cv-*)")
+	cvDownloadCmd.Flags().StringP("id", "i", "", "Configuration Version Id (i.e. cv-*)")
 	cvDownloadCmd.Flags().StringP("directory", "d", "", "Directory to download Configuration Version to (optional, defaults to a temp directory)")
-	cvDownloadCmd.MarkFlagRequired("configurationId")
+	cvDownloadCmd.MarkFlagRequired("id")
 
 	workspaceCmd.AddCommand(cvCmd)
 	cvCmd.AddCommand(cvListCmd)
@@ -165,7 +169,7 @@ func cvListAll(c TfxClientContext, workspaceId string, maxItems int) ([]*tfe.Con
 
 func cvList(c TfxClientContext, workspaceName string, maxItems int) error {
 	o.AddMessageUserProvided("List Configuration Versions for Workspace:", workspaceName)
-	workspaceId, err := getWorkspaceId(c, c.OrganizationName, workspaceName)
+	workspaceId, err := getWorkspaceId(c, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
 	}
@@ -189,7 +193,6 @@ func cvList(c TfxClientContext, workspaceName string, maxItems int) error {
 		}
 		o.AddTableRows(i.ID, i.Speculative, i.Status, identifier, branch, commit, message)
 	}
-	o.Close()
 
 	return nil
 }
@@ -197,7 +200,7 @@ func cvList(c TfxClientContext, workspaceName string, maxItems int) error {
 func cvCreate(c TfxClientContext, workspaceName string, directory string, isSpeculative bool) error {
 	o.AddMessageUserProvided("Create Configuration Version for Workspace:", workspaceName)
 	o.AddMessageUserProvided("Code Directory:", directory)
-	workspaceId, err := getWorkspaceId(c, c.OrganizationName, workspaceName)
+	workspaceId, err := getWorkspaceId(c, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
 	}
@@ -219,7 +222,6 @@ func cvCreate(c TfxClientContext, workspaceName string, directory string, isSpec
 	o.AddMessageUserProvided("Configuration Version Created", "")
 	o.AddDeferredMessageRead("ID", cv.ID)
 	o.AddDeferredMessageRead("Speculative", cv.Speculative)
-	o.Close()
 
 	return nil
 }
@@ -246,28 +248,12 @@ func cvShow(c TfxClientContext, configurationId string) error {
 		o.AddDeferredMessageRead("Message", cv.IngressAttributes.CommitMessage)
 		o.AddDeferredMessageRead("Link", cv.IngressAttributes.CommitURL)
 	}
-	o.Close()
 
 	return nil
 }
 
 func cvDownload(c TfxClientContext, configurationId string, directory string) error {
 	o.AddMessageUserProvided("Downloading Configuration Version from Id:", configurationId)
-	var err error
-	// Determine a directory to unpack the slug contents into.
-	if directory != "" {
-		if !isDirectory(directory) {
-			return errors.Wrap(err, "configuration version directory is not valid")
-		}
-	} else {
-		o.AddMessageUserProvided("Directory not supplied, creating a temp directory", "")
-		dst, err := ioutil.TempDir("", "slug")
-		if err != nil {
-			return errors.Wrap(err, "failed to create temp directory")
-		}
-		directory = dst
-	}
-
 	cv, err := c.Client.ConfigurationVersions.Download(c.Context, configurationId)
 	if err != nil {
 		return errors.Wrap(err, "failed to download configuration version")
@@ -282,7 +268,6 @@ func cvDownload(c TfxClientContext, configurationId string, directory string) er
 
 	o.AddDeferredMessageRead("Status", "Success")
 	o.AddDeferredMessageRead("Directory", directory)
-	o.Close()
 
 	return nil
 }

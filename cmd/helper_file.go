@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 )
 
 func isFile(filename string) bool {
@@ -35,8 +36,9 @@ func readFile(filename string) (string, error) {
 
 // Given a directory, validate it is a real directory
 // If no directory, create a temp directory
-// Return path
-func getDirectory(directory string) (string, error) {
+// (optional) append a new folder structure depth
+// Return absolute path
+func getDirectory(directory string, additional ...string) (string, error) {
 	if directory != "" {
 		if !isDirectory(directory) {
 			return "", errors.New("directory is not valid")
@@ -48,6 +50,16 @@ func getDirectory(directory string) (string, error) {
 			return "", errors.New("failed to create temp directory")
 		}
 		directory = dst
+	}
+
+	// add additional path, this may not exist yet but we have verified the top directory does
+	for _, a := range additional {
+		directory = filepath.Join(directory, a)
+	}
+
+	directory, err := filepath.Abs(directory)
+	if err != nil {
+		return "", errors.New("failed to get absolute directory")
 	}
 
 	return directory, nil

@@ -9,25 +9,25 @@ The initial focus of _tfx_ was to execute the API-Driven workflow for a Workspac
 
 ## Installation
 
-Binaries are created as part of release, check out the [Release Page](https://github.com/straubt1/tfx/releases) for the latest release.
+Binaries are created as part of a release, check out the [Release Page](https://github.com/straubt1/tfx/releases) for the latest version.
 
 **MacOs Installation**
 ```sh
-version="0.0.5"
+version="x.x.x"
 curl -L -o tfx "https://github.com/straubt1/tfx/releases/download/${version}/tfx_darwin_amd64"
 chmod +x tfx
 ```
 
 **Linux Installation**
 ```sh
-version="0.0.5"
+version="x.x.x"
 curl -L -o tfx "https://github.com/straubt1/tfx/releases/download/${version}/tfx_linux_amd64"
 chmod +x tfx
 ```
 
 **Windows Installation**
 ```sh
-version="0.0.5"
+version="x.x.x"
 curl -L -o tfx.exe "https://github.com/straubt1/tfx/releases/download/${version}/tfx_windows_amd64"
 ```
 

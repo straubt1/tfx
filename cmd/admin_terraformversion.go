@@ -21,144 +21,180 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
-	"github.com/fatih/color"
 	tfe "github.com/hashicorp/go-tfe"
-	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
 var (
+	//  `tfx admin terraform-version ` commands
 	tfvCmd = &cobra.Command{
-		Use:   "terraform-version",
+		Use:     "terraform-version",
 		Aliases: []string{"tfv"},
-		Short: "Terraform Versions",
-		Long:  "Work with Terraform Versions of a TFx install.",
+		Short:   "Terraform Version Commands",
+		Long:    "Work with Terraform Versions of a TFE Installation.",
 	}
 
+	// `tfx admin terraform-version list`
 	tfvListCmd = &cobra.Command{
-		Use: "list",
-
+		Use:   "list",
 		Short: "List Terraform Versions",
-		Long:  "List Terraform Versions of a TFx install.",
+		Long:  "List Terraform Versions of a TFE Installation.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return tfvList()
+			return tfvList(
+				getTfxClientContext(),
+				*viperString("search"))
 		},
-		PreRun: bindPFlags,
 	}
 
 	tfvCreateCmd = &cobra.Command{
 		Use:   "create",
 		Short: "Create Terraform Version",
-		Long:  "Create Terraform Version for a TFx install.",
+		Long:  "Create Terraform Version for a TFE Installation.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return tfvCreate()
+			_, err := viperSemanticVersionString("version")
+			if err != nil {
+				return errors.New("failed to parse semantic version")
+			}
+			_, err = viperShaString("sha")
+			if err != nil {
+				return errors.New("failed to parse semantic version")
+			}
+
+			return tfvCreate(
+				getTfxClientContext(),
+				*viperString("version"),
+				*viperString("url"),
+				*viperString("sha"),
+				*viperBool("official"),
+				!*viperBool("disable"),
+				*viperBool("beta"))
 		},
-		PreRun: bindPFlags,
 	}
 
 	tfvCreateOfficialCmd = &cobra.Command{
 		Use:   "official",
 		Short: "Create Terraform Version Official",
-		Long:  "Create Terraform Version Official for a TFx install.",
+		Long:  "Create Terraform Version Official for a TFE Installation.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return tfvCreateOfficial()
+			_, err := viperSemanticVersionString("version")
+			if err != nil {
+				return errors.New("failed to parse semantic version")
+			}
+
+			return tfvCreateOfficial(
+				getTfxClientContext(),
+				*viperString("version"),
+				!*viperBool("disable"),
+				*viperBool("beta"))
 		},
-		PreRun: bindPFlags,
 	}
 
 	tfvShowCmd = &cobra.Command{
 		Use:   "show",
 		Short: "Show Terraform Version",
-		Long:  "Show Terraform Version details for a TFx install.",
+		Long:  "Show Terraform Version details for a TFE Installation.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return tfvShow()
+			_, err := viperSemanticVersionString("version")
+			if err != nil {
+				return errors.New("failed to parse semantic version")
+			}
+
+			return tfvShow(
+				getTfxClientContext(),
+				*viperString("version"))
 		},
-		PreRun: bindPFlags,
 	}
 
 	tfvDeleteCmd = &cobra.Command{
 		Use:   "delete",
 		Short: "Delete Terraform Version",
-		Long:  "Delete Terraform Version for a TFx install.",
+		Long:  "Delete Terraform Version for a TFE Installation.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return tfvDelete()
+			return tfvDelete(
+				getTfxClientContext(),
+				*viperString("version"))
 		},
-		PreRun: bindPFlags,
 	}
 
 	tfvDisableCmd = &cobra.Command{
 		Use:   "disable",
 		Short: "Disable Terraform Version",
-		Long:  "Disable Terraform Version for a TFx install.",
+		Long:  "Disable Terraform Version for a TFE Installation.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return tfvDisable()
+			return tfvDisable(
+				getTfxClientContext(),
+				viperStringSlice("versions"))
 		},
-		PreRun: bindPFlags,
 	}
 
 	tfvDisableAllCmd = &cobra.Command{
 		Use:   "all",
 		Short: "Disable All Terraform Versions",
-		Long:  "Disable All Terraform Versions for a TFx install.",
+		Long:  "Disable All Terraform Versions for a TFE Installation.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return tfvDisableAll()
+			return tfvDisableAll(
+				getTfxClientContext())
 		},
-		PreRun: bindPFlags,
 	}
 
 	tfvEnableCmd = &cobra.Command{
 		Use:   "enable",
 		Short: "Enable Terraform Version",
-		Long:  "Enable Terraform Version for a TFx install.",
+		Long:  "Enable Terraform Version for a TFE Installation.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return tfvEnable()
+			return tfvEnable(
+				getTfxClientContext(),
+				viperStringSlice("versions"))
 		},
-		PreRun: bindPFlags,
 	}
 
 	tfvEnableAllCmd = &cobra.Command{
 		Use:   "all",
 		Short: "Disable All Terraform Versions",
-		Long:  "Disable All Terraform Versions for a TFx install.",
+		Long:  "Disable All Terraform Versions for a TFE Installation.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return tfvEnableAll()
+			return tfvEnableAll(
+				getTfxClientContext())
 		},
-		PreRun: bindPFlags,
 	}
 )
 
 func init() {
-	// `tfx tfv list`
+	// `tfx admin terraform-version list` flags
+	tfvListCmd.Flags().StringP("search", "s", "", "Search string for partial version string (optional).")
 	// tfvListCmd.Flags().StringP("enabled", "e", "", "Filter on enabled Terraform Versions, if set must be ['true', 'false']")
 	// tfvListCmd.Flags().StringP("official", "o", "", "Filter on official Terraform Versions, if set must be ['true', 'false']")
 	// tfvListCmd.Flags().StringP("beta", "b", "", "Filter on beta Terraform Versions, if set must be ['true', 'false']")
+
+	// `tfx tfv show`
+	tfvShowCmd.Flags().StringP("version", "v", "", "Terraform Version (i.e. 0.15.0)")
+	tfvShowCmd.MarkFlagRequired("version")
 
 	// `tfx tfv create`
 	tfvCreateCmd.Flags().StringP("version", "v", "", "Version of Terraform (i.e. 0.15.0)")
 	tfvCreateCmd.Flags().StringP("url", "u", "", "Url of a hosted file containing Terraform (i.e. https://terraform.io...)")
 	tfvCreateCmd.Flags().StringP("sha", "s", "", "Sha checksum of the file at the url, must be 64 characters long")
+	tfvCreateCmd.Flags().BoolP("official", "", false, "Terraform Version is official (optional)")
+	tfvCreateCmd.Flags().BoolP("disable", "", false, "Created Terraform Version will be disabled (optional)")
+	tfvCreateCmd.Flags().BoolP("beta", "", false, "Terraform Version is beta (optional)")
 	tfvCreateCmd.MarkFlagRequired("version")
 	tfvCreateCmd.MarkFlagRequired("url")
 	tfvCreateCmd.MarkFlagRequired("sha")
 
 	// `tfx tfv create official`
 	tfvCreateOfficialCmd.Flags().StringP("version", "v", "", "Version of Terraform (i.e. 0.15.0)")
-
-	// `tfx tfv show`
-	tfvShowCmd.Flags().StringP("versionId", "i", "", "Terraform Version Id (i.e. tool-*)")
-	tfvShowCmd.Flags().StringP("version", "v", "", "Terraform Version (i.e. 0.15.0)")
+	tfvCreateOfficialCmd.Flags().BoolP("disable", "", false, "Created Terraform Version will be disabled (optional)")
+	tfvCreateOfficialCmd.Flags().BoolP("beta", "", false, "Terraform Version is beta (optional)")
+	tfvCreateOfficialCmd.MarkFlagRequired("version")
 
 	// `tfx tfv delete`
-	tfvDeleteCmd.Flags().StringP("versionId", "i", "", "Terraform Version Id (i.e. tool-*)")
 	tfvDeleteCmd.Flags().StringP("version", "v", "", "Terraform Version (i.e. 0.15.0)")
 
 	// `tfx tfv disable`
@@ -181,100 +217,114 @@ func init() {
 	tfvEnableCmd.AddCommand(tfvEnableAllCmd)
 }
 
-func tfvList() error {
-	client, ctx := getClientContext()
-
-	// Read all versions through pagination
-	tfvItems, err := getAllTerraformVersions(ctx, client)
-	if err != nil {
-		logError(err, "failed to read all terraform versions")
+func adminTFVListAll(c TfxClientContext, filter string, search string) ([]*tfe.AdminTerraformVersion, error) {
+	allItems := []*tfe.AdminTerraformVersion{}
+	opts := tfe.AdminTerraformVersionsListOptions{
+		ListOptions: tfe.ListOptions{PageNumber: 1, PageSize: 100},
+		Filter:      filter,
+		Search:      search,
 	}
-	var tfvItemsFiltered []*tfe.AdminTerraformVersion
-
-	// TODO://implement filter
-	for i, s := range tfvItems {
-		// if s.Enabled {
-		if s != nil {
-			tfvItemsFiltered = append(tfvItemsFiltered, tfvItems[i])
+	for {
+		items, err := c.Client.Admin.TerraformVersions.List(c.Context, &opts)
+		if err != nil {
+			return nil, err
 		}
+
+		allItems = append(allItems, items.Items...)
+		if items.CurrentPage >= items.TotalPages {
+			break
+		}
+		opts.PageNumber = items.NextPage
 	}
 
-	t := table.NewWriter()
-	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"Version", "Id", "Enabled", "Official", "Usage"})
-	for _, i := range tfvItemsFiltered {
-		t.AppendRow(table.Row{i.Version, i.ID, i.Enabled, i.Official, i.Usage})
+	return allItems, nil
+}
+
+func adminTFVGetVersion(c TfxClientContext, version string) (*tfe.AdminTerraformVersion, error) {
+	// Use the list all function, filter will return based on an exact version match
+	items, err := adminTFVListAll(c, version, "")
+	if err != nil {
+		return nil, err
 	}
-	t.SetStyle(table.StyleRounded)
-	t.Render()
-	fmt.Println("Terraform Versions Found: ", color.BlueString(strconv.Itoa(len(tfvItemsFiltered))))
+
+	if len(items) == 0 {
+		return nil, errors.New("terraform version not found")
+	} else if len(items) > 1 {
+		// unlikely to ever hit this, but just in case
+		return nil, errors.New("too many terraform versions found")
+	}
+
+	return items[0], nil
+}
+
+func tfvList(c TfxClientContext, search string) error {
+	o.AddMessageUserProvided("List Terraform Versions for TFE", "")
+	items, err := adminTFVListAll(c, "", search)
+	if err != nil {
+		return errors.Wrap(err, "failed to list terraform versions")
+	}
+
+	o.AddTableHeader("Version", "Id", "Enabled", "Official", "Usage", "Deprecated")
+	for _, i := range items {
+		o.AddTableRows(i.Version, i.ID, i.Enabled, i.Official, i.Usage, i.Deprecated)
+	}
+
 	return nil
 }
 
-func tfvCreate() error {
-	url := *viperString("url")
-	sha := *viperString("sha")
-	if len(sha) != 64 {
-		logError(errors.New(""), "sha must be 64 characters long")
-	}
-	// Attempt to prevent a non semantic version from being created
-	version, err := viperSemanticVersionString("version")
-	if err != nil {
-		logError(err, "failed to parse semantic version")
-	}
-	client, ctx := getClientContext()
-
-	// Create Terraform Version
-	fmt.Print("Creating Terraform Version ...")
-	tfv, err := client.Admin.TerraformVersions.Create(ctx, tfe.AdminTerraformVersionCreateOptions{
+func tfvCreate(c TfxClientContext, version string, url string,
+	sha string, isOfficial bool, isEnabled bool, isBeta bool) error {
+	o.AddMessageUserProvided("Create Terraform Version:", version)
+	tfv, err := c.Client.Admin.TerraformVersions.Create(c.Context, tfe.AdminTerraformVersionCreateOptions{
 		Version:  tfe.String(version),
 		URL:      tfe.String(url),
 		Sha:      tfe.String(sha),
-		Official: tfe.Bool(false),
-		Enabled:  tfe.Bool(true),
-		Beta:     tfe.Bool(false),
+		Official: tfe.Bool(isOfficial),
+		Enabled:  tfe.Bool(isEnabled),
+		Beta:     tfe.Bool(isBeta),
 	})
 	if err != nil {
-		log.Fatal(err)
+		return errors.Wrap(err, "unable to create terraform version")
 	}
-	fmt.Println(" ID:", tfv.ID)
+
+	o.AddDeferredMessageRead("Version", tfv.Version)
+	o.AddDeferredMessageRead("ID", tfv.ID)
+	o.AddDeferredMessageRead("URL", tfv.URL)
+	o.AddDeferredMessageRead("Sha", tfv.Sha)
+	o.AddDeferredMessageRead("Enabled", tfv.Enabled)
+	o.AddDeferredMessageRead("Beta", tfv.Beta)
 
 	return nil
 }
 
-func tfvCreateOfficial() error {
-	version, err := viperSemanticVersionString("version")
-	if err != nil {
-		logError(err, "failed to parse semantic version")
-	}
-
-	fmt.Print("Looking for official Terraform Version: ", color.GreenString(version), " ...")
+func tfvCreateOfficial(c TfxClientContext, version string, isEnabled bool, isBeta bool) error {
 	url := fmt.Sprintf(
 		"https://releases.hashicorp.com/terraform/%s/terraform_%s_linux_amd64.zip",
 		version,
 		version,
 	)
-	// read checksum file
 	urlSha := fmt.Sprintf(
 		"https://releases.hashicorp.com/terraform/%s/terraform_%s_SHA256SUMS",
 		version,
 		version,
 	)
+
+	o.AddMessageUserProvided("Searching for official Terraform Version:", version)
 	clientChecksum := &http.Client{}
 	req, err := http.NewRequest("GET", urlSha, nil)
 	if err != nil {
-		logError(err, "failed to create checksum request")
+		return errors.Wrap(err, "failed find official terraform version")
 	}
-
 	resp, err := clientChecksum.Do(req)
 	if err != nil || resp.StatusCode != 200 {
-		logError(err, "failed to request checksum")
+		// if this fails, assume the version does not exist
+		return errors.New("failed find official terraform version")
 	}
 	defer resp.Body.Close()
 
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
-		logError(err, "failed to read checksum")
+		return errors.Wrap(err, "failed to read checksum")
 	}
 	// split by new line
 	var sha string
@@ -288,216 +338,121 @@ func tfvCreateOfficial() error {
 			break
 		}
 	}
-	fmt.Println("Found")
-
-	client, ctx := getClientContext()
-
-	// Create Terraform Version
-	fmt.Print("Creating Terraform Version ...")
-	tfv, err := client.Admin.TerraformVersions.Create(ctx, tfe.AdminTerraformVersionCreateOptions{
-		Version:  tfe.String(version),
-		URL:      tfe.String(url),
-		Sha:      tfe.String(sha),
-		Official: tfe.Bool(true),
-		Enabled:  tfe.Bool(true),
-		Beta:     tfe.Bool(false),
-	})
+	o.AddMessageUserProvided("Terraform Version SHASUM:", sha)
+	err = tfvCreate(c, version, url, sha, true, isEnabled, isBeta)
 	if err != nil {
-		log.Fatal(err)
+		return errors.Wrap(err, "unable to create terraform version")
 	}
-	fmt.Println(" ID:", tfv.ID)
 
 	return nil
 }
 
-func tfvShow() error {
-	vID := *viperString("versionId")
-	v := *viperString("version")
-	if vID == "" && v == "" {
-		logError(errors.New(""), "version or version id must be supplied")
-	} else if vID != "" && v != "" {
-		logError(errors.New(""), "only one can be supplied [version or version id]")
+func tfvShow(c TfxClientContext, version string) error {
+	o.AddMessageUserProvided("Show Terraform Version:", version)
+	tfv, err := adminTFVGetVersion(c, version)
+	if err != nil {
+		return errors.Wrap(err, "failed to find terraform version")
 	}
-	client, ctx := getClientContext()
 
-	var tfv *tfe.AdminTerraformVersion
-	var err error
-	if vID != "" {
-		// Read Terraform Version
-		fmt.Print("Reading Terraform Version with ID ", color.GreenString(vID), "...")
-		tfv, err = client.Admin.TerraformVersions.Read(ctx, vID)
-		if err != nil {
-			logError(err, "failed to find version id")
-		}
-		fmt.Println(" Found")
-	} else {
-		fmt.Print("Reading Terraform Version  ", color.GreenString(v), "...")
-		tfv, err = getTerraformVersion(ctx, client, v)
-		if err != nil {
-			logError(err, "failed to find version")
-		}
-		fmt.Println(" Found")
-	}
-	fmt.Println(color.BlueString("Version:   "), tfv.Version)
-	fmt.Println(color.BlueString("ID:        "), tfv.ID)
-	fmt.Println(color.BlueString("URL:       "), tfv.URL)
-	fmt.Println(color.BlueString("Sha:       "), tfv.Sha)
-	fmt.Println(color.BlueString("Enabled:   "), tfv.Enabled)
-	fmt.Println(color.BlueString("Official:  "), tfv.Official)
-	fmt.Println(color.BlueString("Beta:      "), tfv.Beta)
+	o.AddDeferredMessageRead("Version", tfv.Version)
+	o.AddDeferredMessageRead("ID", tfv.ID)
+	o.AddDeferredMessageRead("URL", tfv.URL)
+	o.AddDeferredMessageRead("Sha", tfv.Sha)
+	o.AddDeferredMessageRead("Enabled", tfv.Enabled)
+	o.AddDeferredMessageRead("Beta", tfv.Beta)
 
 	return nil
 }
 
-func tfvDelete() error {
-	vID := *viperString("versionId")
-	v := *viperString("version")
-	if vID == "" && v == "" {
-		logError(errors.New(""), "version or version id must be supplied")
-	} else if vID != "" && v != "" {
-		logError(errors.New(""), "only one can be supplied [version or version id]")
-	}
-	client, ctx := getClientContext()
-
-	var tfv *tfe.AdminTerraformVersion
-	var err error
-	if vID != "" {
-		// Read Terraform Version
-		fmt.Print("Reading Terraform Version with ID ", color.GreenString(vID), "...")
-		tfv, err = client.Admin.TerraformVersions.Read(ctx, vID)
-		if err != nil {
-			logError(err, "failed to find version id")
-		}
-		fmt.Println(" Found")
-	} else {
-		fmt.Print("Reading Terraform Version  ", color.GreenString(v), "...")
-		tfv, err = getTerraformVersion(ctx, client, v)
-		if err != nil {
-			logError(err, "failed to find version")
-		}
-		fmt.Println(" Found")
+func tfvDelete(c TfxClientContext, version string) error {
+	o.AddMessageUserProvided("Delete Terraform Version:", version)
+	tfv, err := adminTFVGetVersion(c, version)
+	if err != nil {
+		return errors.Wrap(err, "failed to find terraform version")
 	}
 
 	// TODO: Need to verify an update wont bring these back
 	if tfv.Official {
-		fmt.Println("Forcing Terraform Version to be unofficial")
-		tfv, err = client.Admin.TerraformVersions.Update(ctx, tfv.ID, tfe.AdminTerraformVersionUpdateOptions{
+		o.AddMessageUserProvided("Forcing Terraform Version to be unofficial", "")
+		tfv, err = c.Client.Admin.TerraformVersions.Update(c.Context, tfv.ID, tfe.AdminTerraformVersionUpdateOptions{
 			Official: tfe.Bool(false),
 		})
 		if err != nil {
-			logError(err, "failed to set version to official = false")
+			return errors.Wrap(err, "failed to set version to official to false")
 		}
 	}
 
 	// Delete Terraform Version
-	fmt.Print("Deleting Terraform Version ID ", color.GreenString(tfv.ID), "...")
-	err = client.Admin.TerraformVersions.Delete(ctx, tfv.ID)
+	err = c.Client.Admin.TerraformVersions.Delete(c.Context, tfv.ID)
 	if err != nil {
-		logError(err, "failed to delete version")
-	}
-	fmt.Println(" Deleted")
-
-	return nil
-}
-
-func tfvDisable() error {
-	versions := viperStringSlice("versions")
-
-	setTfvEnabledFlag(versions, false)
-
-	return nil
-}
-
-func tfvDisableAll() error {
-	fmt.Println("Disabling All Terraform Versions that are not in use")
-	setTfvEnabledFlagAll(false)
-
-	return nil
-}
-
-func tfvEnable() error {
-	versions := viperStringSlice("versions")
-
-	setTfvEnabledFlag(versions, true)
-
-	return nil
-}
-
-func tfvEnableAll() error {
-	fmt.Println("Enabling All Terraform Versions")
-	setTfvEnabledFlagAll(true)
-
-	return nil
-}
-
-func setTfvEnabledFlag(versions []string, enabled bool) error {
-	client, ctx := getClientContext()
-	allTFV, err := getAllTerraformVersions(ctx, client)
-	if err != nil {
-		return errors.New("failed to read all terraform versions")
+		return errors.Wrap(err, "failed to delete version")
 	}
 
-	// loop on passed in versions
+	o.AddMessageUserProvided("Variable Deleted:", version)
+	o.AddDeferredMessageRead("Status", "Success")
+
+	return nil
+}
+
+func tfvDisable(c TfxClientContext, versions []string) error {
+	o.AddMessageUserProvided("Disable Terraform Versions:", versions)
+	return tfvUpdateVersions(c, versions, false)
+}
+
+func tfvDisableAll(c TfxClientContext) error {
+	o.AddMessageUserProvided("Disable All Terraform Versions", "")
+	items, err := adminTFVListAll(c, "", "")
+	if err != nil {
+		return errors.Wrap(err, "failed to list terraform versions")
+	}
+	versions := []string{}
+	for _, v := range items {
+		versions = append(versions, v.Version)
+	}
+
+	return tfvUpdateVersions(c, versions, false)
+}
+
+func tfvEnable(c TfxClientContext, versions []string) error {
+	o.AddMessageUserProvided("Enable Terraform Versions:", versions)
+	return tfvUpdateVersions(c, versions, true)
+}
+
+func tfvEnableAll(c TfxClientContext) error {
+	o.AddMessageUserProvided("Enable All Terraform Versions", "")
+	items, err := adminTFVListAll(c, "", "")
+	if err != nil {
+		return errors.Wrap(err, "failed to list terraform versions")
+	}
+	versions := []string{}
+	for _, v := range items {
+		versions = append(versions, v.Version)
+	}
+
+	return tfvUpdateVersions(c, versions, true)
+}
+
+func tfvUpdateVersions(c TfxClientContext, versions []string, enabled bool) error {
+	opts := tfe.AdminTerraformVersionUpdateOptions{
+		Enabled: tfe.Bool(enabled),
+	}
+
 	for _, v := range versions {
-		var foundVersion *tfe.AdminTerraformVersion
-		for _, s := range allTFV {
-			if s.Version == v {
-				foundVersion = s
-			}
+		tfv, err := adminTFVGetVersion(c, v)
+		if err != nil {
+			o.AddDeferredMessageRead(v, "failed to find terraform version")
+			continue
 		}
-		// not found, skip version
-		if foundVersion == nil {
-			logWarning(err, "failed to find terraform version: "+v)
+		if !enabled && tfv.Usage > 0 { //can not disable a version with usage
+			o.AddDeferredMessageRead(v, "unable to disable a terraform version in use")
 			continue
 		}
 
-		if foundVersion.Enabled == enabled { //already set, skip
-			fmt.Println("Terraform Version", color.BlueString(foundVersion.Version), "is already", color.GreenString(strconv.FormatBool(enabled)))
-			continue
-		}
-		if !enabled && foundVersion.Usage > 0 { //can not disable a version with usage
-			fmt.Println(color.RedString("Terraform Version in use"), color.BlueString(foundVersion.Version))
-			continue
-		}
-
-		_, err = client.Admin.TerraformVersions.Update(ctx, foundVersion.ID, tfe.AdminTerraformVersionUpdateOptions{
-			Enabled: tfe.Bool(enabled),
-		})
+		tfv, err = c.Client.Admin.TerraformVersions.Update(c.Context, tfv.ID, opts)
 		if err == nil {
-			fmt.Println("Terraform Versions", color.BlueString(foundVersion.Version), "is now set to", color.GreenString(strconv.FormatBool(enabled)))
+			o.AddDeferredMessageRead(v, strconv.FormatBool(tfv.Enabled))
 		} else {
-			fmt.Println(color.RedString("Unable to update Terraform Version "), color.BlueString(foundVersion.Version))
-		}
-	}
-
-	return nil
-}
-
-func setTfvEnabledFlagAll(enabled bool) error {
-	client, ctx := getClientContext()
-	allTFV, err := getAllTerraformVersions(ctx, client)
-	if err != nil {
-		return errors.New("failed to read all terraform versions")
-	}
-
-	// loop on all versions
-	for _, v := range allTFV {
-		if v.Enabled == enabled { //already set, skip
-			fmt.Println("Terraform Version", color.BlueString(v.Version), "is already", color.GreenString(strconv.FormatBool(enabled)))
-			continue
-		}
-		if !enabled && v.Usage > 0 { //can not disable a version with usage
-			fmt.Println(color.RedString("Terraform Version in use"), color.BlueString(v.Version))
-			continue
-		}
-
-		_, err = client.Admin.TerraformVersions.Update(ctx, v.ID, tfe.AdminTerraformVersionUpdateOptions{
-			Enabled: tfe.Bool(enabled),
-		})
-		if err == nil {
-			fmt.Println("Terraform Versions", color.BlueString(v.Version), "is now set to", color.GreenString(strconv.FormatBool(enabled)))
-		} else {
-			fmt.Println(color.RedString("Unable to update Terraform Version "), color.BlueString(v.Version))
+			return errors.Wrap(err, "failed to update terraform version")
 		}
 	}
 

@@ -7,13 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+**Added**
 
 * `tfx workspace lock all` and `tfx workspace unlock all` now support a `--search` argument to filter affected workspaces by name search.
 
-### Changed
+**Changed**
 
-* Moved and updated docs to the `site/` folder and published to tfx.rocks custom domain.
+* Moved and updated docs to the `site/` folder and published to a custom domain [tfx.rocks](tfx.rocks).
+* Created a styleguide and updated Commands, more information can be found at [https://tfx.rocks/about/style_guide/]()
+  * Some of these changes are **BREAKING** changes
+  * Mainly moving away from Command Flags that used camel case (example: "workspaceName" to "workspace-name")
 * Updated all of the `tfx registry module` commands to support JSON (`--json`) output.
 * Moved Module Registry commands from the `pmr` command, the new commands are:
   * `tfx registry module list`
@@ -44,13 +47,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * `tfx workspace state-version create` or `tfx workspace sv create`
   * `tfx workspace state-version show` or `tfx workspace sv show`
   * `tfx workspace state-version download` or `tfx workspace sv download`
+* Moved Module Registry commands from the `tfv` command, the new commands are:
+  * `tfx admin terraform-version list`
+  * `tfx admin terraform-version create`
+  * `tfx admin terraform-version create official`
+  * `tfx admin terraform-version show`
+  * `tfx admin terraform-version delete`
+  * `tfx admin terraform-version enable`
+  * `tfx admin terraform-version enable all`
+  * `tfx admin terraform-version disable`
+  * `tfx admin terraform-version disable all`
+* Updated all of the `tfx admin terraform-version` commands to support JSON (`--json`) output.
 
-### Removed
+**Removed**
 
 
 ## [0.0.4-dev] - 2022.07.17
 
-### Added
+**Added**
 
 New Commands:
 
@@ -82,7 +96,7 @@ New Commands:
 * `tfx variable show` - Show details of a workspace variable
 * `tfx variable delete` - Delete a workspace variable
 
-### Changed
+**Changed**
 
 * Upgraded to Go 1.18.4
 * PMR Module uploading - Removed helper code (shim) in favor of the now available the go-tfe functions
@@ -90,26 +104,26 @@ New Commands:
 * Added optional `--json` flag framework to allow output to be in JSON for non-interactive use
 * Started the migrating to "github.com/fatih/color" from "github.com/logrusorgru/aurora" for text colors
 
-### Removed
+**Removed**
 
 ## [0.0.3-dev] - 2021.06.22
 
-### Added
+**Added**
 
 * `tfx workspace lock` - Lock a given workspace by name, in a given organization
 * `tfx workspace lock all` - Lock all workspaces in a given organization
 * `tfx workspace unlock` - Unlock a given workspace by name, in a given organization
 * `tfx workspace unlock all` - Unlock all workspaces in a given organization
 
-### Changed
+**Changed**
 
 * `tfx workspace` commands now sort WS by name
 
-### Removed
+**Removed**
 
 ## [0.0.2-dev] - 2021.06.20
 
-### Added
+**Added**
 
 * hostname, organization and token can now be set with the respective environment values to align with [TFE Provider](https://registry.terraform.io/providers/hashicorp/tfe/latest/docs). ([#7](https://github.com/straubt1/tfx/issues/7))
   * TFE_HOSTNAME
@@ -135,15 +149,15 @@ New Commands:
     * Discarded Runs
     * Cancelled Runs
 
-### Changed
+**Changed**
 
 * Cleaned up docs
 
-### Removed
+**Removed**
 
 ## [0.0.1-dev] - 2021.05.23
 
-### Added
+**Added**
 
 * `tfx plan export` command to download sentinel mock data
 * `tfx state` commands
@@ -162,23 +176,21 @@ New Commands:
   * enable
   * enable all
 
-### Changed
+**Changed**
 
 * `tfx plan export` added flag to supply a directory
 * Added "Built By" output on version to help originate a build
 
-### Removed
+**Removed**
 
 ## [0.0.0-dev] - 2021.05.16
 
-### Added
+**Added**
 
-### Changed
+**Changed**
 
-### Removed
-
+**Removed**
 
 [Unreleased]: https://github.com/straubt1/tfx/compare/v1.0.0...HEAD
 [0.0.1]: https://github.com/ostraubt1/tfx/compare/v0.0.0...v0.0.1 
 [0.0.0]: https://github.com/straubt1/tfx/releases/tag/v0.0.1
-

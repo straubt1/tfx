@@ -44,9 +44,9 @@ var (
 		Long:  "List available Terraform Enterprise releases.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return releaseTfeList(
-				*viperString("licenseId"),
+				*viperString("license-id"),
 				*viperString("password"),
-				*viperInt("maxResults"))
+				*viperInt("max-items"))
 		},
 	}
 
@@ -57,9 +57,9 @@ var (
 		Long:  "Show a Terraform Enterprise release, including release notes.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return releaseTfeShow(
-				*viperString("licenseId"),
+				*viperString("license-id"),
 				*viperString("password"),
-				*viperInt("releaseSequence"))
+				*viperInt("release-sequence"))
 		},
 	}
 
@@ -74,9 +74,9 @@ var (
 			}
 
 			return releaseTfeDownload(
-				*viperString("licenseId"),
+				*viperString("license-id"),
 				*viperString("password"),
-				*viperInt("releaseSequence"),
+				*viperInt("release-sequence"),
 				*viperString("directory"))
 		},
 	}
@@ -84,28 +84,28 @@ var (
 
 func init() {
 	// `tfx release tfe list`
-	releaseTfeListCmd.Flags().StringP("licenseId", "l", "", "License Id for TFE/Replicated")
+	releaseTfeListCmd.Flags().StringP("license-id", "l", "", "License Id for TFE/Replicated")
 	releaseTfeListCmd.Flags().StringP("password", "p", "", "Password to authenticate")
-	releaseTfeListCmd.Flags().IntP("maxResults", "r", 10, "The number of results to print")
-	releaseTfeListCmd.MarkFlagRequired("licenseId")
+	releaseTfeListCmd.Flags().IntP("max-items", "r", 10, "The number of results to print")
+	releaseTfeListCmd.MarkFlagRequired("license-id")
 	releaseTfeListCmd.MarkFlagRequired("password")
 
 	// `tfx release tfe show`
-	releaseTfeShowCmd.Flags().StringP("licenseId", "l", "", "License Id for TFE/Replicated")
+	releaseTfeShowCmd.Flags().StringP("license-id", "l", "", "License Id for TFE/Replicated")
 	releaseTfeShowCmd.Flags().StringP("password", "p", "", "Password to authenticate")
-	releaseTfeShowCmd.Flags().IntP("releaseSequence", "r", 0, "Release Sequence (i.e. 610, 619, etc...)")
-	releaseTfeShowCmd.MarkFlagRequired("licenseId")
+	releaseTfeShowCmd.Flags().IntP("release-sequence", "r", 0, "Release Sequence (i.e. 610, 619, etc...)")
+	releaseTfeShowCmd.MarkFlagRequired("license-id")
 	releaseTfeShowCmd.MarkFlagRequired("password")
-	releaseTfeShowCmd.MarkFlagRequired("releaseSequence")
+	releaseTfeShowCmd.MarkFlagRequired("release-sequence")
 
 	// `tfx release tfe download`
-	releaseTfeDownloadCmd.Flags().StringP("licenseId", "l", "", "License Id for TFE/Replicated")
+	releaseTfeDownloadCmd.Flags().StringP("license-id", "l", "", "License Id for TFE/Replicated")
 	releaseTfeDownloadCmd.Flags().StringP("password", "p", "", "Password to authenticate to TFE/Replicated")
-	releaseTfeDownloadCmd.Flags().IntP("releaseSequence", "r", 0, "Release Sequence (i.e. 610, 619, etc...)")
+	releaseTfeDownloadCmd.Flags().IntP("release-sequence", "r", 0, "Release Sequence (i.e. 610, 619, etc...)")
 	releaseTfeDownloadCmd.Flags().StringP("directory", "d", "./", "Directory to save binary")
-	releaseTfeDownloadCmd.MarkFlagRequired("licenseId")
+	releaseTfeDownloadCmd.MarkFlagRequired("license-id")
 	releaseTfeDownloadCmd.MarkFlagRequired("password")
-	releaseTfeDownloadCmd.MarkFlagRequired("releaseSequence")
+	releaseTfeDownloadCmd.MarkFlagRequired("release-sequence")
 
 	releaseCmd.AddCommand(releaseTfeCmd)
 	releaseTfeCmd.AddCommand(releaseTfeListCmd)
@@ -113,7 +113,7 @@ func init() {
 	releaseTfeCmd.AddCommand(releaseTfeDownloadCmd)
 }
 
-func releaseTfeList(licenseId string, password string, maxResults int) error {
+func releaseTfeList(licenseId string, password string, maxItems int) error {
 	o.AddMessageUserProvided("List Available Terraform Enterprise Releases", "")
 	tfeBinaries, err := ListTFEBinaries(password, licenseId)
 	if err != nil {
@@ -123,11 +123,10 @@ func releaseTfeList(licenseId string, password string, maxResults int) error {
 	o.AddTableHeader("Sequence", "Label", "Required", "Release Date")
 	for index, i := range tfeBinaries.Releases {
 		o.AddTableRows(i.ReleaseSequence, i.Label, i.Required, FormatDateTime(i.ReleaseDate))
-		if index+1 >= maxResults {
+		if index+1 >= maxItems {
 			break
 		}
 	}
-	o.Close()
 
 	return nil
 }
@@ -150,7 +149,6 @@ func releaseTfeShow(licenseId string, password string, releaseSequence int) erro
 	o.AddDeferredMessageRead("Release Date", FormatDateTime(tfeRelease.ReleaseDate))
 	o.AddDeferredMessageRead("Required", tfeRelease.Required)
 	o.AddDeferredMessageRead("Release Notes", "\n"+tfeRelease.ReleaseNotes)
-	o.Close()
 
 	return nil
 }

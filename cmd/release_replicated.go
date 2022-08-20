@@ -43,7 +43,7 @@ var (
 		Long:  "List available Replicated releases.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return releaseReplicatedList(
-				*viperInt("maxResults"))
+				*viperInt("max-items"))
 		},
 	}
 
@@ -70,7 +70,7 @@ var (
 
 func init() {
 	// `tfx release replicated list`
-	releaseReplicatedListCmd.Flags().IntP("maxResults", "r", 10, "The number of results to print")
+	releaseReplicatedListCmd.Flags().IntP("max-items", "r", 10, "The number of results to print")
 
 	// `tfx release replicated download`
 	releaseReplicatedDownloadCmd.Flags().StringP("directory", "d", "./", "Directory to save binary")
@@ -81,7 +81,7 @@ func init() {
 	releaseReplicatedCmd.AddCommand(releaseReplicatedDownloadCmd)
 }
 
-func releaseReplicatedList(maxResults int) error {
+func releaseReplicatedList(maxItems int) error {
 	o.AddMessageUserProvided("List Available Replicated Releases", "")
 	fp := gofeed.NewParser()
 	feed, err := fp.ParseURL("https://release-notes.replicated.com/index.xml")
@@ -92,7 +92,7 @@ func releaseReplicatedList(maxResults int) error {
 	o.AddTableHeader("Version", "Published Date")
 	for index, i := range feed.Items {
 		o.AddTableRows(i.Title, i.Published)
-		if index+1 >= maxResults {
+		if index+1 >= maxItems {
 			break
 		}
 	}

@@ -28,9 +28,10 @@ import (
 var (
 	// `tfx variable` commands
 	variableCmd = &cobra.Command{
-		Use:   "variable",
-		Short: "Variable Commands",
-		Long:  "Commands to work with Workspace Variables.",
+		Aliases: []string{"var"},
+		Use:     "variable",
+		Short:   "Variable Commands",
+		Long:    "Commands to work with Workspace Variables.",
 	}
 
 	// `tfx variable list` command
@@ -41,8 +42,7 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return variableList(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
-				*viperString("workspace"))
+				*viperString("workspace-name"))
 		},
 	}
 
@@ -53,7 +53,7 @@ var (
 		Long:  "Create a Variable in a Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			value := *viperString("value")
-			valueFile := *viperString("valueFile")
+			valueFile := *viperString("value-file")
 			if value == "" && valueFile == "" {
 				return errors.New("required flag \"key\" or \"keyFile\" not set")
 			}
@@ -75,8 +75,7 @@ var (
 
 			return variableCreate(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
-				*viperString("workspace"),
+				*viperString("workspace-name"),
 				*viperString("key"),
 				value,
 				*viperString("description"),
@@ -93,7 +92,7 @@ var (
 		Long:  "Update a Variable in a Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			value := *viperString("value")
-			valueFile := *viperString("valueFile")
+			valueFile := *viperString("value-file")
 			if value == "" && valueFile == "" {
 				return errors.New("required flag \"key\" or \"keyFile\" not set")
 			}
@@ -115,8 +114,7 @@ var (
 
 			return variableUpdate(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
-				*viperString("workspace"),
+				*viperString("workspace-name"),
 				*viperString("key"),
 				value,
 				*viperString("description"),
@@ -134,8 +132,7 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return variableShow(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
-				*viperString("workspace"),
+				*viperString("workspace-name"),
 				*viperString("key"))
 		},
 	}
@@ -148,8 +145,7 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return variableDelete(
 				getTfxClientContext(),
-				*viperString("tfeOrganization"),
-				*viperString("workspace"),
+				*viperString("workspace-name"),
 				*viperString("key"))
 		},
 	}
@@ -157,49 +153,49 @@ var (
 
 func init() {
 	// `tfx variable list` command
-	variableListCmd.Flags().StringP("workspace", "w", "", "Name of the Workspace")
-	variableListCmd.MarkFlagRequired("workspace")
+	variableListCmd.Flags().StringP("workspace-name", "w", "", "Name of the Workspace")
+	variableListCmd.MarkFlagRequired("workspace-name")
 
 	// `tfx variable create` command
-	variableCreateCmd.Flags().StringP("workspace", "w", "", "Name of the Workspace")
+	variableCreateCmd.Flags().StringP("workspace-name", "w", "", "Name of the Workspace")
 	variableCreateCmd.Flags().StringP("key", "k", "", "Key of the Variable")
 	variableCreateCmd.Flags().StringP("value", "v", "", "Value of the Variable (value or valueFile must be set)")
-	variableCreateCmd.Flags().StringP("valueFile", "f", "", "Path to a variable text file, the contents of the file will be used (value or valueFile must be set)")
+	variableCreateCmd.Flags().StringP("value-file", "f", "", "Path to a variable text file, the contents of the file will be used (value or valueFile must be set)")
 	variableCreateCmd.Flags().StringP("description", "d", "", "Description of the Variable (optional)")
 	variableCreateCmd.Flags().BoolP("env", "e", false, "Variable is an Environment Variable (optional, defaults to false)")
 	variableCreateCmd.Flags().BoolP("hcl", "", false, "Value of Variable is HCL (optional, defaults to false)")
 	variableCreateCmd.Flags().BoolP("sensitive", "", false, "Variable is Sensitive (optional, defaults to false)")
-	variableCreateCmd.MarkFlagRequired("workspace")
+	variableCreateCmd.MarkFlagRequired("workspace-name")
 	variableCreateCmd.MarkFlagRequired("key")
 	// command code to ensure ONE of these is set
 	// variableCreateCmd.MarkFlagRequired("value")
-	// variableCreateCmd.MarkFlagRequired("valueFile")
+	// variableCreateCmd.MarkFlagRequired("value-file")
 
 	// `tfx variable update` command
-	variableUpdateCmd.Flags().StringP("workspace", "w", "", "Name of the Workspace")
+	variableUpdateCmd.Flags().StringP("workspace-name", "w", "", "Name of the Workspace")
 	variableUpdateCmd.Flags().StringP("key", "k", "", "Key of the Variable")
 	variableUpdateCmd.Flags().StringP("value", "v", "", "Value of the Variable (value or valueFile must be set)")
-	variableUpdateCmd.Flags().StringP("valueFile", "f", "", "Path to a variable text file, the contents of the file will be used (value or valueFile must be set)")
+	variableUpdateCmd.Flags().StringP("value-file", "f", "", "Path to a variable text file, the contents of the file will be used (value or valueFile must be set)")
 	variableUpdateCmd.Flags().StringP("description", "d", "", "Description of the Variable (optional)")
 	variableUpdateCmd.Flags().BoolP("env", "e", false, "Variable is an Environment Variable (optional, defaults to false)")
 	variableUpdateCmd.Flags().BoolP("hcl", "", false, "Value of Variable is HCL (optional, defaults to false)")
 	variableUpdateCmd.Flags().BoolP("sensitive", "", false, "Variable is Sensitive (optional, defaults to false)")
-	variableUpdateCmd.MarkFlagRequired("workspace")
+	variableUpdateCmd.MarkFlagRequired("workspace-name")
 	variableUpdateCmd.MarkFlagRequired("key")
 	// command code to ensure ONE of these is set
 	// variableUpdateCmd.MarkFlagRequired("value")
-	// variableUpdateCmd.MarkFlagRequired("valueFile")
+	// variableUpdateCmd.MarkFlagRequired("value-file")
 
 	// `tfx variable show` command
-	variableShowCmd.Flags().StringP("workspace", "w", "", "Name of the Workspace")
+	variableShowCmd.Flags().StringP("workspace-name", "w", "", "Name of the Workspace")
 	variableShowCmd.Flags().StringP("key", "k", "", "Key of the Variable")
-	variableShowCmd.MarkFlagRequired("workspace")
+	variableShowCmd.MarkFlagRequired("workspace-name")
 	variableShowCmd.MarkFlagRequired("key")
 
 	// `tfx variable delete` command
-	variableDeleteCmd.Flags().StringP("workspace", "w", "", "Name of the Workspace")
+	variableDeleteCmd.Flags().StringP("workspace-name", "w", "", "Name of the Workspace")
 	variableDeleteCmd.Flags().StringP("key", "k", "", "Key of the Variable")
-	variableDeleteCmd.MarkFlagRequired("workspace")
+	variableDeleteCmd.MarkFlagRequired("workspace-name")
 	variableDeleteCmd.MarkFlagRequired("key")
 
 	workspaceCmd.AddCommand(variableCmd)
@@ -234,9 +230,9 @@ func variablesListAll(c TfxClientContext, workspaceId string) ([]*tfe.Variable, 
 	return allItems, nil
 }
 
-func variableList(c TfxClientContext, orgName string, workspaceName string) error {
+func variableList(c TfxClientContext, workspaceName string) error {
 	o.AddMessageUserProvided("List Variables for Workspace:", workspaceName)
-	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
+	workspaceId, err := getWorkspaceId(c, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
 	}
@@ -250,15 +246,14 @@ func variableList(c TfxClientContext, orgName string, workspaceName string) erro
 	for _, i := range items {
 		o.AddTableRows(i.ID, i.Key, i.Value, i.Sensitive, i.HCL, i.Category, i.Description)
 	}
-	o.Close()
 
 	return nil
 }
 
-func variableCreate(c TfxClientContext, orgName string, workspaceName string,
+func variableCreate(c TfxClientContext, workspaceName string,
 	variableKey string, variableValue string, description string, isEnvironment bool, isHcl bool, isSensitive bool) error {
 	o.AddMessageUserProvided("Create Variable for Workspace:", workspaceName)
-	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
+	workspaceId, err := getWorkspaceId(c, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
 	}
@@ -299,15 +294,14 @@ func variableCreate(c TfxClientContext, orgName string, workspaceName string,
 	o.AddDeferredMessageRead("HCL", variable.HCL)
 	o.AddDeferredMessageRead("Category", variable.Category)
 	o.AddDeferredMessageRead("Description", variable.Description)
-	o.Close()
 
 	return nil
 }
 
-func variableUpdate(c TfxClientContext, orgName string, workspaceName string,
+func variableUpdate(c TfxClientContext, workspaceName string,
 	variableKey string, variableValue string, description string, isEnvironment bool, isHcl bool, isSensitive bool) error {
 	o.AddMessageUserProvided("Update Variable for Workspace:", workspaceName)
-	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
+	workspaceId, err := getWorkspaceId(c, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
 	}
@@ -335,7 +329,7 @@ func variableUpdate(c TfxClientContext, orgName string, workspaceName string,
 		return errors.Wrap(err, "Failed to Update Variable")
 	}
 
-	o.AddMessageUserProvided("Variable Updated", workspaceName)
+	o.AddMessageUserProvided("Variable Updated", "")
 	o.AddDeferredMessageRead("ID", variable.ID)
 	o.AddDeferredMessageRead("Key", variable.Key)
 	o.AddDeferredMessageRead("Value", variable.Value)
@@ -343,14 +337,13 @@ func variableUpdate(c TfxClientContext, orgName string, workspaceName string,
 	o.AddDeferredMessageRead("HCL", variable.HCL)
 	o.AddDeferredMessageRead("Category", variable.Category)
 	o.AddDeferredMessageRead("Description", variable.Description)
-	o.Close()
 
 	return nil
 }
 
-func variableShow(c TfxClientContext, orgName string, workspaceName string, variableKey string) error {
+func variableShow(c TfxClientContext, workspaceName string, variableKey string) error {
 	o.AddMessageUserProvided("Show Variable for Workspace:", workspaceName)
-	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
+	workspaceId, err := getWorkspaceId(c, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
 	}
@@ -372,15 +365,14 @@ func variableShow(c TfxClientContext, orgName string, workspaceName string, vari
 	o.AddDeferredMessageRead("HCL", variable.HCL)
 	o.AddDeferredMessageRead("Category", variable.Category)
 	o.AddDeferredMessageRead("Description", variable.Description)
-	o.Close()
 
 	return nil
 }
 
-func variableDelete(c TfxClientContext, orgName string, workspaceName string, variableKey string) error {
+func variableDelete(c TfxClientContext, workspaceName string, variableKey string) error {
 	// TODO: Add ability to delete multiple keys at once: https://github.com/spf13/cobra/issues/661
 	o.AddMessageUserProvided("Delete Variable for Workspace:", workspaceName)
-	workspaceId, err := getWorkspaceId(c, orgName, workspaceName)
+	workspaceId, err := getWorkspaceId(c, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
 	}
@@ -397,7 +389,6 @@ func variableDelete(c TfxClientContext, orgName string, workspaceName string, va
 
 	o.AddMessageUserProvided("Variable Deleted:", variableKey)
 	o.AddDeferredMessageRead("Status", "Success")
-	o.Close()
 
 	return nil
 }
