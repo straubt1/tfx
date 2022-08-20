@@ -37,9 +37,16 @@ Command and Flag naming will adhere to the following standards:
 
 ## List Commands
 
-`list` Commands will adhered to the following standards:
+`list` Commands will adhere to the following standards:
 
 - For resources that common workflows typically only require recent results and can have many results:
   - The output items will default to 10.
   - The flag `--max-items` will allow a specific maximum.
   - The flag `--all` will return all results regardless of other flag values.
+
+## Download Commands
+
+`download` Commands will adhere to the following standards:
+
+- Give the option to pass in a Directory.
+- When no Directory is given, default to creating a temporary directory

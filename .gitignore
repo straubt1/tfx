@@ -31,3 +31,4 @@ bin/
 sv-*
 cv-*
 *.state
+site/cinder_del
