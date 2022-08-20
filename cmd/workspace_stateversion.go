@@ -29,7 +29,6 @@ import (
 	"io/ioutil"
 	"math"
 	"os"
-	"path/filepath"
 
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
@@ -98,7 +97,7 @@ var (
 		Short: "Download State Version",
 		Long:  "Download State Version for a TFx Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			directory, err := getDirectory(*viperString("directory"))
+			directory, err := getDirectory(*viperString("directory"), *viperString("state-id"))
 			if err != nil {
 				return err
 			}
@@ -106,7 +105,7 @@ var (
 			return stateDownload(
 				getTfxClientContext(),
 				*viperString("state-id"),
-				directory)
+				directory+".state")
 		},
 	}
 )
@@ -298,27 +297,26 @@ func stateShow(c TfxClientContext, stateId string) error {
 	return nil
 }
 
-func stateDownload(c TfxClientContext, stateId string, directory string) error {
+func stateDownload(c TfxClientContext, stateId string, filename string) error {
 	o.AddMessageUserProvided("Downloading State Version from Id:", stateId)
 	state, err := c.Client.StateVersions.Read(c.Context, stateId)
 	if err != nil {
 		return errors.Wrap(err, "failed to read state version with provided id")
 	}
 
-	o.AddMessageUserProvided("State Version Found, download started...", "")
 	buff, err := c.Client.StateVersions.Download(c.Context, state.DownloadURL)
 	if err != nil {
 		return errors.Wrap(err, "failed to download state version")
 	}
 
-	fullPath := filepath.Join(directory, fmt.Sprintf("%s.state", stateId))
-	err = ioutil.WriteFile(fullPath, buff, 0644)
+	o.AddMessageUserProvided("State Version Found, download started...", "")
+	err = ioutil.WriteFile(filename, buff, 0644)
 	if err != nil {
 		return errors.Wrap(err, "failed to save state version")
 	}
 
 	o.AddDeferredMessageRead("Status", "Success")
-	o.AddDeferredMessageRead("File", fullPath)
+	o.AddDeferredMessageRead("File", filename)
 
 	return nil
 }

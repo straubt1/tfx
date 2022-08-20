@@ -22,7 +22,6 @@ package cmd
 
 import (
 	"bytes"
-	"io/ioutil"
 	"math"
 
 	"github.com/hashicorp/go-slug"
@@ -93,10 +92,15 @@ var (
 		Short: "Download the Configuration Version",
 		Long:  "Download the Configuration Version code for a TFx Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			directory, err := getDirectory(*viperString("directory"), *viperString("id"))
+			if err != nil {
+				return err
+			}
+
 			return cvDownload(
 				getTfxClientContext(),
 				*viperString("id"),
-				*viperString("directory"))
+				directory)
 		},
 	}
 )
@@ -250,21 +254,6 @@ func cvShow(c TfxClientContext, configurationId string) error {
 
 func cvDownload(c TfxClientContext, configurationId string, directory string) error {
 	o.AddMessageUserProvided("Downloading Configuration Version from Id:", configurationId)
-	var err error
-	// Determine a directory to unpack the slug contents into.
-	if directory != "" {
-		if !isDirectory(directory) {
-			return errors.Wrap(err, "configuration version directory is not valid")
-		}
-	} else {
-		o.AddMessageUserProvided("Directory not supplied, creating a temp directory", "")
-		dst, err := ioutil.TempDir("", "slug")
-		if err != nil {
-			return errors.Wrap(err, "failed to create temp directory")
-		}
-		directory = dst
-	}
-
 	cv, err := c.Client.ConfigurationVersions.Download(c.Context, configurationId)
 	if err != nil {
 		return errors.Wrap(err, "failed to download configuration version")

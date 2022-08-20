@@ -21,8 +21,6 @@
 package cmd
 
 import (
-	"io/ioutil"
-
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -101,13 +99,18 @@ var (
 			if err != nil {
 				return errors.New("failed to parse semantic version")
 			}
+			directory, err := getDirectory(*viperString("directory"),
+				*viperString("name"), *viperString("provider"), *viperString("version"))
+			if err != nil {
+				return err
+			}
 
 			return registryModuleVersionDownload(
 				getTfxClientContext(),
 				*viperString("name"),
 				*viperString("provider"),
 				moduleVersion,
-				*viperString("directory"))
+				directory)
 		},
 	}
 )
@@ -224,23 +227,9 @@ func registryModuleVersionDelete(c TfxClientContext, moduleName string, provider
 func registryModuleVersionDownload(c TfxClientContext, moduleName string, providerName string,
 	moduleVersion string, directory string) error {
 	o.AddMessageUserProvided("Downloading Module Version:", moduleName)
-	var err error
-	// Determine a directory to unpack the slug contents into.
-	if directory != "" {
-		if !isDirectory(directory) {
-			return errors.Wrap(err, "provider directory is not valid")
-		}
-	} else {
-		o.AddMessageUserProvided("Directory not supplied, creating a temp directory", "")
-		dst, err := ioutil.TempDir("", "slug")
-		if err != nil {
-			return errors.Wrap(err, "failed to create temp directory")
-		}
-		directory = dst
-	}
 
 	o.AddMessageUserProvided("Module Version Found, download started...", "")
-	_, err = DownloadModule(c.Token, c.Hostname, c.OrganizationName, moduleName, providerName, moduleVersion, directory)
+	_, err := DownloadModule(c.Token, c.Hostname, c.OrganizationName, moduleName, providerName, moduleVersion, directory)
 	if err != nil {
 		return errors.Wrap(err, "failed to download module")
 	}
