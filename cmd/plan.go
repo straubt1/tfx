@@ -57,18 +57,18 @@ var (
 
 func init() {
 	// All `tfx plan` commands
-	planCmd.Flags().StringP("workspaceName", "w", "", "Workspace name")
+	planCmd.Flags().StringP("workspace-name", "w", "", "Workspace name")
 	planCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (optional, defaults to current directory)")
-	planCmd.Flags().StringP("configurationId", "i", "", "Configuration Version Id (optional, i.e. cv-*)")
+	planCmd.Flags().StringP("configuration-id", "i", "", "Configuration Version Id (optional, i.e. cv-*)")
 	planCmd.Flags().StringP("message", "m", "", "Run Message (optional)")
 	planCmd.Flags().Bool("speculative", false, "Perform a Speculative Plan (optional)")
 	planCmd.Flags().Bool("destroy", false, "Perform a Destroy Plan (optional)")
 	planCmd.Flags().StringSlice("env", []string{}, "Environment variables to write to the Workspace. Can be supplied multiple times. (optional, i.e. '--env='AWS_REGION=us-east1')")
-	planCmd.MarkFlagRequired("workspaceName")
+	planCmd.MarkFlagRequired("workspace-name")
 
-	planExportCmd.Flags().StringP("planId", "i", "", "Plan Id (i.e. plan-*)")
+	planExportCmd.Flags().StringP("plan-id", "i", "", "Plan Id (i.e. plan-*)")
 	planExportCmd.Flags().StringP("directory", "d", "", "Directory to download export to (optional, defaults to a temp directory)")
-	planExportCmd.MarkFlagRequired("planId")
+	planExportCmd.MarkFlagRequired("plan-id")
 	planExportCmd.MarkFlagRequired("directory")
 
 	rootCmd.AddCommand(planCmd)
@@ -79,9 +79,9 @@ func runPlan() error {
 	// Validate flags
 	hostname := *viperString("tfeHostname")
 	orgName := *viperString("tfeOrganization")
-	wsName := *viperString("workspaceName")
+	wsName := *viperString("workspace-name")
 	dir := *viperString("directory")
-	configID := *viperString("configurationId")
+	configID := *viperString("configuration-id")
 	message := *viperString("message")
 	isSpeculative := *viperBool("speculative")
 	isDestroy := *viperBool("destroy")
@@ -156,7 +156,7 @@ func runPlan() error {
 }
 
 func runPlanExport() error {
-	planID := *viperString("planId")
+	planID := *viperString("plan-id")
 	directory := *viperString("directory")
 	client, ctx := getClientContext()
 
