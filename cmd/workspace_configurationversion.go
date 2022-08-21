@@ -45,13 +45,14 @@ var (
 		Short: "List Configuration Versions",
 		Long:  "List Configuration Versions of a TFx Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := *viperInt("maxItems")
+			m := *viperInt("max-items")
 			if *viperBool("all") {
 				m = math.MaxInt
 			}
+
 			return cvList(
 				getTfxClientContext(),
-				*viperString("workspaceName"),
+				*viperString("workspace-name"),
 				m)
 		},
 	}
@@ -68,7 +69,7 @@ var (
 
 			return cvCreate(
 				getTfxClientContext(),
-				*viperString("workspaceName"),
+				*viperString("workspace-name"),
 				*viperString("directory"),
 				*viperBool("speculative"))
 		},
@@ -109,16 +110,16 @@ func init() {
 	// `tfx workspace configuration-version` commands
 
 	// `tfx workspace configuration-version list` command
-	cvListCmd.Flags().StringP("workspaceName", "w", "", "Workspace name")
-	cvListCmd.Flags().IntP("maxItems", "", 10, "Max number of results (optional)")
+	cvListCmd.Flags().StringP("workspace-name", "w", "", "Workspace name")
+	cvListCmd.Flags().IntP("max-items", "m", 10, "Max number of results (optional)")
 	cvListCmd.Flags().BoolP("all", "a", false, "Retrieve all results regardless of maxItems flag (optional)")
-	cvListCmd.MarkFlagRequired("workspaceName")
+	cvListCmd.MarkFlagRequired("workspace-name")
 
 	// `tfx cv create`
-	cvCreateCmd.Flags().StringP("workspaceName", "w", "", "Workspace name")
+	cvCreateCmd.Flags().StringP("workspace-name", "w", "", "Workspace name")
 	cvCreateCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (optional, defaults to current directory)")
 	cvCreateCmd.Flags().BoolP("speculative", "s", false, "Perform a Speculative Plan (optional, defaults to false)")
-	cvCreateCmd.MarkFlagRequired("workspaceName")
+	cvCreateCmd.MarkFlagRequired("workspace-name")
 
 	// `tfx cv show`
 	cvShowCmd.Flags().StringP("id", "i", "", "Configuration Version Id (i.e. cv-*)")
@@ -138,10 +139,10 @@ func init() {
 
 func cvListAll(c TfxClientContext, workspaceId string, maxItems int) ([]*tfe.ConfigurationVersion, error) {
 	pageSize := 100
-
 	if maxItems < 100 {
 		pageSize = maxItems // Only get what we need in one page
 	}
+
 	allItems := []*tfe.ConfigurationVersion{}
 	opts := tfe.ConfigurationVersionListOptions{
 		ListOptions: tfe.ListOptions{PageNumber: 1, PageSize: pageSize},

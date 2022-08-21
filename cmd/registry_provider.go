@@ -20,6 +20,8 @@
 package cmd
 
 import (
+	"math"
+
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -39,8 +41,14 @@ var (
 		Short: "List Providers in a Private Registry",
 		Long:  "List Providers in a Private Registry of a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			m := *viperInt("max-items")
+			if *viperBool("all") {
+				m = math.MaxInt
+			}
+
 			return registryProviderList(
-				getTfxClientContext())
+				getTfxClientContext(),
+				m)
 		},
 	}
 
@@ -83,6 +91,8 @@ var (
 
 func init() {
 	// `tfx registry provider list` arguments
+	registryProviderListCmd.Flags().IntP("max-items", "m", 10, "Max number of results (optional)")
+	registryProviderListCmd.Flags().BoolP("all", "a", false, "Retrieve all results regardless of maxItems flag (optional)")
 
 	// `tfx registry provider create` arguments
 	registryProviderCreateCmd.Flags().StringP("name", "n", "", "Name of the Provider")
@@ -103,14 +113,16 @@ func init() {
 	registryProviderCmd.AddCommand(registryProviderDeleteCmd)
 }
 
-func registryProviderListAll(c TfxClientContext) ([]*tfe.RegistryProvider, error) {
+func registryProviderListAll(c TfxClientContext, maxItems int) ([]*tfe.RegistryProvider, error) {
+	pageSize := 100
+	if maxItems < 100 {
+		pageSize = maxItems // Only get what we need in one page
+	}
+
 	allItems := []*tfe.RegistryProvider{}
 	opts := tfe.RegistryProviderListOptions{
+		ListOptions: tfe.ListOptions{PageNumber: 1, PageSize: pageSize},
 		// RegistryName: tfe.PrivateRegistry, // Can restrict to just private
-		ListOptions: tfe.ListOptions{
-			PageNumber: 1,
-			PageSize:   100,
-		},
 		// Include: &[]tfe.RegistryProviderIncludeOps{"provider-versions"}, does not work, cant get provider versions from this call?
 	}
 	for {
@@ -120,6 +132,10 @@ func registryProviderListAll(c TfxClientContext) ([]*tfe.RegistryProvider, error
 		}
 
 		allItems = append(allItems, items.Items...)
+		if len(allItems) >= maxItems {
+			break // Hit the max, break. For maxItems > 100 it is possible to return more than max in this approach
+		}
+
 		if items.CurrentPage >= items.TotalPages {
 			break
 		}
@@ -129,9 +145,9 @@ func registryProviderListAll(c TfxClientContext) ([]*tfe.RegistryProvider, error
 	return allItems, nil
 }
 
-func registryProviderList(c TfxClientContext) error {
+func registryProviderList(c TfxClientContext, maxItems int) error {
 	o.AddMessageUserProvided("List Providers in Registry for Organization:", c.OrganizationName)
-	items, err := registryProviderListAll(c)
+	items, err := registryProviderListAll(c, maxItems)
 	if err != nil {
 		return errors.Wrap(err, "failed to list providers")
 	}

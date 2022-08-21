@@ -113,7 +113,7 @@ var (
 func init() {
 	// `tfx workspace state list` command
 	stateListCmd.Flags().StringP("workspace-name", "w", "", "Workspace name")
-	stateListCmd.Flags().IntP("max-items", "", 10, "Max number of results (optional)")
+	stateListCmd.Flags().IntP("max-items", "m", 10, "Max number of results (optional)")
 	stateListCmd.Flags().BoolP("all", "a", false, "Retrieve all results regardless of maxItems flag (optional)")
 	stateListCmd.MarkFlagRequired("workspace-name")
 

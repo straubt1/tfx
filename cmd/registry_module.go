@@ -21,6 +21,8 @@
 package cmd
 
 import (
+	"math"
+
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -40,8 +42,14 @@ var (
 		Short: "List modules",
 		Long:  "List modules in the Private Module Registry of a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			m := *viperInt("max-items")
+			if *viperBool("all") {
+				m = math.MaxInt
+			}
+
 			return registryModuleList(
-				getTfxClientContext())
+				getTfxClientContext(),
+				m)
 		},
 	}
 
@@ -87,6 +95,8 @@ var (
 
 func init() {
 	// `tfx registry module list` arguments
+	registryModuleListCmd.Flags().IntP("max-items", "m", 10, "Max number of results (optional)")
+	registryModuleListCmd.Flags().BoolP("all", "a", false, "Retrieve all results regardless of maxItems flag (optional)")
 
 	// `tfx registry module create` arguments
 	registryModuleCreateCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
@@ -113,13 +123,15 @@ func init() {
 	registryModuleCmd.AddCommand(registryModuleDeleteCmd)
 }
 
-func registryModuleListAll(c TfxClientContext, orgName string) ([]*tfe.RegistryModule, error) {
+func registryModuleListAll(c TfxClientContext, orgName string, maxItems int) ([]*tfe.RegistryModule, error) {
+	pageSize := 100
+	if maxItems < 100 {
+		pageSize = maxItems // Only get what we need in one page
+	}
+
 	allItems := []*tfe.RegistryModule{}
 	opts := tfe.RegistryModuleListOptions{
-		ListOptions: tfe.ListOptions{
-			PageNumber: 1,
-			PageSize:   100,
-		},
+		ListOptions: tfe.ListOptions{PageNumber: 1, PageSize: pageSize},
 	}
 
 	for {
@@ -129,6 +141,10 @@ func registryModuleListAll(c TfxClientContext, orgName string) ([]*tfe.RegistryM
 		}
 
 		allItems = append(allItems, items.Items...)
+		if len(allItems) >= maxItems {
+			break // Hit the max, break. For maxItems > 100 it is possible to return more than max in this approach
+		}
+
 		if items.CurrentPage >= items.TotalPages {
 			break
 		}
@@ -138,9 +154,9 @@ func registryModuleListAll(c TfxClientContext, orgName string) ([]*tfe.RegistryM
 	return allItems, nil
 }
 
-func registryModuleList(c TfxClientContext) error {
+func registryModuleList(c TfxClientContext, maxItems int) error {
 	o.AddMessageUserProvided("List Modules for Organization:", c.OrganizationName)
-	items, err := registryModuleListAll(c, c.OrganizationName)
+	items, err := registryModuleListAll(c, c.OrganizationName, maxItems)
 	if err != nil {
 		return errors.Wrap(err, "failed to list modules")
 	}
