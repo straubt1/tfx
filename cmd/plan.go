@@ -63,7 +63,7 @@ func init() {
 	planCmd.Flags().StringP("message", "m", "", "Run Message (optional)")
 	planCmd.Flags().Bool("speculative", false, "Perform a Speculative Plan (optional)")
 	planCmd.Flags().Bool("destroy", false, "Perform a Destroy Plan (optional)")
-	planCmd.Flags().StringSlice("env", []string{}, "Environment variables to write to the Workspace. Can be suplied multiple times. (optional, i.e. '--env='AWS_REGION=us-east1')")
+	planCmd.Flags().StringSlice("env", []string{}, "Environment variables to write to the Workspace. Can be supplied multiple times. (optional, i.e. '--env='AWS_REGION=us-east1')")
 	planCmd.MarkFlagRequired("workspaceName")
 
 	planExportCmd.Flags().StringP("planId", "i", "", "Plan Id (i.e. plan-*)")

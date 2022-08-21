@@ -1,4 +1,4 @@
-name: main
+name: Build `tfx` - Cross Compile
 
 on:
   push:
