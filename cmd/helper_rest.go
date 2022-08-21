@@ -148,6 +148,7 @@ type GPGList struct {
 }
 
 func ListGPGKeys(c TfxClientContext) (*GPGList, error) {
+	// TODO: No pagination, waiting on go-tfe to provide a List function since it is unlikely an org would have more than 100 keys
 	// create url "https://${HOST}/api/registry/private/v2/gpg-keys?filter%5Bnamespace%5D=${provider_namespace}"
 	url := fmt.Sprintf(
 		"https://%s/api/registry/private/v2/gpg-keys?filter[namespace]=%s",

@@ -9,7 +9,8 @@ copyright: "TFx is licensed under the <a href='https://github.com/straubt1/tfx/b
 theme:
   name: material
   favicon: img/favicon.ico
-  # logo: img/favicon.ico
+  icon:
+    logo: material/console
   # custom_dir: 'cinder'
   # colorscheme: github
   # highlightjs: true
@@ -18,13 +19,6 @@ theme:
     text: Roboto
   #   - hcl
   palette:
-    # primary: deep purple
-    # # Palette toggle for automatic mode
-    # - media: "(prefers-color-scheme)"
-    #   toggle:
-    #     icon: material/brightness-auto
-    #     name: Switch to light mode
-
     # Palette toggle for light mode
     - media: "(prefers-color-scheme: light)"
       # primary: blue grey

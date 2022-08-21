@@ -116,6 +116,12 @@ var (
 )
 
 func init() {
+	// `tfx registry module version list` arguments
+	registryModuleVersionListCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
+	registryModuleVersionListCmd.Flags().StringP("provider", "p", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
+	registryModuleVersionListCmd.MarkFlagRequired("name")
+	registryModuleVersionListCmd.MarkFlagRequired("provider")
+
 	// `tfx registry module version create` arguments
 	registryModuleVersionCreateCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
 	registryModuleVersionCreateCmd.Flags().StringP("provider", "p", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
@@ -124,12 +130,6 @@ func init() {
 	registryModuleVersionCreateCmd.MarkFlagRequired("name")
 	registryModuleVersionCreateCmd.MarkFlagRequired("provider")
 	registryModuleVersionCreateCmd.MarkFlagRequired("version")
-
-	// `tfx registry module version list` arguments
-	registryModuleVersionListCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
-	registryModuleVersionListCmd.Flags().StringP("provider", "p", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
-	registryModuleVersionListCmd.MarkFlagRequired("name")
-	registryModuleVersionListCmd.MarkFlagRequired("provider")
 
 	// `tfx registry module version delete` arguments
 	registryModuleVersionDeleteCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
@@ -189,9 +189,10 @@ func registryModuleVersionCreate(c TfxClientContext, moduleName string, provider
 		Version: &moduleVersion,
 	})
 	if err != nil {
-		errors.Wrap(err, "failed to create module version")
+		return errors.Wrap(err, "failed to create module version")
 	}
-	o.AddMessageUserProvided("Module Created, Uploading...", "")
+
+	o.AddMessageUserProvided("Module Version Created, Uploading...", "")
 	err = c.Client.RegistryModules.Upload(c.Context, *module, directory)
 	if err != nil {
 		errors.Wrap(err, "failed to upload module version")

@@ -21,6 +21,7 @@ package cmd
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -43,10 +44,15 @@ var (
 		Short: "List TFE Releases",
 		Long:  "List available Terraform Enterprise releases.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			m := *viperInt("max-items")
+			if *viperBool("all") {
+				m = math.MaxInt
+			}
+
 			return releaseTfeList(
 				*viperString("license-id"),
 				*viperString("password"),
-				*viperInt("max-items"))
+				m)
 		},
 	}
 
@@ -86,7 +92,8 @@ func init() {
 	// `tfx release tfe list`
 	releaseTfeListCmd.Flags().StringP("license-id", "l", "", "License Id for TFE/Replicated")
 	releaseTfeListCmd.Flags().StringP("password", "p", "", "Password to authenticate")
-	releaseTfeListCmd.Flags().IntP("max-items", "r", 10, "The number of results to print")
+	releaseTfeListCmd.Flags().IntP("max-items", "m", 10, "The number of results to print")
+	releaseTfeListCmd.Flags().BoolP("all", "a", false, "Retrieve all results regardless of maxItems flag (optional)")
 	releaseTfeListCmd.MarkFlagRequired("license-id")
 	releaseTfeListCmd.MarkFlagRequired("password")
 

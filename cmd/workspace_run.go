@@ -81,7 +81,7 @@ func init() {
 
 	// `tfx workspace run list` command
 	runListCmd.Flags().StringP("workspace-name", "w", "", "Workspace name")
-	runListCmd.Flags().IntP("max-items", "", 10, "Max number of results (optional)")
+	runListCmd.Flags().IntP("max-items", "m", 10, "Max number of results (optional)")
 	runListCmd.MarkFlagRequired("workspace-name")
 
 	// `tfx workspace run create` command

@@ -21,6 +21,7 @@ package cmd
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/mmcdole/gofeed"
@@ -42,8 +43,13 @@ var (
 		Short: "List Replicated binaries",
 		Long:  "List available Replicated releases.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			m := *viperInt("max-items")
+			if *viperBool("all") {
+				m = math.MaxInt
+			}
+
 			return releaseReplicatedList(
-				*viperInt("max-items"))
+				m)
 		},
 	}
 
@@ -70,7 +76,8 @@ var (
 
 func init() {
 	// `tfx release replicated list`
-	releaseReplicatedListCmd.Flags().IntP("max-items", "r", 10, "The number of results to print")
+	releaseReplicatedListCmd.Flags().IntP("max-items", "m", 10, "The number of results to print")
+	releaseReplicatedListCmd.Flags().BoolP("all", "a", false, "Retrieve all results regardless of maxItems flag (optional)")
 
 	// `tfx release replicated download`
 	releaseReplicatedDownloadCmd.Flags().StringP("directory", "d", "./", "Directory to save binary")

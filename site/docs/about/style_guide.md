@@ -7,7 +7,7 @@ The goal of this document is to outline the general user experience when dealing
 ## Colors
 
 !!! Note ""
-  When using the `--json` flag on a command these colors will not apply.
+    When using the `--json` flag on a command these colors will not apply.
 
 - User Provided: Green
     - These values are provided by the user, either through a configuration file or a command flag.

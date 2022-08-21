@@ -5,7 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.0.5] - 2022.08.20
+## [Unreleased]
+
+**Added**
+
+**Changed**
+
+**Removed**
+
+## [0.1.0] - 2022.08.21
+
+First official release!
 
 **Added**
 
@@ -14,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **Changed**
 
 * Moved and updated docs to the `site/` folder and published to a custom domain [tfx.rocks](tfx.rocks).
-* Created a styleguide and updated Commands, more information can be found at [https://tfx.rocks/about/style_guide/]()
+* Created a style guide and updated Commands, more information can be found at [https://tfx.rocks/about/style_guide/]()
   * Some of these changes are **BREAKING** changes
   * Mainly moving away from Command Flags that used camel case (example: "workspaceName" to "workspace-name")
 * Updated all of the `tfx registry module` commands to support JSON (`--json`) output.
@@ -191,6 +201,5 @@ New Commands:
 
 **Removed**
 
-[Unreleased]: https://github.com/straubt1/tfx/compare/v1.0.0...HEAD
-[0.0.1]: https://github.com/ostraubt1/tfx/compare/v0.0.0...v0.0.1 
-[0.0.0]: https://github.com/straubt1/tfx/releases/tag/v0.0.1
+[Unreleased]: https://github.com/straubt1/tfx/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/straubt1/tfx/releases/tag/v0.1.0

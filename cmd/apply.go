@@ -43,9 +43,9 @@ var (
 
 func init() {
 	// All `tfx apply` commands
-	applyCmd.PersistentFlags().StringP("runId", "i", "", "Run Id to apply")
+	applyCmd.PersistentFlags().StringP("run-id", "i", "", "Run Id to apply")
 
-	applyCmd.MarkPersistentFlagRequired("runId")
+	applyCmd.MarkPersistentFlagRequired("run-id")
 
 	rootCmd.AddCommand(applyCmd)
 }
@@ -57,7 +57,7 @@ func runApply() error {
 	hostname := *viperString("tfeHostname")
 	orgName := *viperString("tfeOrganization")
 	wsName := *viperString("workspaceName")
-	runID := *viperString("runId")
+	runID := *viperString("run-id")
 
 	client, ctx := getClientContext()
 
