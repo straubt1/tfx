@@ -21,12 +21,12 @@
 package cmd
 
 import (
-	"fmt"
 	"log"
-	"os"
 
+	"github.com/logrusorgru/aurora"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"github.com/straubt1/tfx/output"
 	"github.com/straubt1/tfx/version"
 
 	homedir "github.com/mitchellh/go-homedir"
@@ -35,7 +35,9 @@ import (
 
 var (
 	cfgFile string
+	o       *output.Output
 
+	// Required to leverage viper defaults for optional Flags
 	bindPFlags = func(cmd *cobra.Command, args []string) {
 		err := viper.BindPFlags(cmd.Flags())
 		if err != nil {
@@ -48,16 +50,25 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "tfx",
 	Short: "A CLI to easily interact with TFC/TFE.",
-	Long: `Leveraging the API for TFC/TFE can become a burden for common tasks.
+	Long: `Leveraging the API can become a burden for common tasks.
 	TFx aims to ease that challenge for common and repeatable tasks. This application
 	can be used to interact with either Terraform Cloud or Terraform Enterprise.`,
-	Version: version.String(),
+	SilenceUsage:     true,
+	SilenceErrors:    true,
+	Version:          version.String(),
+	PersistentPreRun: bindPFlags, // Bind here to avoid having to call this in every subcommand
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	cobra.CheckErr(rootCmd.Execute())
+	// Close output stream always before exiting
+	if err := rootCmd.Execute(); err != nil {
+		o.Close()
+		log.Fatal(aurora.Red(err))
+	} else {
+		o.Close()
+	}
 }
 
 func init() {
@@ -68,6 +79,10 @@ func init() {
 	rootCmd.PersistentFlags().String("tfeOrganization", "", "The name of the TFx Organization. Can also be set with the environment variable TFE_ORGANIZATION.")
 	rootCmd.PersistentFlags().String("tfeToken", "", "The API token used to authenticate to TFx. Can also be set with the environment variable TFE_TOKEN.")
 
+	// Add json output option, but hide during development
+	rootCmd.PersistentFlags().BoolP("json", "j", false, "Will output command results as JSON.")
+	rootCmd.PersistentFlags().MarkHidden("json")
+
 	// required
 	rootCmd.MarkPersistentFlagRequired("tfeOrganization")
 	rootCmd.MarkPersistentFlagRequired("tfeToken")
@@ -76,6 +91,9 @@ func init() {
 	viper.BindEnv("tfeHostname", "TFE_HOSTNAME")
 	viper.BindEnv("tfeOrganization", "TFE_ORGANIZATION")
 	viper.BindEnv("tfeToken", "TFE_TOKEN")
+
+	// Turn off completion option
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -97,14 +115,22 @@ func initConfig() {
 	viper.AutomaticEnv() // read in environment variables that match
 
 	// If a config file is found, read it in.
+	isConfigFile := false
 	if err := viper.ReadInConfig(); err == nil {
-		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+		isConfigFile = true // Capture information here to bring after all flags are loaded (namely which output type)
 	}
 
 	// Some hacking here to let viper use the cobra required flags, simplifies this checking
 	// in one place rather than each command
 	// More info: https://github.com/spf13/viper/issues/397
 	postInitCommands(rootCmd.Commands())
+
+	// Initialize output
+	o = output.New(*viperBool("json"))
+	// Print if config file was found
+	if isConfigFile {
+		o.AddMessageCalculated("Using config file:", viper.ConfigFileUsed())
+	}
 }
 
 // copy.pasta function

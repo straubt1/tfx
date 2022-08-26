@@ -62,7 +62,7 @@ func init() {
 	// `tfx metrics workspace`
 	metricsWorkspaceCmd.Flags().StringP("since", "s", "", "Start time when querying runs in the format MM/DD/YYYY hh:mm:ss. Examples: ['01/31/2021 10:30', '02/28/2021 10:30 AM', '03/20/2021'] (optional).")
 
-	rootCmd.AddCommand(metricsCmd)
+	adminCmd.AddCommand(metricsCmd)
 	metricsCmd.AddCommand(metricsWorkspaceCmd)
 }
 
@@ -146,7 +146,7 @@ func getAllMetrics() (*MetricsAll, error) {
 	start := time.Now()
 	client, ctx := getClientContext()
 
-	orgs, err := getAllOrganizations(ctx, client)
+	orgs, err := organizationListAll(getTfxClientContext())
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +182,7 @@ func getAllMetrics() (*MetricsAll, error) {
 
 func getAllOrganizationWorkspaces(ctx context.Context, client *tfe.Client, orgName string) (*MetricsWorkspaces, error) {
 	result := &MetricsWorkspaces{}
-	workspaces, err := getAllWorkspaces(ctx, client, orgName, "")
+	workspaces, err := workspaceListAllForOrganization(getTfxClientContext(), orgName, "")
 	if err != nil {
 		return nil, err
 	}
@@ -247,7 +247,7 @@ func getAllMetricsWorkspace(orgName string, since time.Time) (*MetricsWorkspaceR
 
 func getOrganizationMetricWorkspaces(ctx context.Context, client *tfe.Client, orgName string, runSinceTime time.Time) (*[]MetricsWorkspace, error) {
 	result := []MetricsWorkspace{}
-	workspaces, err := getAllWorkspaces(ctx, client, orgName, "")
+	workspaces, err := workspaceListAllForOrganization(getTfxClientContext(), orgName, "")
 	if err != nil {
 		return nil, err
 	}

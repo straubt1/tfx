@@ -23,12 +23,25 @@ func viperInt64(flag string) *int64 {
 	return &value
 }
 
+func viperInt(flag string) *int {
+	value := viper.GetInt(flag)
+	return &value
+}
+
 func viperSemanticVersionString(flag string) (string, error) {
 	v, err := semver.NewVersion(viper.GetString(flag))
 	if err != nil {
 		return "", errors.New("invalid semantic version")
 	}
 	return v.String(), nil
+}
+
+func viperShaString(flag string) (*string, error) {
+	v := viperString(flag)
+	if len(*v) != 64 {
+		return nil, errors.New("sha must be 64 characters long")
+	}
+	return v, nil
 }
 
 func viperBool(flag string) *bool {

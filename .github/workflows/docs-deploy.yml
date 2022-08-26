@@ -1,0 +1,42 @@
+
+name: Deploy Docs site
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches:
+    - "main"
+    paths:
+    - site/**
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+
+      - name: Copy Release Notes for docs site
+        uses: canastro/copy-file-action@master
+        with:
+          source: "CHANGELOG.md"
+          target: "site/docs/about/release_notes.md"
+      # - name: test copy
+      #   run: ls -l site/docs/about 
+      - name: Deploy MkDocs
+        # You may pin to the exact commit or the version.
+        uses: mhausenblas/mkdocs-deploy-gh-pages@1.25
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # CUSTOM_DOMAIN: tfx.rocks
+          CONFIG_FILE: site/mkdocs.yml
+          EXTRA_PACKAGES: build-base

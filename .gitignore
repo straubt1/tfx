@@ -24,3 +24,11 @@ debug/
 demo.md
 tfx
 local/
+bin/
+*.airgap
+*.tgz
+*.targz
+sv-*
+cv-*
+*.state
+site/cinder_del
