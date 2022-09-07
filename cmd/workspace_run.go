@@ -207,7 +207,7 @@ func runShow(c TfxClientContext, runId string) error {
 	o.AddDeferredMessageRead("Message", run.Message)
 	o.AddDeferredMessageRead("Terraform Version", run.TerraformVersion)
 	o.AddDeferredMessageRead("Created", FormatDateTime(run.CreatedAt))
-
+	o.AddDeferredMessageRead("Policy Checks", run.PolicyChecks)
 	return nil
 }
 
