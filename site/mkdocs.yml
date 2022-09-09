@@ -52,6 +52,7 @@ nav:
       - Variables: commands/workspace_variable.md
       - Runs: commands/workspace_run.md
       - Lock: commands/workspace_lock.md
+      - Team: commands/workspace_team.md
       - Configuration Versions: commands/workspace_configurationversion.md
       - State Versions: commands/workspace_stateversion.md
     - Private Registry:

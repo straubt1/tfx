@@ -68,7 +68,7 @@ Found 141 Workspaces
 
 ## `tfx workspace show`
 
-Show details of a given Workspace.
+Show details of a given Workspace, include Team Access.
 
 **Example**
 
@@ -85,4 +85,5 @@ Locked:              false
 Current Run Id:      run-muJzD4EXcYXeb6aY
 Current Run Status:  planned_and_finished
 Current Run Created: Sat Aug 20 14:45 2022
+Team Access:         appteam-read,appteam-custom
 ```

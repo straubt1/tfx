@@ -22,6 +22,9 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"math"
+	"strings"
+
 	"github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -238,6 +241,11 @@ func workspaceShow(c TfxClientContext, workspaceName string) error {
 		logError(err, "failed to read workspace")
 	}
 
+	ta, err := workspaceTeamListAll(c, w.ID, math.MaxInt)
+	if err != nil {
+		return errors.Wrap(err, "failed to list teams")
+	}
+
 	o.AddDeferredMessageRead("ID", w.ID)
 	o.AddDeferredMessageRead("Terraform Version", w.TerraformVersion)
 	o.AddDeferredMessageRead("Execution Mode", w.ExecutionMode)
@@ -259,6 +267,17 @@ func workspaceShow(c TfxClientContext, workspaceName string) error {
 		o.AddDeferredMessageRead("Current Run Status", run.Status)
 		o.AddDeferredMessageRead("Current Run Created", FormatDateTime(run.CreatedAt))
 	}
+
+	// loop through team access and get team names (requires an additional API call)
+	teamNames := []string{}
+	for _, i := range ta {
+		t, err := c.Client.Teams.Read(c.Context, i.Team.ID)
+		if err != nil {
+			return errors.Wrap(err, "failed to find team name")
+		}
+		teamNames = append(teamNames, t.Name)
+	}
+	o.AddDeferredMessageRead("Team Access", strings.Join(teamNames, ","))
 
 	return nil
 }

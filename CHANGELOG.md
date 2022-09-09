@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Added**
 
-* `tfx workspace team list` - List team access information for the Workspace.
+* `tfx workspace team list` - List team access information for a given Workspace.
 
 **Changed**
 

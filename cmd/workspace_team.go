@@ -20,6 +20,8 @@
 package cmd
 
 import (
+	"math"
+
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -39,9 +41,15 @@ var (
 		Short: "List Teams",
 		Long:  "List Teams in a Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			m := *viperInt("max-items")
+			if *viperBool("all") {
+				m = math.MaxInt
+			}
+
 			return workspaceTeamList(
 				getTfxClientContext(),
-				*viperString("workspace-name"))
+				*viperString("workspace-name"),
+				m)
 		},
 	}
 )
@@ -49,6 +57,8 @@ var (
 func init() {
 	// `tfx variable list` command
 	workspaceTeamListCmd.Flags().StringP("workspace-name", "w", "", "Name of the Workspace")
+	workspaceTeamListCmd.Flags().IntP("max-items", "m", 100, "Max number of results (optional)")
+	workspaceTeamListCmd.Flags().BoolP("all", "a", false, "Retrieve all results regardless of maxItems flag (optional)")
 	workspaceTeamListCmd.MarkFlagRequired("workspace-name")
 
 	workspaceCmd.AddCommand(workspaceTeamCmd)
@@ -86,27 +96,25 @@ func workspaceTeamListAll(c TfxClientContext, workspaceId string, maxItems int) 
 	return allItems, nil
 }
 
-func workspaceTeamList(c TfxClientContext, workspaceName string) error {
+func workspaceTeamList(c TfxClientContext, workspaceName string, maxItems int) error {
 	o.AddMessageUserProvided("List Variables for Workspace:", workspaceName)
 	workspaceId, err := getWorkspaceId(c, workspaceName)
 	if err != nil {
 		return errors.Wrap(err, "unable to read workspace id")
 	}
 
-	items, err := workspaceTeamListAll(c, workspaceId, 1000) //TODO: max items
+	items, err := workspaceTeamListAll(c, workspaceId, maxItems)
 	if err != nil {
 		return errors.Wrap(err, "failed to list teams")
 	}
 
-	o.AddTableHeader("Name", "Team Id", "Team Access Id", "Access Type", "Run Perms", "Sentinel Perms", "Run Task", "Variables", "State Versions")
+	o.AddTableHeader("Name", "Team Id", "Team Access Id", "Access Type", "Runs", "Workspace Locking", "Sentinel Mocks", "Run Tasks", "Variables", "State Versions")
 	for _, i := range items {
-
 		t, err := c.Client.Teams.Read(c.Context, i.Team.ID)
 		if err != nil {
 			return errors.Wrap(err, "failed to find team name")
 		}
-
-		o.AddTableRows(t.Name, i.Team.ID, i.ID, i.Access, i.Runs, i.SentinelMocks, i.RunTasks, i.Variables, i.StateVersions)
+		o.AddTableRows(t.Name, i.Team.ID, i.ID, i.Access, i.Runs, i.WorkspaceLocking, i.SentinelMocks, i.RunTasks, i.Variables, i.StateVersions)
 	}
 
 	return nil
