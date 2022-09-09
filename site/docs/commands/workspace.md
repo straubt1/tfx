@@ -68,7 +68,7 @@ Found 141 Workspaces
 
 ## `tfx workspace show`
 
-Show details of a given Workspace, include Team Access.
+Show details of a given Workspace, include Team Access and State sharing.
 
 **Example**
 
