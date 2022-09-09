@@ -54,11 +54,13 @@ var (
 				return workspaceListAll(
 					getTfxClientContext(),
 					*viperString("search"),
+					*viperString("repository"),
 					*viperString("run-status"))
 			} else {
 				return workspaceList(
 					getTfxClientContext(),
 					*viperString("search"),
+					*viperString("repository"),
 					*viperString("run-status"))
 			}
 		},
@@ -80,6 +82,7 @@ var (
 func init() {
 	// `tfx workspace list`
 	workspaceListCmd.Flags().StringP("search", "s", "", "Search string for Workspace Name (optional).")
+	workspaceListCmd.Flags().StringP("repository", "r", "", "Name of Repository to filter Workspaces (optional).")
 	workspaceListCmd.Flags().String("run-status", "", "Filter on current run status (optional).")
 	workspaceListCmd.Flags().BoolP("all", "a", false, "List All Organizations Workspaces (optional).")
 
@@ -161,15 +164,22 @@ func workspaceListAllRemoteStateConsumers(c TfxClientContext, workspaceId string
 	return allItems, nil
 }
 
-func workspaceList(c TfxClientContext, searchString string, runStatus string) error {
+func workspaceList(c TfxClientContext, searchString string, repoName string, runStatus string) error {
 	o.AddMessageUserProvided("List Workspaces for Organization:", c.OrganizationName)
 	items, err := workspaceListAllForOrganization(c, c.OrganizationName, searchString)
 	if err != nil {
-		return errors.Wrap(err, "failed to list variables")
+		return errors.Wrap(err, "failed to list workspaces")
+	}
+
+	if repoName != "" {
+		items, err = filterWorkspacesByRepoName(items, repoName)
+		if err != nil {
+			logError(err, "failed to filter workspaces by repo name")
+		}
 	}
 
 	if runStatus != "" {
-		items, err = filterWorkspaces(items, runStatus)
+		items, err = filterWorkspacesByRunStatus(items, runStatus)
 		if err != nil {
 			logError(err, "failed to filter workspaces by run status")
 		}
@@ -197,7 +207,7 @@ func workspaceList(c TfxClientContext, searchString string, runStatus string) er
 	return nil
 }
 
-func workspaceListAll(c TfxClientContext, searchString string, runStatus string) error {
+func workspaceListAll(c TfxClientContext, searchString string, repoName string, runStatus string) error {
 	o.AddMessageUserProvided("List Workspaces for all available Organizations", "")
 	orgs, err := organizationListAll(c)
 	if err != nil {
@@ -213,8 +223,15 @@ func workspaceListAll(c TfxClientContext, searchString string, runStatus string)
 		allWorkspaceList = append(allWorkspaceList, workspaceList...)
 	}
 
+	if repoName != "" {
+		allWorkspaceList, err = filterWorkspacesByRepoName(allWorkspaceList, repoName)
+		if err != nil {
+			logError(err, "failed to filter workspaces by repo name")
+		}
+	}
+
 	if runStatus != "" {
-		allWorkspaceList, err = filterWorkspaces(allWorkspaceList, runStatus)
+		allWorkspaceList, err = filterWorkspacesByRunStatus(allWorkspaceList, runStatus)
 		if err != nil {
 			logError(err, "failed to filter workspaces by run status")
 		}
@@ -242,11 +259,24 @@ func workspaceListAll(c TfxClientContext, searchString string, runStatus string)
 	return nil
 }
 
-func filterWorkspaces(list []*tfe.Workspace, runStatus string) ([]*tfe.Workspace, error) {
+func filterWorkspacesByRunStatus(list []*tfe.Workspace, runStatus string) ([]*tfe.Workspace, error) {
 	var result []*tfe.Workspace
 	for _, w := range list {
 		if w.CurrentRun != nil {
 			if w.CurrentRun.Status == tfe.RunStatus(runStatus) {
+				result = append(result, w)
+			}
+		}
+	}
+
+	return result, nil
+}
+
+func filterWorkspacesByRepoName(list []*tfe.Workspace, repoName string) ([]*tfe.Workspace, error) {
+	var result []*tfe.Workspace
+	for _, w := range list {
+		if w.VCSRepo != nil {
+			if w.VCSRepo.Identifier == repoName {
 				result = append(result, w)
 			}
 		}
