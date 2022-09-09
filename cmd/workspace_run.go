@@ -201,12 +201,27 @@ func runShow(c TfxClientContext, runId string) error {
 		return errors.Wrap(err, "failed to read run from id")
 	}
 
+	pc, err := c.Client.PolicyChecks.List(c.Context, run.ID, &tfe.PolicyCheckListOptions{
+		ListOptions: tfe.ListOptions{},
+		Include:     []tfe.PolicyCheckIncludeOpt{},
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to read policy checks")
+	}
+
 	o.AddDeferredMessageRead("ID", run.ID)
 	o.AddDeferredMessageRead("Configuration Version", run.ConfigurationVersion.ID)
 	o.AddDeferredMessageRead("Status", run.Status)
 	o.AddDeferredMessageRead("Message", run.Message)
 	o.AddDeferredMessageRead("Terraform Version", run.TerraformVersion)
 	o.AddDeferredMessageRead("Created", FormatDateTime(run.CreatedAt))
+
+	for _, i := range pc.Items {
+		// each item will be from a policy set
+		// but each has it's own set of policy checks
+		o.AddDeferredMessageRead("Policy Checks Passed", i.Result.Passed)
+		o.AddDeferredMessageRead("Policy Checks Failed", i.Result.TotalFailed)
+	}
 
 	return nil
 }
