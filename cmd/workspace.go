@@ -140,6 +140,27 @@ func organizationListAll(c TfxClientContext) ([]*tfe.Organization, error) {
 	return allItems, nil
 }
 
+func workspaceListAllRemoteStateConsumers(c TfxClientContext, workspaceId string) ([]*tfe.Workspace, error) {
+	allItems := []*tfe.Workspace{}
+	opts := tfe.RemoteStateConsumersListOptions{
+		ListOptions: tfe.ListOptions{PageNumber: 1, PageSize: 100},
+	}
+	for {
+		items, err := c.Client.Workspaces.ListRemoteStateConsumers(c.Context, workspaceId, &opts)
+		if err != nil {
+			return nil, err
+		}
+
+		allItems = append(allItems, items.Items...)
+		if items.CurrentPage >= items.TotalPages {
+			break
+		}
+		opts.PageNumber = items.NextPage
+	}
+
+	return allItems, nil
+}
+
 func workspaceList(c TfxClientContext, searchString string, runStatus string) error {
 	o.AddMessageUserProvided("List Workspaces for Organization:", c.OrganizationName)
 	items, err := workspaceListAllForOrganization(c, c.OrganizationName, searchString)
@@ -241,6 +262,11 @@ func workspaceShow(c TfxClientContext, workspaceName string) error {
 		logError(err, "failed to read workspace")
 	}
 
+	rsc, err := workspaceListAllRemoteStateConsumers(c, w.ID)
+	if err != nil {
+		return errors.Wrap(err, "failed to list remote state consumers")
+	}
+
 	ta, err := workspaceTeamListAll(c, w.ID, math.MaxInt)
 	if err != nil {
 		return errors.Wrap(err, "failed to list teams")
@@ -252,6 +278,7 @@ func workspaceShow(c TfxClientContext, workspaceName string) error {
 	o.AddDeferredMessageRead("Auto Apply", w.AutoApply)
 	o.AddDeferredMessageRead("Working Directory", w.WorkingDirectory)
 	o.AddDeferredMessageRead("Locked", w.Locked)
+	o.AddDeferredMessageRead("Global State Sharing", w.GlobalRemoteState)
 
 	if w.CurrentRun == nil {
 		o.AddDeferredMessageRead("Current Run", "none")
@@ -268,16 +295,29 @@ func workspaceShow(c TfxClientContext, workspaceName string) error {
 		o.AddDeferredMessageRead("Current Run Created", FormatDateTime(run.CreatedAt))
 	}
 
+	// if there are any Team Assignments,
 	// loop through team access and get team names (requires an additional API call)
-	teamNames := []string{}
-	for _, i := range ta {
-		t, err := c.Client.Teams.Read(c.Context, i.Team.ID)
-		if err != nil {
-			return errors.Wrap(err, "failed to find team name")
+	if len(ta) > 0 {
+		teamNames := []string{}
+		for _, i := range ta {
+			t, err := c.Client.Teams.Read(c.Context, i.Team.ID)
+			if err != nil {
+				return errors.Wrap(err, "failed to find team name")
+			}
+			teamNames = append(teamNames, t.Name)
 		}
-		teamNames = append(teamNames, t.Name)
+		o.AddDeferredMessageRead("Team Access", strings.Join(teamNames, ","))
 	}
-	o.AddDeferredMessageRead("Team Access", strings.Join(teamNames, ","))
+
+	// if there are any Statefile Sharing with workspaces,
+	// loop through workspace and get names
+	if len(rsc) > 0 {
+		wsNames := []string{}
+		for _, i := range rsc {
+			wsNames = append(wsNames, i.Name)
+		}
+		o.AddDeferredMessageRead("Remote State Sharing", strings.Join(wsNames, ","))
+	}
 
 	return nil
 }
