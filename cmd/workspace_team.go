@@ -65,7 +65,7 @@ func init() {
 	workspaceTeamCmd.AddCommand(workspaceTeamListCmd)
 }
 
-func workspaceTeamListAll(c TfxClientContext, workspaceId string, maxItems int) ([]*tfe.TeamAccess, error) {
+func workspaceListAllTeams(c TfxClientContext, workspaceId string, maxItems int) ([]*tfe.TeamAccess, error) {
 	pageSize := 100
 	if maxItems < 100 {
 		pageSize = maxItems // Only get what we need in one page
@@ -103,7 +103,7 @@ func workspaceTeamList(c TfxClientContext, workspaceName string, maxItems int) e
 		return errors.Wrap(err, "unable to read workspace id")
 	}
 
-	items, err := workspaceTeamListAll(c, workspaceId, maxItems)
+	items, err := workspaceListAllTeams(c, workspaceId, maxItems)
 	if err != nil {
 		return errors.Wrap(err, "failed to list teams")
 	}

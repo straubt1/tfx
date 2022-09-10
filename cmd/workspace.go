@@ -267,7 +267,7 @@ func workspaceShow(c TfxClientContext, workspaceName string) error {
 		return errors.Wrap(err, "failed to list remote state consumers")
 	}
 
-	ta, err := workspaceTeamListAll(c, w.ID, math.MaxInt)
+	ta, err := workspaceListAllTeams(c, w.ID, math.MaxInt)
 	if err != nil {
 		return errors.Wrap(err, "failed to list teams")
 	}

@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Changed**
 
+* `tfx workspace show` - Now includes Team Access and Statefile Sharing output for the Workspace.
+
 **Removed**
 
 ## [0.1.0] - 2022.08.21
