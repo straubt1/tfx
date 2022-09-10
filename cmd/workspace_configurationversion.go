@@ -177,7 +177,7 @@ func cvList(c TfxClientContext, workspaceName string, maxItems int) error {
 
 	items, err := cvListAll(c, workspaceId, maxItems)
 	if err != nil {
-		return errors.Wrap(err, "failed to list variables")
+		return errors.Wrap(err, "failed to list configuration versions")
 	}
 
 	o.AddTableHeader("Id", "Speculative", "Status", "Repo", "Branch", "Commit", "Message")
