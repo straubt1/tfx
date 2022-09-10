@@ -22,7 +22,7 @@ pkg/
 debug/
 *notes.md
 demo.md
-tfx
+tfx*
 local/
 bin/
 *.airgap
@@ -32,4 +32,3 @@ sv-*
 cv-*
 *.state
 site/cinder_del
-tfx*
