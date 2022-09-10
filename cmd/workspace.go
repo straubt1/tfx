@@ -164,28 +164,21 @@ func workspaceListAllRemoteStateConsumers(c TfxClientContext, workspaceId string
 	return allItems, nil
 }
 
-func workspaceList(c TfxClientContext, searchString string, repoName string, runStatus string) error {
+func workspaceList(c TfxClientContext, searchString string, repoIdentifier string, runStatus string) error {
 	o.AddMessageUserProvided("List Workspaces for Organization:", c.OrganizationName)
 	items, err := workspaceListAllForOrganization(c, c.OrganizationName, searchString)
 	if err != nil {
 		return errors.Wrap(err, "failed to list workspaces")
 	}
 
-	if repoName != "" {
-		items, err = filterWorkspacesByRepoName(items, repoName)
+	if runStatus == "" && repoIdentifier == "" { //No filtering needed
+		o.AddFormattedMessageCalculated("Found %d Workspaces", len(items))
+	} else {
+		items, err = filterWorkspaces(items, runStatus, repoIdentifier)
 		if err != nil {
-			logError(err, "failed to filter workspaces by repo name")
-		}
-	}
-
-	if runStatus != "" {
-		items, err = filterWorkspacesByRunStatus(items, runStatus)
-		if err != nil {
-			logError(err, "failed to filter workspaces by run status")
+			logError(err, "failed to filter workspaces")
 		}
 		o.AddFormattedMessageCalculated("Found %d Filtered Workspaces", len(items))
-	} else {
-		o.AddFormattedMessageCalculated("Found %d Workspaces", len(items))
 	}
 
 	o.AddTableHeader("Name", "Id", "Current Run Created", "Status", "Repository", "Locked")
@@ -207,7 +200,7 @@ func workspaceList(c TfxClientContext, searchString string, repoName string, run
 	return nil
 }
 
-func workspaceListAll(c TfxClientContext, searchString string, repoName string, runStatus string) error {
+func workspaceListAll(c TfxClientContext, searchString string, repoIdentifier string, runStatus string) error {
 	o.AddMessageUserProvided("List Workspaces for all available Organizations", "")
 	orgs, err := organizationListAll(c)
 	if err != nil {
@@ -220,24 +213,21 @@ func workspaceListAll(c TfxClientContext, searchString string, repoName string, 
 		if err != nil {
 			logError(err, "failed to list workspaces for organization")
 		}
+		if runStatus == "" && repoIdentifier == "" { //No filtering needed
+		} else {
+			workspaceList, err = filterWorkspaces(workspaceList, runStatus, repoIdentifier)
+			if err != nil {
+				logError(err, "failed to filter workspaces")
+			}
+		}
+
 		allWorkspaceList = append(allWorkspaceList, workspaceList...)
 	}
 
-	if repoName != "" {
-		allWorkspaceList, err = filterWorkspacesByRepoName(allWorkspaceList, repoName)
-		if err != nil {
-			logError(err, "failed to filter workspaces by repo name")
-		}
-	}
-
-	if runStatus != "" {
-		allWorkspaceList, err = filterWorkspacesByRunStatus(allWorkspaceList, runStatus)
-		if err != nil {
-			logError(err, "failed to filter workspaces by run status")
-		}
-		o.AddFormattedMessageCalculated("Found %d Filtered Workspaces", len(allWorkspaceList))
-	} else {
+	if runStatus == "" && repoIdentifier == "" { //No filtering needed
 		o.AddFormattedMessageCalculated("Found %d Workspaces", len(allWorkspaceList))
+	} else {
+		o.AddFormattedMessageCalculated("Found %d Filtered Workspaces", len(allWorkspaceList))
 	}
 
 	o.AddTableHeader("Organization", "Name", "Id", "Current Run Created", "Status", "Repository", "Locked")
@@ -259,30 +249,45 @@ func workspaceListAll(c TfxClientContext, searchString string, repoName string, 
 	return nil
 }
 
-func filterWorkspacesByRunStatus(list []*tfe.Workspace, runStatus string) ([]*tfe.Workspace, error) {
+// single filter function to enable the ability to add additional filters in the future
+func filterWorkspaces(list []*tfe.Workspace, runStatus string, repoIdentifier string) ([]*tfe.Workspace, error) {
 	var result []*tfe.Workspace
+
+	// Loop once over the given workspaces
 	for _, w := range list {
-		if w.CurrentRun != nil {
-			if w.CurrentRun.Status == tfe.RunStatus(runStatus) {
-				result = append(result, w)
-			}
+		// If any "hasX" func returns false, do not include
+		shouldInclude := hasRunStatus(*w, runStatus) &&
+			hasRepoIdentifier(*w, repoIdentifier)
+
+		if shouldInclude {
+			result = append(result, w)
 		}
 	}
-
 	return result, nil
 }
 
-func filterWorkspacesByRepoName(list []*tfe.Workspace, repoName string) ([]*tfe.Workspace, error) {
-	var result []*tfe.Workspace
-	for _, w := range list {
-		if w.VCSRepo != nil {
-			if w.VCSRepo.Identifier == repoName {
-				result = append(result, w)
-			}
-		}
+// If no run status given, return true
+// Else return true only when a Current Run is available and matches
+func hasRunStatus(w tfe.Workspace, runStatus string) bool {
+	if runStatus == "" {
+		return true // Empty means any run status should be included
 	}
+	if w.CurrentRun == nil {
+		return false // Run status is not available, should not be included
+	}
+	return w.CurrentRun.Status == tfe.RunStatus(runStatus) // Status determines if it should be included
+}
 
-	return result, nil
+// If no repo given, return true
+// Else return true only when a Repo identifier is available and matches
+func hasRepoIdentifier(w tfe.Workspace, repoIdentifier string) bool {
+	if repoIdentifier == "" {
+		return true
+	}
+	if w.VCSRepo == nil {
+		return false
+	}
+	return w.VCSRepo.Identifier == repoIdentifier
 }
 
 func workspaceShow(c TfxClientContext, workspaceName string) error {
