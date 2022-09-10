@@ -143,7 +143,7 @@ func runList(c TfxClientContext, workspaceName string, maxItems int) error {
 
 	items, err := workspaceRunListAll(c, workspaceId, maxItems)
 	if err != nil {
-		return errors.Wrap(err, "failed to list variables")
+		return errors.Wrap(err, "failed to list runs")
 	}
 
 	o.AddTableHeader("Id", "Configuration Version", "Status", "Plan Only", "Terraform Version", "Created", "Message")

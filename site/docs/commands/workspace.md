@@ -7,7 +7,15 @@ General commands to manage Workspaces.
 
 ## `tfx workspace list`
 
-Using the `--search` flag allows filtering by workspaces with a given string.
+List workspaces available for a given Organization.
+
+Using the `--all` flag allows returning to all Organizations available to the provided API Token.
+
+Additionally there are several filters available, these can be used independently or in combination.
+
+Using the `--search` flag allows filtering by workspace name with a given string.
+
+Using the `--repository` flag allows filtering by workspaces connected to a given repository Identifier (example: straubt1/tfe-workspace-seed).
 
 Using the `--run-status` flag allows filtering by workspaces with a current run with a given status (full list of available run statuses can be found [here](https://www.terraform.io/docs/cloud/api/run.html#run-states)).
 
@@ -64,6 +72,39 @@ Found 141 Workspaces
 │ firefly      │ tfx-test-workspace-05 │ ws-yra8oTuc16pgYedk │                       │                      │               │ false  │
 │ firefly      │ tfx-test-workspace-06 │ ws-qsLatjFsibCPAKWr │                       │                      │               │ false  │
 ╰──────────────┴───────────────────────┴─────────────────────┴───────────────────────┴──────────────────────┴───────────────┴────────╯
+```
+
+**List Workspaces with a repository Example**
+
+```sh
+$ tfx workspace list --repository straubt1/demo  
+Using config file: /Users/tstraub/.tfx.hcl
+List Workspaces for Organization: firefly
+Found 6 Workspaces
+╭───────────────────┬─────────────────────┬───────────────────────┬────────────────┬───────────────┬────────╮
+│ NAME              │ ID                  │ CURRENT RUN CREATED   │ STATUS         │ REPOSITORY    │ LOCKED │
+├───────────────────┼─────────────────────┼───────────────────────┼────────────────┼───────────────┼────────┤
+│ tf-dev-us-west-1  │ ws-XXn8hDRGA56Wyzxe │ Fri Oct 30 13:39 2022 │ errored        │ straubt1/demo │ true   │
+│ tf-stg-us-west-1  │ ws-Trm11JYZz9dj46wT │ Fri Oct 30 13:30 2022 │ policy_checked │ straubt1/demo │ true   │
+│ tf-prd-us-west-1  │ ws-BUBSQysttH1FGLqr │ Fri Oct 30 13:30 2022 │ policy_checked │ straubt1/demo │ true   │
+│ tf-dev-us-west-2  │ ws-ZWNdqJLrWzHEeevS │ Fri Oct 30 13:30 2022 │ policy_checked │ straubt1/demo │ true   │
+│ tf-stg-us-west-2  │ ws-ZPgFWuQ79qFeX7MD │ Fri Oct 30 13:30 2022 │ policy_checked │ straubt1/demo │ true   │
+│ tf-prd-us-west-2  │ ws-axCg6rXwKByChA6f │ Fri Oct 30 13:30 2022 │ policy_checked │ straubt1/demo │ true   │
+╰───────────────────┴─────────────────────┴───────────────────────┴────────────────┴───────────────┴────────╯
+```
+
+**List Workspaces with a repository and a run status Example**
+
+```sh
+$ tfx workspace list --repository straubt1/demo --run-status errored
+Using config file: /Users/tstraub/.tfx.hcl
+List Workspaces for Organization: firefly
+Found 1 Workspaces
+╭───────────────────┬─────────────────────┬───────────────────────┬────────────────┬───────────────┬────────╮
+│ NAME              │ ID                  │ CURRENT RUN CREATED   │ STATUS         │ REPOSITORY    │ LOCKED │
+├───────────────────┼─────────────────────┼───────────────────────┼────────────────┼───────────────┼────────┤
+│ tf-dev-us-west-1  │ ws-XXn8hDRGA56Wyzxe │ Fri Oct 30 13:39 2022 │ errored        │ straubt1/demo │ true   │
+╰───────────────────┴─────────────────────┴───────────────────────┴────────────────┴───────────────┴────────╯
 ```
 
 ## `tfx workspace show`

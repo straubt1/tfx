@@ -22,7 +22,7 @@ pkg/
 debug/
 *notes.md
 demo.md
-tfx
+tfx*
 local/
 bin/
 *.airgap
