@@ -3,7 +3,7 @@
 # Terraform Cloud/Terraform Enterprise CLI
 
 [![main](https://github.com/straubt1/tfx/actions/workflows/main.yml/badge.svg)](https://github.com/straubt1/tfx/actions/workflows/main.yml)
-![Go Version](https://img.shields.io/badge/go%20version-%3E=1.18-61CFDD.svg?style=flat-square)
+![Go Version](https://img.shields.io/badge/go%20version-%3E=1.19-61CFDD.svg?style=flat-square)
 
 _tfx_ is a standalone CLI for Terraform Cloud and Terraform Enterprise.
 

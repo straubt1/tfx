@@ -32,7 +32,7 @@ curl -L -o tfx.exe "https://github.com/straubt1/tfx/releases/download/${version}
 ```
 
 **Go Installation**
-From Go version 1.18, the following is supported. `@latest` can be `@$VERSION`
+From Go version 1.19, the following is supported. `@latest` can be `@$VERSION`
 ```sh
 go install github.com/straubt1/tfx@latest
 ```
