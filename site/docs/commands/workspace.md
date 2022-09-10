@@ -68,7 +68,7 @@ Found 141 Workspaces
 
 ## `tfx workspace show`
 
-Show details of a given Workspace.
+Show details of a given Workspace, include Team Access and State sharing.
 
 **Example**
 
@@ -76,13 +76,16 @@ Show details of a given Workspace.
 $ tfx workspace show -n tfx-test
 Using config file: /Users/tstraub/.tfx.hcl
 Show Workspace: tfx-test
-ID:                  ws-VxepewkunumUbR9V
-Terraform Version:   1.0.0
-Execution Mode:      remote
-Auto Apply:          false
-Working Directory:   
-Locked:              false
-Current Run Id:      run-muJzD4EXcYXeb6aY
-Current Run Status:  planned_and_finished
-Current Run Created: Sat Aug 20 14:45 2022
+ID:                   ws-VxepewkunumUbR9V
+Terraform Version:    1.0.0
+Execution Mode:       remote
+Auto Apply:           false
+Working Directory:    
+Locked:               false
+Global State Sharing: false
+Current Run Id:       run-muJzD4EXcYXeb6aY
+Current Run Status:   planned_and_finished
+Current Run Created:  Sat Aug 20 14:45 2022
+Team Access:          appteam-read,appteam-custom
+Remote State Sharing: tfx-test-workspace-16,tfx-test-workspace-17
 ```
