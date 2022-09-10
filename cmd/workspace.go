@@ -82,7 +82,7 @@ var (
 func init() {
 	// `tfx workspace list`
 	workspaceListCmd.Flags().StringP("search", "s", "", "Search string for Workspace Name (optional).")
-	workspaceListCmd.Flags().StringP("repository", "r", "", "Name of Repository to filter Workspaces (optional).")
+	workspaceListCmd.Flags().StringP("repository", "r", "", "Filter on Repository Identifier (i.e. username/repo_name) (optional).")
 	workspaceListCmd.Flags().String("run-status", "", "Filter on current run status (optional).")
 	workspaceListCmd.Flags().BoolP("all", "a", false, "List All Organizations Workspaces (optional).")
 
