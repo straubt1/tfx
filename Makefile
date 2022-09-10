@@ -13,6 +13,9 @@ update:
 	go get -u
 	go mod tidy
 
+upgrade-go-mac:
+	brew upgrade go
+
 site-local:
 	mkdocs serve -f site/mkdocs.yml
 
