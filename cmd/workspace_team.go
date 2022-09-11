@@ -119,3 +119,16 @@ func workspaceTeamList(c TfxClientContext, workspaceName string, maxItems int) e
 
 	return nil
 }
+
+func getTeamAccessNames(c TfxClientContext, ta []*tfe.TeamAccess) ([]interface{}, error) {
+	var teamNames []interface{}
+	for _, i := range ta {
+		t, err := c.Client.Teams.Read(c.Context, i.Team.ID)
+		if err != nil {
+			return nil, err
+		}
+		teamNames = append(teamNames, t.Name)
+	}
+
+	return teamNames, nil
+}

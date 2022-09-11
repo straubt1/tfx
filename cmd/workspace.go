@@ -332,13 +332,9 @@ func workspaceShow(c TfxClientContext, workspaceName string) error {
 	// if there are any Team Assignments,
 	// loop through team access and get team names (requires an additional API call)
 	if len(ta) > 0 {
-		var teamNames []interface{}
-		for _, i := range ta {
-			t, err := c.Client.Teams.Read(c.Context, i.Team.ID)
-			if err != nil {
-				return errors.Wrap(err, "failed to find team name")
-			}
-			teamNames = append(teamNames, t.Name)
+		teamNames, err := getTeamAccessNames(c, ta)
+		if err != nil {
+			return errors.Wrap(err, "failed to find team name")
 		}
 		o.AddDeferredListMessageRead("Team Access", teamNames)
 	}
