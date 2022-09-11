@@ -201,47 +201,12 @@ func runShow(c TfxClientContext, runId string) error {
 		return errors.Wrap(err, "failed to read run from id")
 	}
 
-	pc, err := c.Client.PolicyChecks.List(c.Context, run.ID, &tfe.PolicyCheckListOptions{ // TODO add paging
-		ListOptions: tfe.ListOptions{},
-		Include:     []tfe.PolicyCheckIncludeOpt{},
-	})
-	if err != nil {
-		return errors.Wrap(err, "failed to read policy checks")
-	}
-
 	o.AddDeferredMessageRead("ID", run.ID)
 	o.AddDeferredMessageRead("Configuration Version", run.ConfigurationVersion.ID)
 	o.AddDeferredMessageRead("Status", run.Status)
 	o.AddDeferredMessageRead("Message", run.Message)
 	o.AddDeferredMessageRead("Terraform Version", run.TerraformVersion)
 	o.AddDeferredMessageRead("Created", FormatDateTime(run.CreatedAt))
-
-	policyPassed, policyFailed := 0, 0
-	for _, i := range pc.Items {
-		// each item will be from a policy set
-		// but each has it's own set of policy checks
-		policyPassed += i.Result.Passed
-		policyFailed += i.Result.TotalFailed
-
-	}
-	// test := []interface{"a", "b"}
-	test := []interface{}{
-		"ws-1",
-		"ws-2",
-		"ws-3",
-	}
-	o.AddDeferredListMessageRead("workspaces", test)
-
-	testComplex := map[string]interface{}{
-		"policy-a": "passed",
-		"policy-b": true,
-		"policy-c": 4,
-	}
-	// testComplex = append(testComplex, test)
-	o.AddDeferredMapMessageRead("Policy Checks", testComplex)
-
-	// o.AddDeferredMessageRead("Policy Checks Passed", policyPassed)
-	// o.AddDeferredMessageRead("Policy Checks Failed", policyFailed)
 
 	return nil
 }

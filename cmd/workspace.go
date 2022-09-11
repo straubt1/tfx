@@ -23,7 +23,6 @@ package cmd
 
 import (
 	"math"
-	"strings"
 
 	"github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
@@ -333,7 +332,7 @@ func workspaceShow(c TfxClientContext, workspaceName string) error {
 	// if there are any Team Assignments,
 	// loop through team access and get team names (requires an additional API call)
 	if len(ta) > 0 {
-		teamNames := []string{}
+		var teamNames []interface{}
 		for _, i := range ta {
 			t, err := c.Client.Teams.Read(c.Context, i.Team.ID)
 			if err != nil {
@@ -341,17 +340,17 @@ func workspaceShow(c TfxClientContext, workspaceName string) error {
 			}
 			teamNames = append(teamNames, t.Name)
 		}
-		o.AddDeferredMessageRead("Team Access", strings.Join(teamNames, ","))
+		o.AddDeferredListMessageRead("Team Access", teamNames)
 	}
 
 	// if there are any Statefile Sharing with workspaces,
 	// loop through workspace and get names
 	if len(rsc) > 0 {
-		wsNames := []string{}
+		var wsNames []interface{}
 		for _, i := range rsc {
 			wsNames = append(wsNames, i.Name)
 		}
-		o.AddDeferredMessageRead("Remote State Sharing", strings.Join(wsNames, ","))
+		o.AddDeferredListMessageRead("Remote State Sharing", wsNames)
 	}
 
 	return nil
