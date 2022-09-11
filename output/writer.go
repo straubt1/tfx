@@ -10,10 +10,10 @@ import (
 )
 
 type Message struct {
-	Description  string
-	Value        interface{}
-	ValueList    []interface{}
-	ValueComplex [][]interface{}
+	Description string
+	Value       interface{}
+	ValueList   []interface{}
+	ValueMap    map[string]interface{}
 }
 
 // Store OutputType for reference when posting messages
@@ -77,24 +77,21 @@ func (o Output) AddFormattedMessageCalculated(description string, value interfac
 	fmt.Printf(description+"\n", aurora.Yellow(value))
 }
 
-// Adds a message that will not print immediate.
-// Single primitive Value
-// Call Close() to print and align
+// Adds a message that will not print until Close() is called, to print and align
+// Single primitive Value (string, int, bool)
 func (o *Output) AddDeferredMessageRead(description string, value interface{}) {
 	o.messages = append(o.messages, &Message{description, value, nil, nil})
 }
 
-// Adds a message that will not print immediate.
-// List primitive Value
-// Call Close() to print and align
+// Adds a message that will not print until Close() is called, to print and align
+// List of primitive Values (string, int, bool)
 func (o *Output) AddDeferredListMessageRead(description string, value []interface{}) {
 	o.messages = append(o.messages, &Message{description, nil, value, nil})
 }
 
-// Adds a message that will not print immediate.
-// List complex Value
-// Call Close() to print and align
-func (o *Output) AddDeferredListComplexMessageRead(description string, value [][]interface{}) {
+// Adds a message that will not print until Close() is called, to print and align
+// Map Value, string -> primitive (string, int, bool)
+func (o *Output) AddDeferredMapMessageRead(description string, value map[string]interface{}) {
 	o.messages = append(o.messages, &Message{description, nil, nil, value})
 }
 
@@ -124,13 +121,21 @@ func (o Output) closeMessagesDefault() {
 			fmt.Printf("%-*s\n", maxLength+1, aurora.Bold(k.Description+":"))
 			for _, v := range k.ValueList {
 				// fmt.Println(fmt.Sprintf("%-*s", maxLength+1, ""), aurora.Blue(v))
-				fmt.Println(aurora.Blue(v))
+				fmt.Printf("  %s\n", aurora.Blue(v))
 			}
 		}
-		if k.ValueComplex != nil {
+		if k.ValueMap != nil {
 			fmt.Printf("%-*s\n", maxLength+1, aurora.Bold(k.Description+":"))
-			for _, v := range k.ValueComplex {
-				fmt.Println(aurora.Blue(v))
+
+			// determine spacing based on largest key in map (left justify)
+			maxLengthMap := 0
+			for k, _ := range k.ValueMap {
+				if len(k) > maxLength {
+					maxLengthMap = len(k)
+				}
+			}
+			for k, v := range k.ValueMap {
+				fmt.Println(fmt.Sprintf("  %-*s", maxLengthMap+1, aurora.Bold(k+":")), aurora.Blue(v))
 			}
 		}
 	}
@@ -144,6 +149,9 @@ func (o Output) closeMessagesJson() {
 		}
 		if k.ValueList != nil {
 			tempMap[k.Description] = k.ValueList
+		}
+		if k.ValueMap != nil {
+			tempMap[k.Description] = k.ValueMap
 		}
 	}
 

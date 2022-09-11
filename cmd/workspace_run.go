@@ -225,17 +225,23 @@ func runShow(c TfxClientContext, runId string) error {
 
 	}
 	// test := []interface{"a", "b"}
-	var test []interface{}
-	test = append(test, "a")
-	test = append(test, "b")
-	o.AddDeferredListMessageRead("Policy Checks", test)
+	test := []interface{}{
+		"ws-1",
+		"ws-2",
+		"ws-3",
+	}
+	o.AddDeferredListMessageRead("workspaces", test)
 
-	var testComplex [][]interface{}
-	testComplex = append(testComplex, test)
-	o.AddDeferredListComplexMessageRead("Complex", testComplex)
+	testComplex := map[string]interface{}{
+		"policy-a": "passed",
+		"policy-b": true,
+		"policy-c": 4,
+	}
+	// testComplex = append(testComplex, test)
+	o.AddDeferredMapMessageRead("Policy Checks", testComplex)
 
-	o.AddDeferredMessageRead("Policy Checks Passed", policyPassed)
-	o.AddDeferredMessageRead("Policy Checks Failed", policyFailed)
+	// o.AddDeferredMessageRead("Policy Checks Passed", policyPassed)
+	// o.AddDeferredMessageRead("Policy Checks Failed", policyFailed)
 
 	return nil
 }
