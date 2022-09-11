@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Changed**
 
-* Updated `tfx workspace list` to add a flag `--respository` that will filter based on workspaces that are connected to the specified repository identifier.
+* Updated `tfx workspace list` to add a flag `--repository` that will filter based on workspaces that are connected to the specified repository identifier.
 
 * `tfx workspace show` - Now includes Team Access and Statefile Sharing output for the Workspace.
 

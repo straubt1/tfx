@@ -12,6 +12,8 @@ import (
 type Message struct {
 	Description string
 	Value       interface{}
+	ValueList   []interface{}
+	ValueMap    map[string]interface{}
 }
 
 // Store OutputType for reference when posting messages
@@ -75,10 +77,22 @@ func (o Output) AddFormattedMessageCalculated(description string, value interfac
 	fmt.Printf(description+"\n", aurora.Yellow(value))
 }
 
-// Adds a message that will not print immediate.
-// Call Close() to print and align
+// Adds a message that will not print until Close() is called, to print and align
+// Single primitive Value (string, int, bool)
 func (o *Output) AddDeferredMessageRead(description string, value interface{}) {
-	o.messages = append(o.messages, &Message{description, value})
+	o.messages = append(o.messages, &Message{description, value, nil, nil})
+}
+
+// Adds a message that will not print until Close() is called, to print and align
+// List of primitive Values (string, int, bool)
+func (o *Output) AddDeferredListMessageRead(description string, value []interface{}) {
+	o.messages = append(o.messages, &Message{description, nil, value, nil})
+}
+
+// Adds a message that will not print until Close() is called, to print and align
+// Map Value, string -> primitive (string, int, bool)
+func (o *Output) AddDeferredMapMessageRead(description string, value map[string]interface{}) {
+	o.messages = append(o.messages, &Message{description, nil, nil, value})
 }
 
 // create a row from an array of interfaces, required since table.Row{} uses a variadic
@@ -92,6 +106,7 @@ func createRow(items []interface{}) table.Row {
 // print
 func (o Output) closeMessagesDefault() {
 	maxLength := 0
+	// determine spacing based on largest message description (left justify)
 	for _, k := range o.messages {
 		if len(k.Description) > maxLength {
 			maxLength = len(k.Description)
@@ -99,14 +114,45 @@ func (o Output) closeMessagesDefault() {
 	}
 
 	for _, k := range o.messages {
-		fmt.Println(fmt.Sprintf("%-*s", maxLength+1, aurora.Bold(k.Description+":")), aurora.Blue(k.Value))
+		if k.Value != nil {
+			fmt.Println(fmt.Sprintf("%-*s", maxLength+1, aurora.Bold(k.Description+":")), aurora.Blue(k.Value))
+		}
+		if k.ValueList != nil {
+			fmt.Printf("%-*s\n", maxLength+1, aurora.Bold(k.Description+":"))
+			for _, v := range k.ValueList {
+				// fmt.Println(fmt.Sprintf("%-*s", maxLength+1, ""), aurora.Blue(v))
+				fmt.Printf("  %s\n", aurora.Blue(v))
+			}
+		}
+		if k.ValueMap != nil {
+			fmt.Printf("%-*s\n", maxLength+1, aurora.Bold(k.Description+":"))
+
+			// determine spacing based on largest key in map (left justify)
+			maxLengthMap := 0
+			for k := range k.ValueMap {
+				if len(k) > maxLengthMap {
+					maxLengthMap = len(k)
+				}
+			}
+			for k, v := range k.ValueMap {
+				fmt.Println(fmt.Sprintf("  %-*s", maxLengthMap+1, aurora.Bold(k+":")), aurora.Blue(v))
+			}
+		}
 	}
 }
 
 func (o Output) closeMessagesJson() {
 	tempMap := make(map[string]interface{}, len(o.messages))
-	for _, v := range o.messages {
-		tempMap[v.Description] = v.Value
+	for _, k := range o.messages {
+		if k.Value != nil {
+			tempMap[k.Description] = k.Value
+		}
+		if k.ValueList != nil {
+			tempMap[k.Description] = k.ValueList
+		}
+		if k.ValueMap != nil {
+			tempMap[k.Description] = k.ValueMap
+		}
 	}
 
 	b, _ := json.Marshal(tempMap)

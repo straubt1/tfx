@@ -18,6 +18,44 @@ The goal of this document is to outline the general user experience when dealing
 - Error: Red
     - It is the way Rick Sanchez would want it...
 
+## Output Spacing
+
+For all outputs where the Value (in the Key/Value message) is a primitive, the Key will be left justified, the Value will be spaced to be even with other messages returned by the command.
+
+Example:
+
+```
+ID:                   ws-VxepewkunumUbR9V
+Terraform Version:    1.0.0
+Execution Mode:       remote
+Locked:               false
+Global State Sharing: false
+Current Run Id:       run-tNGxao7zMos5YrY1
+```
+
+For outputs where the Value is a List, the Key will be left justified, the Values of the List will be on a new line with a two space left-padding.
+
+Example:
+
+```
+Some List:           
+  item1
+  item2
+  item3
+```
+
+For outputs where the Value is a Map, the Key will be left justified, the Values of the Map will be on a new line with a two space left-padding for the inner key and be spaced to be even with other inner keys in the message.
+
+Example:
+
+```
+Some Map:            
+  item3:           5
+  item4Long:       5.3
+  item1:           string_value 1
+  item2ReallyLong: true
+```
+
 ## Command and Flag Naming
 
 Command and Flag naming will adhere to the following standards:
