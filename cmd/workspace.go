@@ -296,9 +296,12 @@ func workspaceShow(c TfxClientContext, workspaceName string) error {
 		logError(err, "failed to read workspace")
 	}
 
-	rsc, err := workspaceListAllRemoteStateConsumers(c, w.ID)
-	if err != nil {
-		return errors.Wrap(err, "failed to list remote state consumers")
+	var rsc []*tfe.Workspace
+	if !w.GlobalRemoteState { //if global remote state, do not call this
+		rsc, err = workspaceListAllRemoteStateConsumers(c, w.ID)
+		if err != nil {
+			return errors.Wrap(err, "failed to list remote state consumers")
+		}
 	}
 
 	ta, err := workspaceListAllTeams(c, w.ID, math.MaxInt)
@@ -341,7 +344,7 @@ func workspaceShow(c TfxClientContext, workspaceName string) error {
 
 	// if there are any Statefile Sharing with workspaces,
 	// loop through workspace and get names
-	if len(rsc) > 0 {
+	if !w.GlobalRemoteState && len(rsc) > 0 {
 		var wsNames []interface{}
 		for _, i := range rsc {
 			wsNames = append(wsNames, i.Name)
