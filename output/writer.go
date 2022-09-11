@@ -129,8 +129,8 @@ func (o Output) closeMessagesDefault() {
 
 			// determine spacing based on largest key in map (left justify)
 			maxLengthMap := 0
-			for k, _ := range k.ValueMap {
-				if len(k) > maxLength {
+			for k := range k.ValueMap {
+				if len(k) > maxLengthMap {
 					maxLengthMap = len(k)
 				}
 			}
