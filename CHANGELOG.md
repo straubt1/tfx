@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Added**
 
+**Changed**
+
+**Removed**
+
+## [v0.1.1] - 2022.09.11
+
+**Added**
+
 * `tfx workspace team list` - List team access information for a given Workspace.
 
 **Changed**
@@ -19,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Removed**
 
-## [0.1.0] - 2022.08.21
+## [v0.1.0] - 2022.08.21
 
 First official release!
 
