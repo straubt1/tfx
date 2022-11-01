@@ -1,15 +1,28 @@
 # Contributing
 
 When contributing to this repository, please first discuss the change you wish to make via issue,
-email, or any other method with the owners of this repository before making a change. 
+email, or any other method with the owners of this repository before making a change.
 
 Please note we have a code of conduct, please follow it in all your interactions with the project.
 
+## Developing guide
+
+Golang has some idiosyncrasies when developing in fork and branch normal gitflow.
+
+The simplest way to contribute following a normal git workflow.
+
+1. Fork this repository as normal.
+1. Clone the repository to your local environment.
+1. From the root of the project folder create your working branch preferably named issue#id-short-description `git checkout -b issue99-example-description`
+1. Run the following command `go mod edit -replace github.com/straubt1/tfx=$(pwd)`. This will update `go.mod` with `replace github.com/straubt1/tfx => /path/to/your/working/dir`
+1. Make your local changes and use the `make build` to build your local code as you develop your updates.
+1. Before you finally create a pull request remove the replace line by running `go mod edit -dropreplace github.com/straubt1/tfx`. This removes the line appended to `go.mod`
+
 ## Pull Request Process
 
-1. Ensure any install or build dependencies are removed before the end of the layer when doing a 
+1. Ensure any install or build dependencies are removed before the end of the layer when doing a
    build.
-2. Update the README.md and CHANGELOG.md with details of changes to the interface, this includes new environment 
+2. Update the README.md and CHANGELOG.md with details of changes to the interface, this includes new environment
    variables, exposed ports, useful file locations and container parameters.
 3. Request review from a repo maintainer and work to resolve any feedback/suggestions.
 
