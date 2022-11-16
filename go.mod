@@ -9,7 +9,7 @@ require (
 	github.com/coreos/go-semver v0.3.0
 	github.com/fatih/color v1.13.0
 	github.com/hashicorp/go-slug v0.10.0
-	github.com/hashicorp/go-tfe v1.11.0
+	github.com/hashicorp/go-tfe v1.13.0
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/jedib0t/go-pretty/v6 v6.4.0
 	github.com/logrusorgru/aurora v2.0.3+incompatible
@@ -28,6 +28,7 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/go-openapi/errors v0.20.3 // indirect
 	github.com/go-openapi/strfmt v0.21.3 // indirect
+	github.com/hashicorp/go-version v1.6.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mmcdole/goxpp v0.0.0-20200921145534-2f3784f67354 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
