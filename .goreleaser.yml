@@ -1,0 +1,120 @@
+env:
+  - GO111MODULE=on
+  - CGO_ENABLED=0
+
+builds:
+  -
+    binary: tfx
+    ldflags: -s -w -X version.Version={{ .Version }}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      
+archives:
+  -
+    builds:
+      - tfx
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: >-
+      {{- .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end -}}
+
+nfpms:
+  - builds:
+      - tfx
+    vendor: straubt1
+    homepage:  https://tfx.rocks/
+    maintainer: "Tom Straub <straub@hashicorp.com>"
+    description: "TFx is a standalone CLI for Terraform Cloud and Terraform Enterprise"
+    license: MIT
+    formats:
+      - apk
+      - deb
+      - rpm
+    bindir: /usr/bin
+
+dockers:
+- image_templates:
+  - 'ghcr.io/straubt1/{{.ProjectName}}:{{ .Tag }}-amd64'
+  dockerfile: Dockerfile
+  use: buildx
+  build_flag_templates:
+  - "--pull"
+  - "--label=io.artifacthub.package.readme-url=https://raw.githubusercontent.com/straubt1/tfx/main/README.md"
+  - "--label=io.artifacthub.package.maintainers=[{\"name\":\"Tom Straub\",\"email\":\"straub@hashicorp.com\"}]"
+  - "--label=io.artifacthub.package.license=MIT"
+  - "--label=org.opencontainers.image.description=TFx is a standalone CLI for Terraform Cloud and Terraform Enterprise"
+  - "--label=org.opencontainers.image.created={{.Date}}"
+  - "--label=org.opencontainers.image.name={{.ProjectName}}"
+  - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+  - "--label=org.opencontainers.image.version={{.Version}}"
+  - "--label=org.opencontainers.image.source={{.GitURL}}"
+  - "--platform=linux/amd64"
+- image_templates:
+  - 'ghcr.io/straubt1/{{.ProjectName}}:{{ .Tag }}-arm64'
+  dockerfile:  Dockerfile
+  use: buildx
+  build_flag_templates:
+  - "--pull"
+  - "--label=io.artifacthub.package.readme-url=https://raw.githubusercontent.com/straubt1/tfx/main/README.md"
+  - "--label=io.artifacthub.package.maintainers=[{\"name\":\"Tom Straub\",\"email\":\"straub@hashicorp.com\"}]"
+  - "--label=io.artifacthub.package.license=MIT"
+  - "--label=org.opencontainers.image.description=TFx is a standalone CLI for Terraform Cloud and Terraform Enterprise"
+  - "--label=org.opencontainers.image.created={{.Date}}"
+  - "--label=org.opencontainers.image.name={{.ProjectName}}"
+  - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+  - "--label=org.opencontainers.image.version={{.Version}}"
+  - "--label=org.opencontainers.image.source={{.GitURL}}"
+  - "--platform=linux/amd64"
+  goarch: arm64
+
+docker_manifests:
+- name_template: 'ghcr.io/straubt1/{{.ProjectName}}:{{ .Tag }}'
+  image_templates:
+  - 'ghcr.io/straubt1/{{.ProjectName}}:{{ .Tag }}-amd64'
+  - 'ghcr.io/straubt1/{{.ProjectName}}:{{ .Tag }}-arm64'
+- name_template: 'ghcr.io/straubt1/{{.ProjectName}}:latest'
+  image_templates:
+  - 'ghcr.io/straubt1/{{.ProjectName}}:{{ .Tag }}-amd64'
+  - 'ghcr.io/straubt1/{{.ProjectName}}:{{ .Tag }}-arm64'
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+    - '^test:'
+    - '^chore'
+    - 'merge conflict'
+    - Merge pull request
+    - Merge remote-tracking branch
+    - Merge branch
+    - go mod tidy
+  groups:
+    - title: Dependency updates
+      regexp: '^.*?(feat|fix)\(deps\)!?:.+$'
+      order: 300
+    - title: 'New Features'
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 100
+    - title: 'Bug fixes'
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 200
+    - title: 'Documentation updates'
+      regexp: ^.*?doc(\([[:word:]]+\))??!?:.+$
+      order: 400
+    - title: Other work
+      order: 9999
