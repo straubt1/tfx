@@ -9,7 +9,7 @@ require (
 	github.com/coreos/go-semver v0.3.1
 	github.com/fatih/color v1.15.0
 	github.com/hashicorp/go-slug v0.12.1
-	github.com/hashicorp/go-tfe v1.32.1
+	github.com/hashicorp/go-tfe v1.33.0
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/jedib0t/go-pretty/v6 v6.4.7
 	github.com/logrusorgru/aurora v2.0.3+incompatible
