@@ -1,6 +1,6 @@
 module github.com/straubt1/tfx
 
-go 1.19
+go 1.21
 
 require (
 	code.cloudfoundry.org/bytefmt v0.0.0-20230612151507-41ef4d1f67a4
