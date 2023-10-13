@@ -145,7 +145,6 @@ func init() {
 
 	// `tfx registry provider version platform show` arguments
 	registryProviderVersionPlatformShowCmd.Flags().StringP("name", "n", "", "Name of the Provider")
-	// registryProviderVersionPlatformShowCmd.Flags().StringP("name", "n", "", "Name of the Provider")
 	registryProviderVersionPlatformShowCmd.Flags().StringP("version", "v", "", "Version of Provider (i.e. 0.0.1)")
 	registryProviderVersionPlatformShowCmd.Flags().StringP("os", "", "", "OS of the Provider Version Platform (linux, windows, darwin)")
 	registryProviderVersionPlatformShowCmd.Flags().StringP("arch", "", "", "ARCH of the Provider Version Platform (amd64, arm64)")
