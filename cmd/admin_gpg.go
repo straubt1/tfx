@@ -151,7 +151,7 @@ func gpgCreate(c TfxClientContext, namespace string, publicKey string, registryN
 	}
 
 	o.AddMessageUserProvided("GPG Key Created", "")
-	o.AddDeferredMessageRead("ID", g.ID)
+	o.AddDeferredMessageRead("KeyID", g.KeyID)
 	o.AddDeferredMessageRead("Created", FormatDateTime(g.CreatedAt))
 	o.AddDeferredMessageRead("Updated", FormatDateTime(g.UpdatedAt))
 	o.AddDeferredMessageRead("AsciiArmor", "\n"+g.AsciiArmor)
