@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Changed**
 
+* Updated go to v1.21
+* Updated all go packages to latest
 * `tfx admin gpg create` command will now output "KeyID" instead of "ID" to match the API response.
 
 **Removed**
