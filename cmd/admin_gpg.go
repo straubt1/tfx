@@ -171,7 +171,7 @@ func gpgShow(c TfxClientContext, namespace string, keyId string) error {
 	}
 
 	o.AddMessageUserProvided("GPG Key Found", "")
-	o.AddDeferredMessageRead("ID", g.ID)
+	o.AddDeferredMessageRead("KeyID", g.KeyID)
 	o.AddDeferredMessageRead("Created", FormatDateTime(g.CreatedAt))
 	o.AddDeferredMessageRead("Updated", FormatDateTime(g.UpdatedAt))
 	o.AddDeferredMessageRead("AsciiArmor", "\n"+g.AsciiArmor)

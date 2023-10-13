@@ -5,17 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v0.1.2] - 2023.10.13
 
 **Added**
+
+* `tfx workspace run discard` - Discard a run on a given Workspace.
 
 **Changed**
 
 * Updated go to v1.21
 * Updated all go packages to latest
-* `tfx admin gpg create` command will now output "KeyID" instead of "ID" to match the API response.
-
-**Removed**
+* `tfx admin gpg create` and `tfx admin gpg show` commands will now output "KeyID" instead of "ID" to match the API response.
 
 ## [v0.1.1] - 2022.09.11
 

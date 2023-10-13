@@ -33,7 +33,7 @@ $ tfx admin gpg create --namespace firefly --public-key ./hashicorp.51852D87348F
 Using config file: /Users/tstraub/.tfx.hcl
 Create GPG Key for Organization: firefly
 GPG Key Created 
-ID:         18
+KeyID:      51852D87348FFC4C
 Created:    Fri Aug 19 21:48 2022
 Updated:    Fri Aug 19 21:48 2022
 AsciiArmor: 
@@ -80,7 +80,7 @@ $ tfx admin gpg show --namespace firefly --id 51852D87348FFC4C
 Using config file: /Users/tstraub/.tfx.hcl
 Show a GPG Key for Organization: firefly
 GPG Key Found 
-ID:         16
+KeyID:      51852D87348FFC4C
 Created:    Sat Jul  9 16:26 2022
 Updated:    Sat Jul  9 16:26 2022
 AsciiArmor: 
