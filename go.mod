@@ -9,7 +9,7 @@ require (
 	github.com/coreos/go-semver v0.3.1
 	github.com/fatih/color v1.15.0
 	github.com/hashicorp/go-slug v0.12.2
-	github.com/hashicorp/go-tfe v1.34.0
+	github.com/hashicorp/go-tfe v1.36.0
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/jedib0t/go-pretty/v6 v6.4.7
 	github.com/logrusorgru/aurora v2.0.3+incompatible
@@ -36,7 +36,7 @@ require (
 	github.com/oklog/ulid v1.3.1 // indirect
 	go.mongodb.org/mongo-driver v1.12.1 // indirect
 	golang.org/x/net v0.14.0 // indirect
-	golang.org/x/sync v0.3.0 // indirect
+	golang.org/x/sync v0.4.0 // indirect
 )
 
 require (
