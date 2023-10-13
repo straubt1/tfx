@@ -74,6 +74,18 @@ var (
 				*viperString("id"))
 		},
 	}
+
+	// `tfx workspace discard` command
+	runDiscardCmd = &cobra.Command{
+		Use:	 "discard",
+		Short:	 "Discard Run",
+		Long:	 "Discard Run for a TFx Workspace.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runDiscard(
+				getTfxClientContext(),
+				*viperString("id"))
+		},
+	}
 )
 
 func init() {
@@ -95,10 +107,15 @@ func init() {
 	runShowCmd.Flags().StringP("id", "i", "", "Run Id (i.e. run-*)")
 	runShowCmd.MarkFlagRequired("id")
 
+	// `tfx workspace run discard` command
+	runDiscardCmd.Flags().StringP("id", "i", "", "Run Id (i.e. run-*)")
+	runDiscardCmd.MarkFlagRequired("id")
+
 	workspaceCmd.AddCommand(runCmd)
 	runCmd.AddCommand(runListCmd)
 	runCmd.AddCommand(runCreateCmd)
 	runCmd.AddCommand(runShowCmd)
+	runCmd.AddCommand(runDiscardCmd)
 }
 
 func workspaceRunListAll(c TfxClientContext, workspaceId string, maxItems int) ([]*tfe.Run, error) {
@@ -207,6 +224,19 @@ func runShow(c TfxClientContext, runId string) error {
 	o.AddDeferredMessageRead("Message", run.Message)
 	o.AddDeferredMessageRead("Terraform Version", run.TerraformVersion)
 	o.AddDeferredMessageRead("Created", FormatDateTime(run.CreatedAt))
+
+	return nil
+}
+
+func runDiscard(c TfxClientContext, runId string) error {
+	err := c.Client.Runs.Discard(c.Context, runId, tfe.RunDiscardOptions{
+		Comment: tfe.String("Discarded by tfx"),
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to discard run")
+	}
+
+	o.AddDeferredMessageRead("Discarded run id", runId)
 
 	return nil
 }

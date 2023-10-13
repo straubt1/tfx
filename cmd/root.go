@@ -79,9 +79,8 @@ func init() {
 	rootCmd.PersistentFlags().String("tfeOrganization", "", "The name of the TFx Organization. Can also be set with the environment variable TFE_ORGANIZATION.")
 	rootCmd.PersistentFlags().String("tfeToken", "", "The API token used to authenticate to TFx. Can also be set with the environment variable TFE_TOKEN.")
 
-	// Add json output option, but hide during development
+	// Add json output option
 	rootCmd.PersistentFlags().BoolP("json", "j", false, "Will output command results as JSON.")
-	rootCmd.PersistentFlags().MarkHidden("json")
 
 	// required
 	rootCmd.MarkPersistentFlagRequired("tfeOrganization")
