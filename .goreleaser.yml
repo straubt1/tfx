@@ -5,7 +5,7 @@ env:
 builds:
   -
     binary: tfx
-    ldflags: -s -w -X version.Version={{ .Version }}
+    ldflags: -s -w -X version.Version={{ .Version }} -X 'github.com/straubt1/tfx/version.BuiltBy=github'
     goos:
       - linux
       - darwin
