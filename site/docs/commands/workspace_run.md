@@ -95,3 +95,15 @@ Message:               Triggered via API
 Terraform Version:     1.0.0
 Created:               Tue Jun 28 17:46 2022
 ```
+
+## `tfx workspace run discard`
+
+Discard a supplied Run.
+
+**Example**
+
+```sh
+$ tfx workspace run discard --id run-oB7uUW4Qgk9HQMCU
+Using config file: /Users/tstraub/.tfx.hcl
+Discarded run id: run-oB7uUW4Qgk9HQMCU
+```
