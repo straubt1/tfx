@@ -62,6 +62,8 @@ nav:
     - Admin:
       - GPG Keys: commands/admin_gpg.md
       - Terraform Versions: commands/admin_terraformversion.md
+  - Integrations:
+      - Gitlab CI: integrations/gitlab.md
   - About:
     - Why TFx?: about/purpose.md
     - Release Notes: about/release_notes.md
