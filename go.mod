@@ -11,7 +11,7 @@ require (
 	github.com/hashicorp/go-slug v0.12.2
 	github.com/hashicorp/go-tfe v1.36.0
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
-	github.com/jedib0t/go-pretty/v6 v6.4.8
+	github.com/jedib0t/go-pretty/v6 v6.4.9
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/mmcdole/gofeed v1.2.1
