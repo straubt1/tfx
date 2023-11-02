@@ -3,15 +3,15 @@ module github.com/straubt1/tfx
 go 1.21
 
 require (
-	code.cloudfoundry.org/bytefmt v0.0.0-20230612151507-41ef4d1f67a4
+	code.cloudfoundry.org/bytefmt v0.0.0-20231017140541-3b893ed0421b
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/cavaliergopher/grab/v3 v3.0.1
 	github.com/coreos/go-semver v0.3.1
 	github.com/fatih/color v1.15.0
-	github.com/hashicorp/go-slug v0.12.2
-	github.com/hashicorp/go-tfe v1.36.0
+	github.com/hashicorp/go-slug v0.13.1
+	github.com/hashicorp/go-tfe v1.38.0
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
-	github.com/jedib0t/go-pretty/v6 v6.4.8
+	github.com/jedib0t/go-pretty/v6 v6.4.9
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/mmcdole/gofeed v1.2.1
@@ -44,16 +44,16 @@ require (
 )
 
 require (
-	github.com/fsnotify/fsnotify v1.6.0 // indirect
+	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.4 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
-	github.com/hashicorp/jsonapi v0.0.0-20210826224640-ee7dae0fb22d // indirect
+	github.com/hashicorp/jsonapi v0.0.0-20231023233540-b6a3d216e521 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
-	github.com/mattn/go-isatty v0.0.19 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.15 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
