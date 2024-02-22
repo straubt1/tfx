@@ -1,0 +1,257 @@
+# The configurations that used for the recording, feel free to edit them
+config:
+
+  # Specify a command to be executed
+  # like `/bin/bash -l`, `ls`, or any other commands
+  # the default is bash for Linux
+  # or powershell.exe for Windows
+  command: bash -l
+  
+  # Specify the current working directory path
+  # the default is the current working directory path
+  cwd: /Users/tstraub/tfx
+  
+  # Export additional ENV variables
+  env:
+    recording: true
+  
+  # Explicitly set the number of columns
+  # or use `auto` to take the current
+  # number of columns of your shell
+  cols: 188
+  
+  # Explicitly set the number of rows
+  # or use `auto` to take the current
+  # number of rows of your shell
+  rows: 17
+  
+  # Amount of times to repeat GIF
+  # If value is -1, play once
+  # If value is 0, loop indefinitely
+  # If value is a positive number, loop n times
+  repeat: 0
+  
+  # Quality
+  # 1 - 100
+  quality: 100
+  
+  # Delay between frames in ms
+  # If the value is `auto` use the actual recording delays
+  frameDelay: auto
+  
+  # Maximum delay between frames in ms
+  # Ignored if the `frameDelay` isn't set to `auto`
+  # Set to `auto` to prevent limiting the max idle time
+  maxIdleTime: 2000
+  
+  # The surrounding frame box
+  # The `type` can be null, window, floating, or solid`
+  # To hide the title use the value null
+  # Don't forget to add a backgroundColor style with a null as type
+  frameBox:
+    type: floating
+    title: Terminalizer
+    style:
+      border: 0px black solid
+      # boxShadow: none
+      # margin: 0px
+  
+  # Add a watermark image to the rendered gif
+  # You need to specify an absolute path for
+  # the image on your machine or a URL, and you can also
+  # add your own CSS styles
+  watermark:
+    imagePath: null
+    style:
+      position: absolute
+      right: 15px
+      bottom: 15px
+      width: 100px
+      opacity: 0.9
+  
+  # Cursor style can be one of
+  # `block`, `underline`, or `bar`
+  cursorStyle: block
+  
+  # Font family
+  # You can use any font that is installed on your machine
+  # in CSS-like syntax
+  fontFamily: "Monaco, Lucida Console, Ubuntu Mono, Monospace"
+  
+  # The size of the font
+  fontSize: 12
+  
+  # The height of lines
+  lineHeight: 1
+  
+  # The spacing between letters
+  letterSpacing: 0
+  
+  # Theme
+  theme:
+    background: "transparent"
+    foreground: "#afafaf"
+    cursor: "#c7c7c7"
+    black: "#232628"
+    red: "#fc4384"
+    green: "#b3e33b"
+    yellow: "#ffa727"
+    blue: "#75dff2"
+    magenta: "#ae89fe"
+    cyan: "#708387"
+    white: "#d5d5d0"
+    brightBlack: "#626566"
+    brightRed: "#ff7fac"
+    brightGreen: "#c8ed71"
+    brightYellow: "#ebdf86"
+    brightBlue: "#75dff2"
+    brightMagenta: "#ae89fe"
+    brightCyan: "#b1c6ca"
+    brightWhite: "#f9f9f4"
+  
+# Records, feel free to edit them
+records:
+  - delay: 105
+    content: "\e[32mTerraform-Tom-Mac\e[0m: $ "
+  - delay: 105
+    content: t
+  - delay: 200
+    content: f
+  - delay: 633
+    content: x
+  - delay: 873
+    content: ' '
+  - delay: 198
+    content: p
+  - delay: 79
+    content: l
+  - delay: 160
+    content: a
+  - delay: 186
+    content: 'n'
+  - delay: 184
+    content: ' '
+  - delay: 519
+    content: '-'
+  - delay: 144
+    content: w
+  - delay: 233
+    content: ' '
+  - delay: 312
+    content: t
+  - delay: 248
+    content: f
+  - delay: 240
+    content: x
+  - delay: 525
+    content: '-'
+  - delay: 186
+    content: t
+  - delay: 166
+    content: e
+  - delay: 195
+    content: s
+  - delay: 96
+    content: t
+  - delay: 1256
+    content: ' '
+  - delay: 150
+    content: '-'
+  - delay: 130
+    content: d
+  - delay: 208
+    content: ' '
+  - delay: 576
+    content: d
+  - delay: 456
+    content: e
+  - delay: 152
+    content: b
+  - delay: 80
+    content: u
+  - delay: 119
+    content: g
+  - delay: 479
+    content: /
+  - delay: 922
+    content: t
+  - delay: 96
+    content: e
+  - delay: 81
+    content: r
+  - delay: 144
+    content: raform/
+  - delay: 679
+    content: "\r\n"
+  - delay: 10
+    content: "Using config file: /Users/tstraub/tfx/.tfx.hcl\r\n"
+  - delay: 502
+    content: "Remote Terraform Plan, speculative plan: \e[32mfalse\e[0m  destroy plan: \e[32mfalse\e[0m\r\n\r\nReading Workspace \e[32mtfx-test\e[0m for ID..."
+  - delay: 113
+    content: " Found: \e[34mws-SNfnd5PLjEPPH2H6\e[0m\r\n"
+  - delay: 352
+    content: Creating new Config Version ...
+  - delay: 417
+    content: " ID: \e[34mcv-PCYxE28PnNUcmENq\e[0m\r\n"
+  - delay: 710
+    content: "Workspace Run Created, Run Id: \e[34mrun-5jtf8pokRKXpLJiF\e[0m Config Version: \e[34mcv-PCYxE28PnNUcmENq\e[0m\r\nNavigate: https://firefly.tfe.rocks/app/firefly/workspaces/tfx-test/runs/run-5jtf8pokRKXpLJiF\r\n\r\n"
+  - delay: 388
+    content: "------------------------------------------------------------------------\r\n"
+  - delay: 4619
+    content: "Terraform v0.15.3\r\non linux_amd64\r\n"
+  - delay: 730
+    content: "Configuring remote state backend...\r\n"
+  - delay: 721
+    content: "Initializing Terraform configuration...\r\n"
+  - delay: 2307
+    content: "\r\nTerraform used the selected providers to generate the following execution\r\nplan. Resource actions are indicated with the following symbols:\r\n  \e[32m+\e[0m create\r\n\e[0m\r\nTerraform will perform the following actions:\r\n\r\n\e[1m  # random_pet.ignore\e[0m will be created\e[0m\e[0m\r\n\e[0m  \e[32m+\e[0m\e[0m resource \"random_pet\" \"ignore\" {\r\n      \e[32m+\e[0m \e[0m\e[1m\e[0mid\e[0m\e[0m        = (known after apply)\r\n      \e[32m+\e[0m \e[0m\e[1m\e[0mlength\e[0m\e[0m    = 2\r\n      \e[32m+\e[0m \e[0m\e[1m\e[0mseparator\e[0m\e[0m = \"-\"\r\n    }\r\n\r\n\e[1m  # random_pet.one\e[0m will be created\e[0m\e[0m\r\n\e[0m  \e[32m+\e[0m\e[0m resource \"random_pet\" \"one\" {\r\n      \e[32m+\e[0m \e[0m\e[1m\e[0mid\e[0m\e[0m        = (known after apply)\r\n      \e[32m+\e[0m \e[0m\e[1m\e[0mlength\e[0m\e[0m    = 2\r\n      \e[32m+\e[0m \e[0m\e[1m\e[0mseparator\e[0m\e[0m = \"-\"\r\n    }\r\n\r\n\e[0m\e[1mPlan:\e[0m 2 to add, 0 to change, 0 to destroy.\r\n"
+  - delay: 4519
+    content: "\e[0m\r\n"
+  - delay: 476
+    content: "------------------------------------------------------------------------\r\n"
+  - delay: 849
+    content: "Organization policy check:\r\n================= Results for policy set: tfe-sentinel-policies ================\r\n\r\nSentinel Result: true\r\n\r\nThis result means that all Sentinel policies passed and the protected\r\nbehavior is allowed.\r\n\r\n2 policies evaluated.\r\n\r\n## Policy 1: tfe-sentinel-policies/restrict-vm-size (advisory)\r\n\r\nResult: true\r\n\r\nDescription:\r\n  This policy uses the Sentinel tfplan import to require that  all Azure VMs have vm sizes from an allowed list\r\n\r\nPrint messages:\r\n\r\nUsing the following parameters {allowed_sizes} [\"Standard_A1\" \"Standard_A2\" \"Standard_D1_v2\" \"Standard_D2_v2\"]\r\n\r\n./restrict-vm-size.sentinel:106:1 - Rule \"main\"\r\n  Description:\r\n    Main rule\r\n\r\n  Value:\r\n    true\r\n\r\n## Policy 2: tfe-sentinel-policies/enforce-mandatory-tags (advisory)\r\n\r\nResult: true\r\n\r\nDescription:\r\n  This policy uses the Sentinel tfplan import to require that all given  resources  have all mandatory tags.\r\n\r\nPrint messages:\r\n\r\nUsing the following parameters {resource_type} azurerm_resource_group {mandatory_tags} [\"environment\"]\r\n\r\n./enforce-mandatory-tags.sentinel:134:1 - Rule \"main\"\r\n  Description:\r\n    Main rule\r\n\r\n  Value:\r\n    true\r\n\r\n\r\nRun Complete: run-5jtf8pokRKXpLJiF\r\n\e[32mTerraform-Tom-Mac\e[0m: $ "
+  - delay: 118
+    content: t
+  - delay: 175
+    content: f
+  - delay: 507
+    content: x
+  - delay: 287
+    content: ' '
+  - delay: 161
+    content: a
+  - delay: 176
+    content: p
+  - delay: 112
+    content: p
+  - delay: 78
+    content: l
+  - delay: 250
+    content: 'y'
+  - delay: 80
+    content: ' '
+  - delay: 463
+    content: '-'
+  - delay: 145
+    content: r
+  - delay: 136
+    content: ' '
+  - delay: 224
+    content: run-5jtf8pokRKXpLJiF
+  - delay: 551
+    content: "\r\n"
+  - delay: 11
+    content: "Using config file: /Users/tstraub/tfx/.tfx.hcl\r\n"
+  - delay: 1010
+    content: "Workspace Apply Created, Apply Id: \e[34mapply-Va8zDSFLCysvfBar\e[0m\r\nNavigate: https://firefly.tfe.rocks/app/firefly/workspaces//runs/run-5jtf8pokRKXpLJiF\r\n\r\n"
+  - delay: 357
+    content: "------------------------------------------------------------------------\r\n"
+  - delay: 4582
+    content: "Terraform v0.15.3\r\non linux_amd64\r\n"
+  - delay: 1461
+    content: "\e[0m\e[1mrandom_pet.one: Creating...\e[0m\e[0m\r\n\e[0m\e[1mrandom_pet.ignore: Creating...\e[0m\e[0m\r\n\e[0m\e[1mrandom_pet.one: Creation complete after 0s [id=sure-wolf]\e[0m\r\n\e[0m\e[1mrandom_pet.ignore: Creation complete after 0s [id=working-teal]\e[0m\r\n\e[0m\e[1m\e[32m\r\nApply complete! Resources: 2 added, 0 changed, 0 destroyed.\r\n"
+  - delay: 1586
+    content: "\e[0m\r\n"
+  - delay: 400
+    content: "Apply Complete: apply-Va8zDSFLCysvfBar"
