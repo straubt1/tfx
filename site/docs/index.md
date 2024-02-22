@@ -32,9 +32,17 @@ curl -L -o tfx.exe "https://github.com/straubt1/tfx/releases/download/${version}
 ```
 
 **Go Installation**
+
 From Go version 1.19, the following is supported. `@latest` can be `@$VERSION`
 ```sh
 go install github.com/straubt1/tfx@latest
+```
+
+**Container**
+
+`tfx` is also packaged and published as a OCI Container Image in the Github Container Registry:
+```sh
+docker pull ghcr.io/straubt1/tfx:latest 
 ```
 
 <!-- ### Commands
