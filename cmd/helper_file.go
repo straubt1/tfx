@@ -8,9 +8,15 @@ import (
 )
 
 func isFile(filename string) bool {
-	if f, err := os.Stat(filename); errors.Is(err, os.ErrNotExist) || f.IsDir() {
+	f, err := os.Stat(filename)
+	if err != nil || f == nil {
 		return false
 	}
+
+	if f.IsDir() {
+		return false
+	}
+
 	return true
 }
 

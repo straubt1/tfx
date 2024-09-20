@@ -212,12 +212,12 @@
       "mode": "auto",
       "program": "${fileDirname}/../main.go",
       "args": [
+        "workspace",
         "variable",
         "create",
-        "-w=tfx-test",
+        "-w=tfx-test-tfc",
         "-k=variable7",
-        "-v=./map.hcl",
-        "--hcl"
+        "-v=saydfghjasgfhjgasjhgfkhjasgfjgkahfhjkasjkhfghasjgfhjgsdjfhgashjgfhjgsahjfkgsagfashfgsgf676satyfuyasgdf7asifdgsauydf76sd7f6sa76df876saf87a6s7fd6saf="
       ]
     },
     {
