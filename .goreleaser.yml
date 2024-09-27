@@ -51,7 +51,7 @@ dockers:
   build_flag_templates:
   - "--pull"
   - "--label=io.artifacthub.package.readme-url=https://raw.githubusercontent.com/straubt1/tfx/main/README.md"
-  - "--label=io.artifacthub.package.maintainers=[{\"name\":\"Tom Straub\",\"email\":\"straub@hashicorp.com\"}]"
+  - "--label=io.artifacthub.package.maintainers=[{\"name\":\"Tom Straub\",\"email\":\"tstraub@hashicorp.com\"}]"
   - "--label=io.artifacthub.package.license=MIT"
   - "--label=org.opencontainers.image.description=TFx is a standalone CLI for Terraform Cloud and Terraform Enterprise"
   - "--label=org.opencontainers.image.created={{.Date}}"
@@ -67,7 +67,7 @@ dockers:
   build_flag_templates:
   - "--pull"
   - "--label=io.artifacthub.package.readme-url=https://raw.githubusercontent.com/straubt1/tfx/main/README.md"
-  - "--label=io.artifacthub.package.maintainers=[{\"name\":\"Tom Straub\",\"email\":\"straub@hashicorp.com\"}]"
+  - "--label=io.artifacthub.package.maintainers=[{\"name\":\"Tom Straub\",\"email\":\"tstraub@hashicorp.com\"}]"
   - "--label=io.artifacthub.package.license=MIT"
   - "--label=org.opencontainers.image.description=TFx is a standalone CLI for Terraform Cloud and Terraform Enterprise"
   - "--label=org.opencontainers.image.created={{.Date}}"
