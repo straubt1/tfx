@@ -11,9 +11,9 @@ List all Runs for a supplied Workspace.
 **Example**
 
 ```sh
-$ tfx workspace run list --workspace-name tt--workspace-nameorkspace
+$ tfx workspace run list --workspace-name tt-workspace
 Using config file: /Users/tstraub/.tfx.hcl
-List Runs for Workspace: tt--workspace-nameorkspace
+List Runs for Workspace: tt-workspace
 ╭──────────────────────┬───────────────────────┬──────────────────────┬───────────┬───────────────────┬───────────────────────┬──────────────────────────────────────────────────╮
 │ ID                   │ CONFIGURATION VERSION │ STATUS               │ PLAN ONLY │ TERRAFORM VERSION │ CREATED               │ MESSAGE                                          │
 ├──────────────────────┼───────────────────────┼──────────────────────┼───────────┼───────────────────┼───────────────────────┼──────────────────────────────────────────────────┤
@@ -35,15 +35,15 @@ Create a Run for a supplied Workspace.
 **Latest Configuration Version Example**
 
 ```sh
-$ tfx workspace run create --workspace-name tt--workspace-nameorkspace          
+$ tfx workspace run create --workspace-name tt-workspace          
 Using config file: /Users/tstraub/.tfx.hcl
-Create Run for Workspace: tt--workspace-nameorkspace
+Create Run for Workspace: tt-workspace
 The run will be created using the workspace's latest configuration version 
 Run Created 
 ID:                    run-RZntt2QgVmD5w9xa
 Configuration Version: cv-e83GeSpjVKXuUGmU
 Terraform Version:     1.0.0
-Link:                  https://tfe.rocks/app/firefly/workspaces/tt--workspace-nameorkspace/runs/run-RZntt2QgVmD5w9xa
+Link:                  https://tfe.rocks/app/firefly/workspaces/tt-workspace/runs/run-RZntt2QgVmD5w9xa
 ```
 
 **Specific Configuration Version Example**
@@ -106,4 +106,18 @@ Discard a supplied Run.
 $ tfx workspace run discard --id run-oB7uUW4Qgk9HQMCU
 Using config file: /Users/tstraub/.tfx.hcl
 Discarded run id: run-oB7uUW4Qgk9HQMCU
+```
+
+## `tfx workspace run cancel`
+
+Cancel the latest run for a workspace.
+
+**Example**
+
+```sh
+$ tfx workspace run cancel -w tt-workspace
+Using config file: /Users/tstraub/.tfx.hcl
+Cancel latest run for Workspace: tt-workspace
+Found latest Run: run-v3jHAYot4AYb4myn
+Cancelled run id: run-v3jHAYot4AYb4myn
 ```
