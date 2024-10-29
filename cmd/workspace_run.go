@@ -36,7 +36,7 @@ var (
 		Long:  "Work with Runs of a TFx Workspace.",
 	}
 
-	// `tfx workspace list` command
+	// `tfx workspace run list` command
 	runListCmd = &cobra.Command{
 		Use:   "list",
 		Short: "List Runs",
@@ -49,7 +49,7 @@ var (
 		},
 	}
 
-	// `tfx workspace create` command
+	// `tfx workspace run create` command
 	runCreateCmd = &cobra.Command{
 		Use:   "create",
 		Short: "Create Run",
@@ -63,7 +63,7 @@ var (
 		},
 	}
 
-	// `tfx workspace show` command
+	// `tfx workspace run show` command
 	runShowCmd = &cobra.Command{
 		Use:   "show",
 		Short: "Show Run",
@@ -75,15 +75,27 @@ var (
 		},
 	}
 
-	// `tfx workspace discard` command
+	// `tfx workspace run discard` command
 	runDiscardCmd = &cobra.Command{
-		Use:	 "discard",
-		Short:	 "Discard Run",
-		Long:	 "Discard Run for a TFx Workspace.",
+		Use:   "discard",
+		Short: "Discard Run",
+		Long:  "Discard Run for a TFx Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDiscard(
 				getTfxClientContext(),
 				*viperString("id"))
+		},
+	}
+
+	// `tfx workspace run cancel` command
+	runCancelCmd = &cobra.Command{
+		Use:   "cancel",
+		Short: "Cancel Run",
+		Long:  "Cancel Run for a TFx Workspace.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runCancel(
+				getTfxClientContext(),
+				*viperString("workspace-name"))
 		},
 	}
 )
@@ -111,11 +123,17 @@ func init() {
 	runDiscardCmd.Flags().StringP("id", "i", "", "Run Id (i.e. run-*)")
 	runDiscardCmd.MarkFlagRequired("id")
 
+	// `tfx workspace run cancel` command
+	runCancelCmd.Flags().StringP("workspace-name", "w", "", "Workspace name")
+	runCancelCmd.MarkFlagRequired("w")
+	// runDiscardCmd.Flags().StringP("id", "i", "", "Run Id (i.e. run-*)")
+
 	workspaceCmd.AddCommand(runCmd)
 	runCmd.AddCommand(runListCmd)
 	runCmd.AddCommand(runCreateCmd)
 	runCmd.AddCommand(runShowCmd)
 	runCmd.AddCommand(runDiscardCmd)
+	runCmd.AddCommand(runCancelCmd)
 }
 
 func workspaceRunListAll(c TfxClientContext, workspaceId string, maxItems int) ([]*tfe.Run, error) {
@@ -241,6 +259,31 @@ func runDiscard(c TfxClientContext, runId string) error {
 	return nil
 }
 
+func runCancel(c TfxClientContext, workspaceName string) error {
+	o.AddMessageUserProvided("Cancel latest run for Workspace:", workspaceName)
+	workspaceId, err := getWorkspaceId(c, workspaceName)
+	if err != nil {
+		return errors.Wrap(err, "unable to read workspace id")
+	}
+
+	runId, err := getLatestRunId(c, workspaceId)
+	if err != nil {
+		return errors.Wrap(err, "failed to cancel run")
+	}
+	o.AddMessageUserProvided("Found latest Run:", runId)
+
+	err = c.Client.Runs.Cancel(c.Context, runId, tfe.RunCancelOptions{
+		Comment: tfe.String("Canceled via TFx"),
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to cancel run")
+	}
+
+	o.AddDeferredMessageRead("Cancelled run id", runId)
+
+	return nil
+}
+
 func getWorkspaceId(c TfxClientContext, workspaceName string) (string, error) {
 	w, err := c.Client.Workspaces.Read(c.Context, c.OrganizationName, workspaceName)
 	if err != nil {
@@ -248,4 +291,20 @@ func getWorkspaceId(c TfxClientContext, workspaceName string) (string, error) {
 	}
 
 	return w.ID, nil
+}
+
+func getLatestRunId(c TfxClientContext, workspaceId string) (string, error) {
+	// Get latest run
+	runList, err := c.Client.Runs.List(c.Context, workspaceId, &tfe.RunListOptions{
+		ListOptions: tfe.ListOptions{PageNumber: 1, PageSize: 1}})
+	if err != nil {
+		return "", errors.Wrap(err, "unable to read workspace runs")
+	}
+	if runList == nil {
+		return "", errors.Wrap(err, "unable to read latest workspace run")
+	}
+	if len(runList.Items) != 1 {
+		return "", errors.Wrap(err, "unable to read latest workspace run")
+	}
+	return runList.Items[0].ID, nil
 }
