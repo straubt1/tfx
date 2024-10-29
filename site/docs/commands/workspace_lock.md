@@ -10,7 +10,7 @@ General commands to manage Workspace Locks.
 Lock a given workspace by name, in a given organization.
 
 ```sh
-$ tfx workspace lock -w tfx-test-workspace-1 
+$ tfx workspace lock -n tfx-test-workspace-1 
 Using config file: /Users/tstraub/.tfx.hcl
 Lock Workspace in Organization: firefly
 tfx-test-workspace-1: Locked
@@ -40,7 +40,7 @@ tfx-test-workspace-06:        Locked
 Unlock a given workspace by name, in a given organization.
 
 ```sh
-$ tfx git:(tt-additional-refactor) ✗ tfx workspace unlock -w tfx-test-workspace-1
+$ tfx git:(tt-additional-refactor) ✗ tfx workspace unlock -n tfx-test-workspace-1
 Using config file: /Users/tstraub/.tfx.hcl
 Unlock Workspace in Organization: firefly
 tfx-test-workspace-1: Unlocked
