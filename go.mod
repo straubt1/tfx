@@ -5,7 +5,7 @@ go 1.23
 toolchain go1.23.1
 
 require (
-	code.cloudfoundry.org/bytefmt v0.16.0
+	code.cloudfoundry.org/bytefmt v0.17.0
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/cavaliergopher/grab/v3 v3.0.1
 	github.com/coreos/go-semver v0.3.1
