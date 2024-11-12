@@ -5,7 +5,7 @@ go 1.23
 toolchain go1.23.1
 
 require (
-	code.cloudfoundry.org/bytefmt v0.16.0
+	code.cloudfoundry.org/bytefmt v0.18.0
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/cavaliergopher/grab/v3 v3.0.1
 	github.com/coreos/go-semver v0.3.1
@@ -42,8 +42,8 @@ require (
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	go.mongodb.org/mongo-driver v1.17.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/net v0.30.0 // indirect
-	golang.org/x/sync v0.8.0 // indirect
+	golang.org/x/net v0.31.0 // indirect
+	golang.org/x/sync v0.9.0 // indirect
 )
 
 require (
@@ -68,8 +68,8 @@ require (
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c
-	golang.org/x/sys v0.26.0 // indirect
-	golang.org/x/text v0.19.0 // indirect
+	golang.org/x/sys v0.27.0 // indirect
+	golang.org/x/text v0.20.0 // indirect
 	golang.org/x/time v0.7.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
