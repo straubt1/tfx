@@ -11,7 +11,7 @@ require (
 	github.com/coreos/go-semver v0.3.1
 	github.com/fatih/color v1.18.0
 	github.com/hashicorp/go-slug v0.16.1
-	github.com/hashicorp/go-tfe v1.70.0
+	github.com/hashicorp/go-tfe v1.73.0
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/jedib0t/go-pretty/v6 v6.6.1
 	github.com/logrusorgru/aurora v2.0.3+incompatible
@@ -52,7 +52,7 @@ require (
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.7 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
-	github.com/hashicorp/jsonapi v1.3.1 // indirect
+	github.com/hashicorp/jsonapi v1.3.2 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
