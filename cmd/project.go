@@ -34,7 +34,7 @@ var (
 		Use:     "project",
 		Aliases: []string{"prj"},
 		Short:   "Project Commands",
-		Long:    "Work with TFx Workspaces",
+		Long:    "Work with TFx Projects",
 		Example: `
 		List all Projects in all Organizations:
 		tfx project list --all
