@@ -73,7 +73,6 @@ var (
 			return workspaceUnlockAll(
 				getTfxClientContext(),
 				*viperString("search"),
-				*viperString("project-id"),
 			)
 		},
 	}
@@ -146,9 +145,9 @@ func workspaceUnlock(c TfxClientContext, workspaceName string) error {
 	return nil
 }
 
-func workspaceUnlockAll(c TfxClientContext, searchString string, projectID string) error {
+func workspaceUnlockAll(c TfxClientContext, searchString string) error {
 	o.AddMessageUserProvided("Unlock All Workspace in Organization:", c.OrganizationName)
-	workspaceList, err := workspaceListAllForOrganization(c, c.OrganizationName, searchString, projectID)
+	workspaceList, err := workspaceListAllForOrganization(c, c.OrganizationName, searchString, "")
 	if err != nil {
 		return errors.Wrap(err, "failed to list workspaces")
 	}
