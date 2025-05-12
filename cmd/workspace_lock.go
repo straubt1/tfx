@@ -47,7 +47,8 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return workspaceLockAll(
 				getTfxClientContext(),
-				*viperString("search"))
+				*viperString("search"),
+			)
 		},
 	}
 
@@ -71,7 +72,9 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return workspaceUnlockAll(
 				getTfxClientContext(),
-				*viperString("search"))
+				*viperString("search"),
+				*viperString("project-id"),
+			)
 		},
 	}
 )
@@ -111,7 +114,7 @@ func workspaceLock(c TfxClientContext, workspaceName string) error {
 
 func workspaceLockAll(c TfxClientContext, searchString string) error {
 	o.AddMessageUserProvided("Lock All Workspace in Organization:", c.OrganizationName)
-	workspaceList, err := workspaceListAllForOrganization(c, c.OrganizationName, searchString)
+	workspaceList, err := workspaceListAllForOrganization(c, c.OrganizationName, searchString, "")
 	if err != nil {
 		return errors.Wrap(err, "failed to list workspaces")
 	}
@@ -143,9 +146,9 @@ func workspaceUnlock(c TfxClientContext, workspaceName string) error {
 	return nil
 }
 
-func workspaceUnlockAll(c TfxClientContext, searchString string) error {
+func workspaceUnlockAll(c TfxClientContext, searchString string, projectID string) error {
 	o.AddMessageUserProvided("Unlock All Workspace in Organization:", c.OrganizationName)
-	workspaceList, err := workspaceListAllForOrganization(c, c.OrganizationName, searchString)
+	workspaceList, err := workspaceListAllForOrganization(c, c.OrganizationName, searchString, projectID)
 	if err != nil {
 		return errors.Wrap(err, "failed to list workspaces")
 	}

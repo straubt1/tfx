@@ -182,7 +182,7 @@ func getAllMetrics() (*MetricsAll, error) {
 
 func getAllOrganizationWorkspaces(ctx context.Context, client *tfe.Client, orgName string) (*MetricsWorkspaces, error) {
 	result := &MetricsWorkspaces{}
-	workspaces, err := workspaceListAllForOrganization(getTfxClientContext(), orgName, "")
+	workspaces, err := workspaceListAllForOrganization(getTfxClientContext(), orgName, "", "")
 	if err != nil {
 		return nil, err
 	}
@@ -247,7 +247,7 @@ func getAllMetricsWorkspace(orgName string, since time.Time) (*MetricsWorkspaceR
 
 func getOrganizationMetricWorkspaces(ctx context.Context, client *tfe.Client, orgName string, runSinceTime time.Time) (*[]MetricsWorkspace, error) {
 	result := []MetricsWorkspace{}
-	workspaces, err := workspaceListAllForOrganization(getTfxClientContext(), orgName, "")
+	workspaces, err := workspaceListAllForOrganization(getTfxClientContext(), orgName, "", "")
 	if err != nil {
 		return nil, err
 	}
