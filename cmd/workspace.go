@@ -54,13 +54,17 @@ var (
 					getTfxClientContext(),
 					*viperString("search"),
 					*viperString("repository"),
-					*viperString("run-status"))
+					*viperString("run-status"),
+					*viperString("project-id"),
+				)
 			} else {
 				return workspaceList(
 					getTfxClientContext(),
 					*viperString("search"),
 					*viperString("repository"),
-					*viperString("run-status"))
+					*viperString("run-status"),
+					*viperString("project-id"),
+				)
 			}
 		},
 	}
@@ -83,6 +87,8 @@ func init() {
 	workspaceListCmd.Flags().StringP("search", "s", "", "Search string for Workspace Name (optional).")
 	workspaceListCmd.Flags().StringP("repository", "r", "", "Filter on Repository Identifier (i.e. username/repo_name) (optional).")
 	workspaceListCmd.Flags().String("run-status", "", "Filter on current run status (optional).")
+	workspaceListCmd.Flags().String("project-id", "", "Filter on project ID (optional).")
+
 	workspaceListCmd.Flags().BoolP("all", "a", false, "List All Organizations Workspaces (optional).")
 
 	// `tfx workspace show`
@@ -94,14 +100,15 @@ func init() {
 	workspaceCmd.AddCommand(workspaceShowCmd)
 }
 
-func workspaceListAllForOrganization(c TfxClientContext, orgName string, searchString string) ([]*tfe.Workspace, error) {
+func workspaceListAllForOrganization(c TfxClientContext, orgName string, searchString string, projectID string) ([]*tfe.Workspace, error) {
 	allItems := []*tfe.Workspace{}
 	opts := tfe.WorkspaceListOptions{
 		ListOptions: tfe.ListOptions{PageNumber: 1, PageSize: 100},
 		Search:      searchString,
 		// Tags:        "",
 		// ExcludeTags: "",
-		Include: []tfe.WSIncludeOpt{"organization", "current_run"},
+		ProjectID: projectID,
+		Include:   []tfe.WSIncludeOpt{"organization", "current_run"},
 	}
 	for {
 		items, err := c.Client.Workspaces.List(c.Context, orgName, &opts)
@@ -163,9 +170,9 @@ func workspaceListAllRemoteStateConsumers(c TfxClientContext, workspaceId string
 	return allItems, nil
 }
 
-func workspaceList(c TfxClientContext, searchString string, repoIdentifier string, runStatus string) error {
+func workspaceList(c TfxClientContext, searchString string, repoIdentifier string, runStatus string, projectID string) error {
 	o.AddMessageUserProvided("List Workspaces for Organization:", c.OrganizationName)
-	items, err := workspaceListAllForOrganization(c, c.OrganizationName, searchString)
+	items, err := workspaceListAllForOrganization(c, c.OrganizationName, searchString, projectID)
 	if err != nil {
 		return errors.Wrap(err, "failed to list workspaces")
 	}
@@ -180,7 +187,7 @@ func workspaceList(c TfxClientContext, searchString string, repoIdentifier strin
 		o.AddFormattedMessageCalculated("Found %d Filtered Workspaces", len(items))
 	}
 
-	o.AddTableHeader("Name", "Id", "Current Run Created", "Status", "Repository", "Locked")
+	o.AddTableHeader("Name", "Id", "Resource Count", "Current Run Created", "Status", "Repository", "Locked")
 	for _, i := range items {
 		cr_created_at := ""
 		cr_status := ""
@@ -193,13 +200,13 @@ func workspaceList(c TfxClientContext, searchString string, repoIdentifier strin
 			ws_repo = i.VCSRepo.DisplayIdentifier
 		}
 
-		o.AddTableRows(i.Name, i.ID, cr_created_at, cr_status, ws_repo, i.Locked)
+		o.AddTableRows(i.Name, i.ID, i.ResourceCount, cr_created_at, cr_status, ws_repo, i.Locked)
 	}
 
 	return nil
 }
 
-func workspaceListAll(c TfxClientContext, searchString string, repoIdentifier string, runStatus string) error {
+func workspaceListAll(c TfxClientContext, searchString string, repoIdentifier string, runStatus string, projectID string) error {
 	o.AddMessageUserProvided("List Workspaces for all available Organizations", "")
 	orgs, err := organizationListAll(c)
 	if err != nil {
@@ -208,7 +215,7 @@ func workspaceListAll(c TfxClientContext, searchString string, repoIdentifier st
 
 	var allWorkspaceList []*tfe.Workspace
 	for _, v := range orgs {
-		workspaceList, err := workspaceListAllForOrganization(c, v.Name, searchString)
+		workspaceList, err := workspaceListAllForOrganization(c, v.Name, searchString, projectID)
 		if err != nil {
 			logError(err, "failed to list workspaces for organization")
 		}
@@ -229,7 +236,7 @@ func workspaceListAll(c TfxClientContext, searchString string, repoIdentifier st
 		o.AddFormattedMessageCalculated("Found %d Filtered Workspaces", len(allWorkspaceList))
 	}
 
-	o.AddTableHeader("Organization", "Name", "Id", "Current Run Created", "Status", "Repository", "Locked")
+	o.AddTableHeader("Organization", "Name", "Id", "Resource Count", "Current Run Created", "Status", "Repository", "Locked")
 	for _, i := range allWorkspaceList {
 		cr_created_at := ""
 		cr_status := ""
@@ -242,7 +249,7 @@ func workspaceListAll(c TfxClientContext, searchString string, repoIdentifier st
 			ws_repo = i.VCSRepo.DisplayIdentifier
 		}
 
-		o.AddTableRows(i.Organization.Name, i.Name, i.ID, cr_created_at, cr_status, ws_repo, i.Locked)
+		o.AddTableRows(i.Organization.Name, i.Name, i.ID, i.ResourceCount, cr_created_at, cr_status, ws_repo, i.Locked)
 	}
 
 	return nil
@@ -310,6 +317,7 @@ func workspaceShow(c TfxClientContext, workspaceName string) error {
 	}
 
 	o.AddDeferredMessageRead("ID", w.ID)
+	o.AddDeferredMessageRead("Resource Count", w.ResourceCount)
 	o.AddDeferredMessageRead("Terraform Version", w.TerraformVersion)
 	o.AddDeferredMessageRead("Execution Mode", w.ExecutionMode)
 	o.AddDeferredMessageRead("Auto Apply", w.AutoApply)
