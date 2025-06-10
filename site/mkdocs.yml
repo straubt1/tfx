@@ -46,3 +46,26 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Commands: 
+    - Workspace: 
+      - General: commands/workspace.md
+      - Variables: commands/workspace_variable.md
+      - Runs: commands/workspace_run.md
+      - Lock: commands/workspace_lock.md
+      - Team: commands/workspace_team.md
+      - Configuration Versions: commands/workspace_configurationversion.md
+      - State Versions: commands/workspace_stateversion.md
+    - Private Registry:
+      - Modules: commands/registry_module.md
+      - Providers: commands/registry_provider.md
+    - Releases: commands/release.md
+    - Admin:
+      - GPG Keys: commands/admin_gpg.md
+      - Terraform Versions: commands/admin_terraformversion.md
+  - Integrations:
+      - Gitlab CI: integrations/gitlab.md
+  - About:
+    - Why TFx?: about/purpose.md
+    - Release Notes: about/release_notes.md
+    - Contributing: about/contributing.md
+    - Style Guide: about/style_guide.md
