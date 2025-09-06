@@ -2,7 +2,7 @@
 
 Manage <a href="https://www.terraform.io/enterprise" target="_blank">Terraform Enterprise</a> and <a href="https://www.replicated.com/" target="_blank">Replicated</a> releases and binaries needed for airgap installations.
 
-These commands are typically used for those running the Self-Managed Terraform Enterprise platform, and do not apply to Terraform Cloud.
+These commands are typically used for those running the Self-Managed Terraform Enterprise platform, and do not apply to HCP Terraform.
 
 > Note: These commands do not communicate with Terraform Enterprise but leverage the replicated REST endpoints.
 

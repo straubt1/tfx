@@ -2,7 +2,7 @@
 
 If you are asking why does this CLI exist, read on...
 
-As a consumer of Terraform Cloud or Terraform Enterprise I want to leverage the full capabilities without having to write curl/python/(insert other) libraries to call the API.
+As a consumer of HCP Terraform or Terraform Enterprise I want to leverage the full capabilities without having to write curl/python/(insert other) libraries to call the API.
 
 Often times these tasks are part of a delivery pipeline, but could also be administrative tasks that are done from a local machine.
 The goal of this tool is to allow users to interact with the platform easily without having to create a lot of code to maintain.

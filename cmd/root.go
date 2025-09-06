@@ -54,7 +54,7 @@ var rootCmd = &cobra.Command{
 	Short: "A CLI to easily interact with TFC/TFE.",
 	Long: `Leveraging the API can become a burden for common tasks.
 	TFx aims to ease that challenge for common and repeatable tasks. This application
-	can be used to interact with either Terraform Cloud or Terraform Enterprise.`,
+	can be used to interact with either HCP Terraform or Terraform Enterprise.`,
 	SilenceUsage:     true,
 	SilenceErrors:    true,
 	Version:          version.String(),

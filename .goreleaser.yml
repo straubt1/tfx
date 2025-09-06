@@ -40,7 +40,7 @@ nfpms:
     vendor: straubt1
     homepage: https://tfx.rocks/
     maintainer: "Tom Straub <straub@hashicorp.com>"
-    description: "TFx is a standalone CLI for Terraform Cloud and Terraform Enterprise"
+    description: "TFx is a standalone CLI for HCP Terraform and Terraform Enterprise"
     license: MIT
     formats:
       - apk
@@ -60,7 +60,7 @@ dockers:
       - "--label=io.artifacthub.package.readme-url=https://raw.githubusercontent.com/straubt1/tfx/main/README.md"
       - "--label=io.artifacthub.package.maintainers=[{\"name\":\"Tom Straub\",\"email\":\"tstraub@hashicorp.com\"}]"
       - "--label=io.artifacthub.package.license=MIT"
-      - "--label=org.opencontainers.image.description=TFx is a standalone CLI for Terraform Cloud and Terraform Enterprise"
+      - "--label=org.opencontainers.image.description=TFx is a standalone CLI for HCP Terraform and Terraform Enterprise"
       - "--label=org.opencontainers.image.created={{.Date}}"
       - "--label=org.opencontainers.image.name={{.ProjectName}}"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
@@ -79,7 +79,7 @@ dockers:
       - "--label=io.artifacthub.package.readme-url=https://raw.githubusercontent.com/straubt1/tfx/main/README.md"
       - "--label=io.artifacthub.package.maintainers=[{\"name\":\"Tom Straub\",\"email\":\"tstraub@hashicorp.com\"}]"
       - "--label=io.artifacthub.package.license=MIT"
-      - "--label=org.opencontainers.image.description=TFx is a standalone CLI for Terraform Cloud and Terraform Enterprise"
+      - "--label=org.opencontainers.image.description=TFx is a standalone CLI for HCP Terraform and Terraform Enterprise"
       - "--label=org.opencontainers.image.created={{.Date}}"
       - "--label=org.opencontainers.image.name={{.ProjectName}}"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
