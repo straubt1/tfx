@@ -1,0 +1,20 @@
+version: '3'
+
+dotenv: ['.env', 'secrets/.env']
+
+tasks:
+  go-build:
+    desc: Build Go binary
+    cmds:
+      - go build .
+  go-build-all:
+    desc: Build all Go binaries
+    cmds:
+      - |
+          BUILD_SHA="local" BUILD_DATE=$(date) BUILT_BY="me" \
+          goreleaser release --snapshot --clean
+  go-upgrade:
+    desc: Upgrade Go dependencies
+    cmds:
+      - go get -u ./...
+      - go mod tidy
