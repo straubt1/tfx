@@ -72,7 +72,7 @@ var (
 	// `tfx project show` command
 	projectShowCmd = &cobra.Command{
 		Use:   "show",
-		Short: "Project Workspace",
+		Short: "Show project details",
 		Long:  "Show Project in a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return projectShow(
