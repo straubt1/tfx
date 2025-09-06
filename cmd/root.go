@@ -23,6 +23,8 @@ package cmd
 import (
 	"log"
 
+	"github.com/go-viper/encoding/hcl"
+
 	"github.com/logrusorgru/aurora"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -74,7 +76,7 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file, can be used to store common flags, (default is ./.tfx.json).")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file, can be used to store common flags, (default is ./.tfx.hcl).")
 	rootCmd.PersistentFlags().String("tfeHostname", "app.terraform.io", "The hostname of TFE without the schema. Can also be set with the environment variable TFE_HOSTNAME.")
 	rootCmd.PersistentFlags().String("tfeOrganization", "", "The name of the TFx Organization. Can also be set with the environment variable TFE_ORGANIZATION.")
 	rootCmd.PersistentFlags().String("tfeToken", "", "The API token used to authenticate to TFx. Can also be set with the environment variable TFE_TOKEN.")
@@ -111,16 +113,21 @@ func initConfig() {
 		viper.SetConfigName(".tfx")
 	}
 
-	viper.AutomaticEnv() // read in environment variables that match
+	// Load 3rd party extension for HCL
+	codecRegistry := viper.NewCodecRegistry()
+	codecRegistry.RegisterCodec("hcl", hcl.Codec{})
+	viper.SetOptions(viper.WithCodecRegistry(codecRegistry))
+
+	// read in environment variables that match
+	viper.AutomaticEnv()
 
 	// If a config file is found, read it in.
 	isConfigFile := false
 	err := viper.ReadInConfig()
 	if err == nil {
 		isConfigFile = true // Capture information here to bring after all flags are loaded (namely which output type)
-	} else if _, ok := err.(viper.UnsupportedConfigError); ok {
-		// catch errors like HCL not supported
-		logWarning(err, "Unsupported config file type, will continue without it.")
+	} else {
+		logWarning(err, "Unable to parse config file, will continue without it.")
 	}
 
 	// Some hacking here to let viper use the cobra required flags, simplifies this checking
