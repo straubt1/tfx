@@ -69,7 +69,7 @@ var (
 		},
 	}
 
-	// `tfx workspace show` command
+	// `tfx project show` command
 	projectShowCmd = &cobra.Command{
 		Use:   "show",
 		Short: "Project Workspace",
