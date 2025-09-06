@@ -13,6 +13,6 @@
 ## Specifications
 
 **tfx version:**
-**Terraform Cloud or Terraform Enterprise:**
+**HCP Terraform or Terraform Enterprise:**
 **Terraform Enterprise Version:** _if applicable_
 **Terraform Code Version:**

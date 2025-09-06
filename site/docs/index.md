@@ -1,6 +1,6 @@
 # Welcome to TFx Docs
 
-_tfx_ is a standalone CLI for Terraform Cloud and Terraform Enterprise.
+_tfx_ is a standalone CLI for HCP Terraform and Terraform Enterprise.
 
 The initial focus of _tfx_ was to execute the API-Driven workflow for a Workspace but has grown to manage multiple aspects of the platform.
 
@@ -60,9 +60,9 @@ For convenience, creating a file with the name `.tfx.hcl` and placing it in one 
 
 **Example `./.tfx.hcl`:**
 ```hcl
-tfeHostname     = "tfe.rocks" (omit to default to Terraform Cloud)
+tfeHostname     = "tfe.rocks" (omit to default to HCP Terraform)
 tfeOrganization = "my-awesome-org"
-tfeToken        = "<Generated from Terraform Enterprise or Terraform Cloud>"
+tfeToken        = "<Generated from Terraform Enterprise or HCP Terraform>"
 ```
 
 Common flags can also be set via environment values by using a key that is capitalized version of the flag.
@@ -124,7 +124,7 @@ $ tfx variable list -w tfx-test --json | jq .
 
 ## Disclaimer
 
-TFx is an open source project built for use with Terraform Cloud and Terraform Enterprise under the [MIT License (MIT)](https://github.com/straubt1/tfx/blob/main/LICENSE).
+TFx is an open source project built for use with HCP Terraform and Terraform Enterprise under the [MIT License (MIT)](https://github.com/straubt1/tfx/blob/main/LICENSE).
 
 !!! note ""
     While this tool is not officially supported by HashiCorp, it's current primary contributors are current or former HashiCorp employees.
