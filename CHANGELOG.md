@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.5] - TBD
+
+**Added**
+
+* Added `tfx project list`
+
+**Changed**
+
+* Removed HCL Configuration Option
+* Better Config File error handling
+
+TODO:
+- [ ] Determine if [HCL config](https://github.com/spf13/viper/blob/b74c7ee1e5e999f16bc2b904608815a59241b316/UPGRADE.md?plain=1#L107) file can work again
+
 ## [v0.1.4] - 2024.10.29
 
 **Added**

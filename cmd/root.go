@@ -74,7 +74,7 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file, can be used to store common flags, (default is ./.tfx.hcl).")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file, can be used to store common flags, (default is ./.tfx.json).")
 	rootCmd.PersistentFlags().String("tfeHostname", "app.terraform.io", "The hostname of TFE without the schema. Can also be set with the environment variable TFE_HOSTNAME.")
 	rootCmd.PersistentFlags().String("tfeOrganization", "", "The name of the TFx Organization. Can also be set with the environment variable TFE_ORGANIZATION.")
 	rootCmd.PersistentFlags().String("tfeToken", "", "The API token used to authenticate to TFx. Can also be set with the environment variable TFE_TOKEN.")
@@ -115,8 +115,12 @@ func initConfig() {
 
 	// If a config file is found, read it in.
 	isConfigFile := false
-	if err := viper.ReadInConfig(); err == nil {
+	err := viper.ReadInConfig()
+	if err == nil {
 		isConfigFile = true // Capture information here to bring after all flags are loaded (namely which output type)
+	} else if _, ok := err.(viper.UnsupportedConfigError); ok {
+		// catch errors like HCL not supported
+		logWarning(err, "Unsupported config file type, will continue without it.")
 	}
 
 	// Some hacking here to let viper use the cobra required flags, simplifies this checking

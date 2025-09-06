@@ -68,6 +68,18 @@ var (
 			}
 		},
 	}
+
+	// `tfx workspace show` command
+	projectShowCmd = &cobra.Command{
+		Use:   "show",
+		Short: "Project Workspace",
+		Long:  "Show Project in a TFx Organization.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return projectShow(
+				getTfxClientContext(),
+				*viperString("id"))
+		},
+	}
 )
 
 func init() {
@@ -75,8 +87,13 @@ func init() {
 	projectListCmd.Flags().StringP("search", "s", "", "Search string for Project Name (optional).")
 	projectListCmd.Flags().BoolP("all", "a", false, "List All Organizations Projects (optional).")
 
+	// `tfx project show`
+	projectShowCmd.Flags().StringP("id", "i", "", "ID of the project.")
+	projectShowCmd.MarkFlagRequired("id")
+
 	rootCmd.AddCommand(projectCmd)
 	projectCmd.AddCommand(projectListCmd)
+	projectCmd.AddCommand(projectShowCmd)
 
 }
 
@@ -160,6 +177,39 @@ func projectList(c TfxClientContext, searchString string) error {
 	for _, i := range items {
 		o.AddTableRows(i.Name, i.ID, i.Description)
 	}
+
+	return nil
+}
+
+func projectShow(c TfxClientContext, projectId string) error {
+	o.AddMessageUserProvided("Show Project:", projectId)
+	p, err := c.Client.Projects.ReadWithOptions(c.Context, projectId, tfe.ProjectReadOptions{
+		Include: []tfe.ProjectIncludeOpt{
+			tfe.ProjectEffectiveTagBindings,
+		},
+	})
+
+	if err != nil {
+		logError(err, "failed to read project")
+	}
+
+	o.AddDeferredMessageRead("Name", p.Name)
+	o.AddDeferredMessageRead("ID", p.ID)
+	o.AddDeferredMessageRead("Description", p.Description)
+	o.AddDeferredMessageRead("DefaultExecutionMode", p.DefaultExecutionMode)
+
+	var duration string
+	if p.AutoDestroyActivityDuration.IsSpecified() {
+		if duration, err = p.AutoDestroyActivityDuration.Get(); err == nil {
+		}
+	}
+	o.AddDeferredMessageRead("Auto Destroy Activity Duration", duration)
+
+	tags := make(map[string]interface{})
+	for _, i := range p.EffectiveTagBindings {
+		tags[i.Key] = i.Value
+	}
+	o.AddDeferredMapMessageRead("Tags", tags)
 
 	return nil
 }

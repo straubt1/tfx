@@ -46,7 +46,9 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Commands: 
+  - Commands:
+    - Project: 
+      - General: commands/project.md
     - Workspace: 
       - General: commands/workspace.md
       - Variables: commands/workspace_variable.md
@@ -66,6 +68,6 @@ nav:
       - Gitlab CI: integrations/gitlab.md
   - About:
     - Why TFx?: about/purpose.md
-    - Release Notes: about/release_notes.md
+    - Release Notes: https://github.com/straubt1/tfx/blob/main/CHANGELOG.md
     - Contributing: about/contributing.md
     - Style Guide: about/style_guide.md
