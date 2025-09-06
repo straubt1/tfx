@@ -4,9 +4,6 @@ _tfx_ is a standalone CLI for Terraform Cloud and Terraform Enterprise.
 
 The initial focus of _tfx_ was to execute the API-Driven workflow for a Workspace but has grown to manage multiple aspects of the platform.
 
-!!! warning ""
-    Note: This CLI is no longer under active development!
-
 ## Installation
 
 Binaries are created as part of a release, check out the [Release Page](https://github.com/straubt1/tfx/releases) for the latest version.
@@ -22,7 +19,7 @@ Download from the [Release](https://github.com/straubt1/tfx/releases) page.
 
 **Go Installation**
 
-From Go version 1.19, the following is supported. `@latest` can be `@$VERSION`
+From Go version 1.19+, the following is supported. `@latest` can be `@$VERSION`
 ```sh
 go install github.com/straubt1/tfx@latest
 ```
@@ -47,7 +44,7 @@ Each command has the ability to pass in parameters via flags, however there are 
 
 **Example:**
 
-```
+```bash
   --tfeHostname string       The hostname of TFE without the schema. Can also be set with the environment variable TFE_HOSTNAME. (default "app.terraform.io")
   --tfeOrganization string   The name of the TFx Organization. Can also be set with the environment variable TFE_ORGANIZATION.
   --tfeToken string          The API token used to authenticate to TFx. Can also be set with the environment variable TFE_TOKEN.
