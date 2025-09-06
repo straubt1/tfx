@@ -87,7 +87,7 @@ func init() {
 	workspaceListCmd.Flags().StringP("search", "s", "", "Search string for Workspace Name (optional).")
 	workspaceListCmd.Flags().StringP("repository", "r", "", "Filter on Repository Identifier (i.e. username/repo_name) (optional).")
 	workspaceListCmd.Flags().String("run-status", "", "Filter on current run status (optional).")
-	workspaceListCmd.Flags().String("project-id", "", "Filter on project ID (optional).")
+	workspaceListCmd.Flags().StringP("project-id", "p", "", "Filter on project ID (optional).")
 
 	workspaceListCmd.Flags().BoolP("all", "a", false, "List All Organizations Workspaces (optional).")
 
@@ -172,6 +172,9 @@ func workspaceListAllRemoteStateConsumers(c TfxClientContext, workspaceId string
 
 func workspaceList(c TfxClientContext, searchString string, repoIdentifier string, runStatus string, projectID string) error {
 	o.AddMessageUserProvided("List Workspaces for Organization:", c.OrganizationName)
+	if projectID != "" {
+		o.AddMessageUserProvided("and Project ID:", projectID)
+	}
 	items, err := workspaceListAllForOrganization(c, c.OrganizationName, searchString, projectID)
 	if err != nil {
 		return errors.Wrap(err, "failed to list workspaces")
@@ -208,6 +211,9 @@ func workspaceList(c TfxClientContext, searchString string, repoIdentifier strin
 
 func workspaceListAll(c TfxClientContext, searchString string, repoIdentifier string, runStatus string, projectID string) error {
 	o.AddMessageUserProvided("List Workspaces for all available Organizations", "")
+	if projectID != "" {
+		o.AddMessageUserProvided("and Project ID:", projectID)
+	}
 	orgs, err := organizationListAll(c)
 	if err != nil {
 		logError(err, "failed to list organizations")

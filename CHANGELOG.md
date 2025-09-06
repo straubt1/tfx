@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **Added**
 
 * Added `tfx project list`
+* Added `tfx project show --id`
+* Added Resource Count with `tfx workspace list` and `tfx workspace show` commands
 
 **Changed**
 
