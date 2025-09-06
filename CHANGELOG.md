@@ -14,10 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **Changed**
 
 * Removed HCL Configuration Option
-* Better Config File error handling
-
-TODO:
-- [ ] Determine if [HCL config](https://github.com/spf13/viper/blob/b74c7ee1e5e999f16bc2b904608815a59241b316/UPGRADE.md?plain=1#L107) file can work again
+* Better Config File error handling (and update to maintain .hcl configuration files)
 
 ## [v0.1.4] - 2024.10.29
 
