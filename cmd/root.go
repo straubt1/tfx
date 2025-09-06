@@ -23,6 +23,8 @@ package cmd
 import (
 	"log"
 
+	"github.com/go-viper/encoding/hcl"
+
 	"github.com/logrusorgru/aurora"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -111,12 +113,21 @@ func initConfig() {
 		viper.SetConfigName(".tfx")
 	}
 
-	viper.AutomaticEnv() // read in environment variables that match
+	// Load 3rd party extension for HCL
+	codecRegistry := viper.NewCodecRegistry()
+	codecRegistry.RegisterCodec("hcl", hcl.Codec{})
+	viper.SetOptions(viper.WithCodecRegistry(codecRegistry))
+
+	// read in environment variables that match
+	viper.AutomaticEnv()
 
 	// If a config file is found, read it in.
 	isConfigFile := false
-	if err := viper.ReadInConfig(); err == nil {
+	err := viper.ReadInConfig()
+	if err == nil {
 		isConfigFile = true // Capture information here to bring after all flags are loaded (namely which output type)
+	} else {
+		logWarning(err, "Unable to parse config file, will continue without it.")
 	}
 
 	// Some hacking here to let viper use the cobra required flags, simplifies this checking

@@ -11,13 +11,9 @@ theme:
   favicon: img/favicon.ico
   icon:
     logo: material/console
-  # custom_dir: 'cinder'
-  # colorscheme: github
-  # highlightjs: true
-  # hljs_languages:
+  highlightjs: true
   font:
     text: Roboto
-  #   - hcl
   palette:
     # Palette toggle for light mode
     - media: "(prefers-color-scheme: light)"
@@ -34,6 +30,31 @@ theme:
         icon: material/toggle-switch
         name: Switch to system preference
 
+# plugins:
+#   - search
+  # - git-revision-date-localized:
+  #     type: date
+  # - minify:
+  #     minify_html: true
+
+features:
+  - navigation.tracking
+  - navigation.tabs
+  - navigation.tabs.sticky
+  - navigation.sections
+  - navigation.expand
+  - navigation.top
+  - search.highlight
+  - search.share
+  - content.code.copy
+
+extra:
+  social:
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/in/terraform-tom/
+    - icon: fontawesome/brands/github
+      link: https://github.com/straubt1/tfx
+
 markdown_extensions:
   - admonition
   - pymdownx.snippets
@@ -42,11 +63,21 @@ markdown_extensions:
         - name: mermaid
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
-
+  - codehilite:
+      guess_lang: false
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
 
 nav:
   - Home: index.md
-  - Commands: 
+  - Commands:
+    - Project: 
+      - General: commands/project.md
     - Workspace: 
       - General: commands/workspace.md
       - Variables: commands/workspace_variable.md
@@ -66,6 +97,6 @@ nav:
       - Gitlab CI: integrations/gitlab.md
   - About:
     - Why TFx?: about/purpose.md
-    - Release Notes: about/release_notes.md
+    - Release Notes: https://github.com/straubt1/tfx/blob/main/CHANGELOG.md
     - Contributing: about/contributing.md
     - Style Guide: about/style_guide.md

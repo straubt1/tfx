@@ -17,7 +17,5 @@ func logError(err error, message string) {
 
 // Warning but dont exit
 func logWarning(err error, message string) {
-	fmt.Println()
-	fmt.Println()
-	fmt.Println(color.YellowString("Error: " + message))
+	fmt.Println(color.YellowString("Warning: " + message))
 }
