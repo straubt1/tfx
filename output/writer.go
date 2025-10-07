@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jedib0t/go-pretty/table"
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/logrusorgru/aurora"
 )
 
@@ -95,12 +95,10 @@ func (o *Output) AddDeferredMapMessageRead(description string, value map[string]
 	o.messages = append(o.messages, &Message{description, nil, nil, value})
 }
 
-// create a row from an array of interfaces, required since table.Row{} uses a variadic
-// should work for any type
+// createRow converts a slice of interfaces to a table.Row
+// table.Row is already []interface{}, so we can just cast directly
 func createRow(items []interface{}) table.Row {
-	h := make([]interface{}, len(items))
-	copy(h, items)
-	return h
+	return table.Row(items)
 }
 
 // print
@@ -155,7 +153,11 @@ func (o Output) closeMessagesJson() {
 		}
 	}
 
-	b, _ := json.Marshal(tempMap)
+	b, err := json.Marshal(tempMap)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error marshaling JSON: %v\n", err)
+		return
+	}
 	fmt.Println(string(b))
 }
 
@@ -167,10 +169,14 @@ func (o Output) closeTableDefault() {
 		t.AppendRow(createRow(i))
 	}
 	t.SetStyle(table.StyleRounded)
+	// Optional: Configure additional table settings
+	t.SetAutoIndex(false)
+	t.Style().Options.SeparateRows = false
+
 	t.Render()
 }
 
-// Craziness... Create an array of maps that can then be Marshalled to JSON
+// closeTableJson creates an array of maps that can then be marshalled to JSON
 func (o Output) closeTableJson() {
 	tempList := make([]map[string]interface{}, len(o.tableRows))
 	for index1, v1 := range o.tableRows {
@@ -183,7 +189,11 @@ func (o Output) closeTableJson() {
 		tempList[index1] = tempMap
 	}
 
-	b, _ := json.Marshal(tempList)
+	b, err := json.Marshal(tempList)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error marshaling JSON: %v\n", err)
+		return
+	}
 	fmt.Println(string(b))
 }
 

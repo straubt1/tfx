@@ -16,6 +16,7 @@
 secrets.md
 *.tfx.*
 *.tar.gz
+.env*
 .DS_Store
 act.secret.env
 pkg/
