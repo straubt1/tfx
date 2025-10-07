@@ -108,83 +108,31 @@ func init() {
 
 func projectListAll(c *client.TfxClient, searchString string) error {
 	o.AddMessageUserProvided("List Projects for all available Organizations", "")
-	orgs, err := organizationPrjListAll(c, searchString)
+
+	projects, err := c.FetchProjectsAcrossOrgs(searchString)
 	if err != nil {
-		logError(err, "failed to list organizations")
-	}
-
-	var allProjectList []*tfe.Project
-	for _, v := range orgs {
-		projectList, err := projectListAllForOrganization(c, v.Name, searchString)
-		if err != nil {
-			logError(err, "failed to list projects for organization")
-		}
-
-		allProjectList = append(allProjectList, projectList...)
+		return err
 	}
 
 	o.AddTableHeader("Organization", "Name", "Id", "Description")
-	for _, i := range allProjectList {
-		o.AddTableRows(i.Organization.Name, i.Name, i.ID, i.Description)
+	for _, p := range projects {
+		o.AddTableRows(p.Organization.Name, p.Name, p.ID, p.Description)
 	}
 
 	return nil
 }
 
-func projectListAllForOrganization(c *client.TfxClient, orgName string, searchString string) ([]*tfe.Project, error) {
-	allItems := []*tfe.Project{}
-	opts := tfe.ProjectListOptions{
-		ListOptions: tfe.ListOptions{PageNumber: 1, PageSize: 100},
-		Query:       searchString,
-	}
-	for {
-		items, err := c.Client.Projects.List(c.Context, orgName, &opts)
-		if err != nil {
-			return nil, err
-		}
-
-		allItems = append(allItems, items.Items...)
-		if items.CurrentPage >= items.TotalPages {
-			break
-		}
-		opts.PageNumber = items.NextPage
-	}
-
-	return allItems, nil
-}
-
-func organizationPrjListAll(c *client.TfxClient, searchString string) ([]*tfe.Organization, error) {
-	allItems := []*tfe.Organization{}
-	opts := tfe.OrganizationListOptions{
-		ListOptions: tfe.ListOptions{
-			PageNumber: 1,
-			PageSize:   100}}
-	for {
-		items, err := c.Client.Organizations.List(c.Context, &opts)
-		if err != nil {
-			return nil, err
-		}
-
-		allItems = append(allItems, items.Items...)
-		if items.CurrentPage >= items.TotalPages {
-			break
-		}
-		opts.PageNumber = items.NextPage
-	}
-
-	return allItems, nil
-}
-
 func projectList(c *client.TfxClient, searchString string) error {
 	o.AddMessageUserProvided("List Projects for Organization:", c.OrganizationName)
-	items, err := projectListAllForOrganization(c, c.OrganizationName, searchString)
+
+	projects, err := c.FetchProjects(c.OrganizationName, searchString)
 	if err != nil {
 		return errors.Wrap(err, "failed to list projects")
 	}
 
 	o.AddTableHeader("Name", "Id", "Description")
-	for _, i := range items {
-		o.AddTableRows(i.Name, i.ID, i.Description)
+	for _, p := range projects {
+		o.AddTableRows(p.Name, p.ID, p.Description)
 	}
 
 	return nil
@@ -192,7 +140,7 @@ func projectList(c *client.TfxClient, searchString string) error {
 
 func projectShow(c *client.TfxClient, projectId string) error {
 	o.AddMessageUserProvided("Show Project:", projectId)
-	p, err := c.Client.Projects.ReadWithOptions(c.Context, projectId, tfe.ProjectReadOptions{
+	p, err := c.FetchProject(projectId, &tfe.ProjectReadOptions{
 		Include: []tfe.ProjectIncludeOpt{
 			tfe.ProjectEffectiveTagBindings,
 		},
