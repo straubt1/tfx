@@ -18,6 +18,19 @@ tasks:
     cmds:
       - go get -u ./...
       - go mod tidy
+  test:
+    desc: Run unit tests
+    cmds:
+      - go test -v ./...
+  test-integration:
+    desc: Run integration tests (requires TFE_HOSTNAME, TFE_TOKEN, TFE_ORGANIZATION env vars)
+    cmds:
+      - go test -tags=integration -v ./...
+  test-all:
+    desc: Run all tests (unit + integration)
+    cmds:
+      - task: test
+      - task: test-integration
   serve-docs:
     desc: Serve documentation site
     cmds:
