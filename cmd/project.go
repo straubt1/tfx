@@ -25,6 +25,7 @@ import (
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/straubt1/tfx/client"
 )
 
 // projectCmd represents the project command
@@ -56,14 +57,18 @@ tfx project list --search "my-project"`,
 		Long:    "List Projects in a TFx Organization.",
 		Example: `tfx project list --search "my-project"`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := client.NewFromViper()
+			if err != nil {
+				return err
+			}
 
 			if *viperBool("all") {
 				return projectListAll(
-					getTfxClientContext(),
+					c,
 					*viperString("search"))
 			} else {
 				return projectList(
-					getTfxClientContext(),
+					c,
 					*viperString("search"))
 			}
 		},
@@ -75,8 +80,12 @@ tfx project list --search "my-project"`,
 		Short: "Show project details",
 		Long:  "Show Project in a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := client.NewFromViper()
+			if err != nil {
+				return err
+			}
 			return projectShow(
-				getTfxClientContext(),
+				c,
 				*viperString("id"))
 		},
 	}
@@ -97,7 +106,7 @@ func init() {
 
 }
 
-func projectListAll(c TfxClientContext, searchString string) error {
+func projectListAll(c *client.TfxClient, searchString string) error {
 	o.AddMessageUserProvided("List Projects for all available Organizations", "")
 	orgs, err := organizationPrjListAll(c, searchString)
 	if err != nil {
@@ -122,7 +131,7 @@ func projectListAll(c TfxClientContext, searchString string) error {
 	return nil
 }
 
-func projectListAllForOrganization(c TfxClientContext, orgName string, searchString string) ([]*tfe.Project, error) {
+func projectListAllForOrganization(c *client.TfxClient, orgName string, searchString string) ([]*tfe.Project, error) {
 	allItems := []*tfe.Project{}
 	opts := tfe.ProjectListOptions{
 		ListOptions: tfe.ListOptions{PageNumber: 1, PageSize: 100},
@@ -144,7 +153,7 @@ func projectListAllForOrganization(c TfxClientContext, orgName string, searchStr
 	return allItems, nil
 }
 
-func organizationPrjListAll(c TfxClientContext, searchString string) ([]*tfe.Organization, error) {
+func organizationPrjListAll(c *client.TfxClient, searchString string) ([]*tfe.Organization, error) {
 	allItems := []*tfe.Organization{}
 	opts := tfe.OrganizationListOptions{
 		ListOptions: tfe.ListOptions{
@@ -166,7 +175,7 @@ func organizationPrjListAll(c TfxClientContext, searchString string) ([]*tfe.Org
 	return allItems, nil
 }
 
-func projectList(c TfxClientContext, searchString string) error {
+func projectList(c *client.TfxClient, searchString string) error {
 	o.AddMessageUserProvided("List Projects for Organization:", c.OrganizationName)
 	items, err := projectListAllForOrganization(c, c.OrganizationName, searchString)
 	if err != nil {
@@ -181,7 +190,7 @@ func projectList(c TfxClientContext, searchString string) error {
 	return nil
 }
 
-func projectShow(c TfxClientContext, projectId string) error {
+func projectShow(c *client.TfxClient, projectId string) error {
 	o.AddMessageUserProvided("Show Project:", projectId)
 	p, err := c.Client.Projects.ReadWithOptions(c.Context, projectId, tfe.ProjectReadOptions{
 		Include: []tfe.ProjectIncludeOpt{
