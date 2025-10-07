@@ -36,17 +36,17 @@ var (
 		Short:   "Project Commands",
 		Long:    "Work with TFx Projects",
 		Example: `
-		List all Projects in all Organizations:
-		tfx project list --all
-		
-		List all Projects in all Organizations with a search string:
-		tfx project list --all --search "my-project"
+List all Projects in all Organizations:
+tfx project list --all
 
-		List all projects specified in tfeOrganization:
-		tfx project list
+List all Projects in all Organizations with a search string:
+tfx project list --all --search "my-project"
 
-		List projects specified in tfeOrganization with a search string:
-		tfx project list --search "my-project"`,
+List all projects specified in tfeOrganization:
+tfx project list
+
+List projects specified in tfeOrganization with a search string:
+tfx project list --search "my-project"`,
 	}
 
 	// `tfx project list` command
