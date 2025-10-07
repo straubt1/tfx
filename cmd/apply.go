@@ -56,7 +56,6 @@ func runApply() error {
 	// Validate flags
 	hostname := *viperString("tfeHostname")
 	orgName := *viperString("tfeOrganization")
-	wsName := *viperString("workspaceName")
 	runID := *viperString("run-id")
 
 	client, ctx := getClientContext()
@@ -80,6 +79,13 @@ func runApply() error {
 	if err != nil {
 		logError(err, "failed to create apply")
 	}
+
+	// Retrieve workspace name using the ID for the URL
+	workspace, err := client.Workspaces.ReadByID(ctx, r.Workspace.ID)
+	if err != nil {
+		logError(err, "failed to read workspace")
+	}
+	wsName := workspace.Name
 
 	fmt.Println("Workspace Apply Created, Apply Id:", color.BlueString(r.Apply.ID))
 	fmt.Println("Navigate:", "https://"+hostname+"/app/"+orgName+"/workspaces/"+wsName+"/runs/"+r.ID)

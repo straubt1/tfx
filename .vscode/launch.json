@@ -10,7 +10,7 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}/../main.go",
-      "args": ["cv", "list", "--workspaceName=tfx-test"]
+      "args": ["cv", "list", "--workspace-name=tfx-test"]
     },
     {
       "name": "TFX - Workspace Run Show",
@@ -63,7 +63,7 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}/../main.go",
-      "args": ["apply", "--runId=run-VCMv2kHVwS4RMVRu"]
+      "args": ["apply", "--run-id=run-VCMv2kHVwS4RMVRu"]
     },
     {
       "name": "TFX - PMR List",

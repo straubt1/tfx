@@ -397,7 +397,7 @@ func createOrUpdateEnvVariables(ctx context.Context, client *tfe.Client, workspa
 
 // Determine if a run status can be applied
 func runCanBeApplied(status string) bool {
-	allowed := []string{"planned", "cost_estimated", "policy_checked"}
+	allowed := []string{"planned", "cost_estimated", "policy_checked", "post_plan_completed", "planned_and_saved"}
 
 	for _, a := range allowed {
 		if status == a {
