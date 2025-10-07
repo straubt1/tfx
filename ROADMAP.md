@@ -12,6 +12,7 @@ As we look to the future, I want to place my thoughts on where the project is he
 
 These are random things that have been on the back burner for a while.
 
+- [ ] Clean up debugging tfe client saving to file
 - [ ] Initialize a Unit Testing Framework
 - [ ] Integration Testing (HCPT is easy, TFE versions is harder)
 - [ ] Automated Releases and updates to the [brew tap repo](https://github.com/straubt1/homebrew-tap)
@@ -19,6 +20,11 @@ These are random things that have been on the back burner for a while.
 - [ ] Versioning is manual and hard coded in version.go
 - [ ] GHA need renamed and cleaned up
 - [ ] Each Command needs an example, like in Projects
+
+## Things that might be nice to have or a terrible idea
+
+- [ ] Embedded json filtering (similar to azure cli with JMESPath)
+- [ ] TUI for diving deep into things
 
 ## Long Term Goals
 

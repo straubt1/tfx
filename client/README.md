@@ -54,6 +54,76 @@ if err != nil {
 }
 ```
 
+### HTTP Request/Response Logging
+
+For debugging or auditing purposes, you can enable HTTP logging to capture all API requests and responses:
+
+```go
+import "github.com/straubt1/tfx/client"
+
+// Create a client with HTTP logging enabled
+tfxClient, closer, err := client.NewFromViperWithLogging("/tmp/tfx-http.log")
+if err != nil {
+    log.Fatal(err)
+}
+// Important: Always close the log file when done
+defer closer.Close()
+
+// All HTTP requests and responses will now be logged to the file
+projects, err := tfxClient.FetchProjects("my-org", "")
+```
+
+**Log File Format:**
+```
+################################################################################
+# TFX HTTP LOG - Started at 2025-10-07T10:30:45Z
+################################################################################
+
+================================================================================
+REQUEST @ 2025-10-07T10:30:45Z
+================================================================================
+GET /api/v2/organizations/my-org/projects?page[number]=1&page[size]=100 HTTP/1.1
+Host: app.terraform.io
+Authorization: Bearer [REDACTED]
+Accept: application/vnd.api+json
+...
+
+--------------------------------------------------------------------------------
+RESPONSE @ 2025-10-07T10:30:46Z
+--------------------------------------------------------------------------------
+HTTP/2.0 200 OK
+Content-Type: application/vnd.api+json
+...
+```
+
+**Environment Variable Support:**
+
+You can also enable logging via environment variable in your commands:
+
+```go
+// In your command RunE function:
+logFile := os.Getenv("TFX_HTTP_LOG")
+if logFile != "" {
+    c, closer, err := client.NewFromViperWithLogging(logFile)
+    if err != nil {
+        return err
+    }
+    defer closer.Close()
+    // ... use c
+} else {
+    c, err := client.NewFromViper()
+    if err != nil {
+        return err
+    }
+    // ... use c
+}
+```
+
+Then run:
+```bash
+TFX_HTTP_LOG=/tmp/debug.log ./tfx project list
+```
+
 ## TfxClient Structure
 
 The `TfxClient` struct provides:
@@ -62,6 +132,16 @@ The `TfxClient` struct provides:
 - `Context` - A context.Context for API calls
 - `Hostname` - The TFE/TFC hostname
 - `OrganizationName` - The default organization name
+
+## Client Methods
+
+### Organization Operations
+- `FetchOrganizations() ([]*tfe.Organization, error)` - Fetch all organizations
+
+### Project Operations
+- `FetchProjects(orgName, searchString string) ([]*tfe.Project, error)` - Fetch projects for an organization
+- `FetchProjectsAcrossOrgs(searchString string) ([]*tfe.Project, error)` - Fetch projects across all organizations
+- `FetchProject(projectID string, options *tfe.ProjectReadOptions) (*tfe.Project, error)` - Fetch a single project
 
 ## Error Handling
 
