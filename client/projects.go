@@ -45,3 +45,21 @@ func (c *TfxClient) FetchProjectsAcrossOrgs(searchString string) ([]*tfe.Project
 func (c *TfxClient) FetchProject(projectID string, options *tfe.ProjectReadOptions) (*tfe.Project, error) {
 	return c.Client.Projects.ReadWithOptions(c.Context, projectID, *options)
 }
+
+// FetchProjectByName fetches a single project by name in the specified organization
+func (c *TfxClient) FetchProjectByName(orgName string, projectName string, options *tfe.ProjectReadOptions) (*tfe.Project, error) {
+	projects, err := c.FetchProjects(orgName, projectName)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch projects")
+	}
+
+	// Find exact match in case there are multiple results from the search
+	for _, p := range projects {
+		if p.Name == projectName {
+			// Fetch full project details with options
+			return c.FetchProject(p.ID, options)
+		}
+	}
+
+	return nil, errors.Errorf("project with name '%s' not found in organization '%s'", projectName, orgName)
+}

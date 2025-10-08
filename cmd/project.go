@@ -79,14 +79,26 @@ tfx project list --search "my-project"`,
 		Use:   "show",
 		Short: "Show project details",
 		Long:  "Show Project in a TFx Organization.",
+		Example: `tfx project show --id prj-abc123
+tfx project show --name myprojectname`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := client.NewFromViper()
 			if err != nil {
 				return err
 			}
-			return projectShow(
-				c,
-				*viperString("id"))
+
+			projectID := *viperString("id")
+			projectName := *viperString("name")
+
+			// Validate that exactly one of id or name is provided
+			if projectID == "" && projectName == "" {
+				return errors.New("either --id or --name must be provided")
+			}
+			if projectID != "" && projectName != "" {
+				return errors.New("only one of --id or --name can be provided")
+			}
+
+			return projectShow(c, projectID, projectName)
 		},
 	}
 )
@@ -98,7 +110,7 @@ func init() {
 
 	// `tfx project show`
 	projectShowCmd.Flags().StringP("id", "i", "", "ID of the project.")
-	projectShowCmd.MarkFlagRequired("id")
+	projectShowCmd.Flags().StringP("name", "n", "", "Name of the project.")
 
 	rootCmd.AddCommand(projectCmd)
 	projectCmd.AddCommand(projectListCmd)
@@ -138,13 +150,23 @@ func projectList(c *client.TfxClient, searchString string) error {
 	return nil
 }
 
-func projectShow(c *client.TfxClient, projectId string) error {
-	o.AddMessageUserProvided("Show Project:", projectId)
-	p, err := c.FetchProject(projectId, &tfe.ProjectReadOptions{
+func projectShow(c *client.TfxClient, projectID string, projectName string) error {
+	var p *tfe.Project
+	var err error
+
+	readOptions := &tfe.ProjectReadOptions{
 		Include: []tfe.ProjectIncludeOpt{
 			tfe.ProjectEffectiveTagBindings,
 		},
-	})
+	}
+
+	if projectID != "" {
+		o.AddMessageUserProvided("Project ID:", projectID)
+		p, err = c.FetchProject(projectID, readOptions)
+	} else {
+		o.AddMessageUserProvided("Project Name:", projectName)
+		p, err = c.FetchProjectByName(c.OrganizationName, projectName, readOptions)
+	}
 
 	if err != nil {
 		logError(err, "failed to read project")
