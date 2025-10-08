@@ -26,6 +26,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/straubt1/tfx/client"
+	"github.com/straubt1/tfx/flags"
 )
 
 // projectCmd represents the project command
@@ -57,7 +58,7 @@ tfx project list --search "my-project"`,
 		Long:    "List Projects in a TFx Organization.",
 		Example: `tfx project list --search "my-project"`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmdConfig, err := NewProjectListConfig(cmd)
+			cmdConfig, err := flags.ParseProjectListFlags(cmd)
 			if err != nil {
 				return err
 			}
@@ -79,7 +80,7 @@ tfx project list --search "my-project"`,
 tfx project show --id prj-abc123
 tfx project show --name myprojectname`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmdConfig, err := NewProjectShowConfig(cmd)
+			cmdConfig, err := flags.ParseProjectShowFlags(cmd)
 			if err != nil {
 				return err
 			}
@@ -104,7 +105,7 @@ func init() {
 	projectCmd.AddCommand(projectShowCmd)
 }
 
-func projectListAll(cmdConfig *ProjectListConfig) error {
+func projectListAll(cmdConfig *flags.ProjectListFlags) error {
 	c, err := client.NewFromViper()
 	if err != nil {
 		return err
@@ -124,7 +125,7 @@ func projectListAll(cmdConfig *ProjectListConfig) error {
 	return nil
 }
 
-func projectList(cmdConfig *ProjectListConfig) error {
+func projectList(cmdConfig *flags.ProjectListFlags) error {
 	c, err := client.NewFromViper()
 	if err != nil {
 		return err
@@ -144,7 +145,7 @@ func projectList(cmdConfig *ProjectListConfig) error {
 	return nil
 }
 
-func projectShow(cmdConfig *ProjectShowConfig) error {
+func projectShow(cmdConfig *flags.ProjectShowFlags) error {
 	var err error
 	c, err := client.NewFromViper()
 	if err != nil {
