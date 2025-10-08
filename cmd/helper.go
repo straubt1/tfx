@@ -259,9 +259,9 @@ func getPolicyLogs(ctx context.Context, client *tfe.Client, r *tfe.Run) error {
 			}
 			continue
 		case tfe.PolicyErrored:
-			return fmt.Errorf(msgPrefix + " errored.")
+			return fmt.Errorf("%s errored", msgPrefix)
 		case tfe.PolicyHardFailed:
-			return fmt.Errorf(msgPrefix + " hard failed.")
+			return fmt.Errorf("%s hard failed", msgPrefix)
 		case tfe.PolicySoftFailed:
 			fmt.Println("PolicySoftFailed")
 			// runUrl := fmt.Sprintf(runHeader, b.hostname, b.organization, op.Workspace, r.ID)
