@@ -25,7 +25,6 @@ import (
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/straubt1/tfx/client"
 )
 
 // projectCmd represents the project command
@@ -57,19 +56,15 @@ tfx project list --search "my-project"`,
 		Long:    "List Projects in a TFx Organization.",
 		Example: `tfx project list --search "my-project"`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			c, err := client.NewFromViper()
+			cmdConfig, err := NewProjectListConfig(cmd)
 			if err != nil {
 				return err
 			}
 
-			if *viperBool("all") {
-				return projectListAll(
-					c,
-					*viperString("search"))
+			if cmdConfig.All {
+				return projectListAll(cmdConfig)
 			} else {
-				return projectList(
-					c,
-					*viperString("search"))
+				return projectList(cmdConfig)
 			}
 		},
 	}
@@ -82,23 +77,11 @@ tfx project list --search "my-project"`,
 		Example: `tfx project show --id prj-abc123
 tfx project show --name myprojectname`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			c, err := client.NewFromViper()
+			cmdConfig, err := NewProjectShowConfig(cmd)
 			if err != nil {
 				return err
 			}
-
-			projectID := *viperString("id")
-			projectName := *viperString("name")
-
-			// Validate that exactly one of id or name is provided
-			if projectID == "" && projectName == "" {
-				return errors.New("either --id or --name must be provided")
-			}
-			if projectID != "" && projectName != "" {
-				return errors.New("only one of --id or --name can be provided")
-			}
-
-			return projectShow(c, projectID, projectName)
+			return projectShow(cmdConfig)
 		},
 	}
 )
@@ -110,18 +93,26 @@ func init() {
 
 	// `tfx project show`
 	projectShowCmd.Flags().StringP("id", "i", "", "ID of the project.")
+	// projectShowCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+	// 	projectID := viper.GetString("id")
+	// 	if projectID != "" && !strings.HasPrefix(projectID, "prj-") {
+	// 		return errors.New("project ID must start with 'prj-'")
+	// 	}
+	// 	return nil
+	// }
 	projectShowCmd.Flags().StringP("name", "n", "", "Name of the project.")
+	projectShowCmd.MarkFlagsMutuallyExclusive("id", "name")
+	projectShowCmd.MarkFlagsOneRequired("id", "name")
 
 	rootCmd.AddCommand(projectCmd)
 	projectCmd.AddCommand(projectListCmd)
 	projectCmd.AddCommand(projectShowCmd)
-
 }
 
-func projectListAll(c *client.TfxClient, searchString string) error {
+func projectListAll(cmdConfig *ProjectListConfig) error {
 	o.AddMessageUserProvided("List Projects for all available Organizations", "")
 
-	projects, err := c.FetchProjectsAcrossOrgs(searchString)
+	projects, err := cmdConfig.Client.FetchProjectsAcrossOrgs(cmdConfig.Search)
 	if err != nil {
 		return err
 	}
@@ -134,10 +125,10 @@ func projectListAll(c *client.TfxClient, searchString string) error {
 	return nil
 }
 
-func projectList(c *client.TfxClient, searchString string) error {
-	o.AddMessageUserProvided("List Projects for Organization:", c.OrganizationName)
+func projectList(cmdConfig *ProjectListConfig) error {
+	o.AddMessageUserProvided("List Projects for Organization:", cmdConfig.Client.OrganizationName)
 
-	projects, err := c.FetchProjects(c.OrganizationName, searchString)
+	projects, err := cmdConfig.Client.FetchProjects(cmdConfig.Client.OrganizationName, cmdConfig.Search)
 	if err != nil {
 		return errors.Wrap(err, "failed to list projects")
 	}
@@ -150,7 +141,7 @@ func projectList(c *client.TfxClient, searchString string) error {
 	return nil
 }
 
-func projectShow(c *client.TfxClient, projectID string, projectName string) error {
+func projectShow(cmdConfig *ProjectShowConfig) error {
 	var p *tfe.Project
 	var err error
 
@@ -160,13 +151,13 @@ func projectShow(c *client.TfxClient, projectID string, projectName string) erro
 		},
 	}
 
-	o.AddMessageUserProvided("Organization Name:", c.OrganizationName)
-	if projectID != "" {
-		o.AddMessageUserProvided("Project ID:", projectID)
-		p, err = c.FetchProject(projectID, readOptions)
+	o.AddMessageUserProvided("Organization Name:", cmdConfig.Client.OrganizationName)
+	if cmdConfig.ID != "" {
+		o.AddMessageUserProvided("Project ID:", cmdConfig.ID)
+		p, err = cmdConfig.Client.FetchProject(cmdConfig.ID, readOptions)
 	} else {
-		o.AddMessageUserProvided("Project Name:", projectName)
-		p, err = c.FetchProjectByName(c.OrganizationName, projectName, readOptions)
+		o.AddMessageUserProvided("Project Name:", cmdConfig.Name)
+		p, err = cmdConfig.Client.FetchProjectByName(cmdConfig.Client.OrganizationName, cmdConfig.Name, readOptions)
 	}
 
 	if err != nil {
