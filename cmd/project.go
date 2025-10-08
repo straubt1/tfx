@@ -25,6 +25,7 @@ import (
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/straubt1/tfx/client"
 )
 
 // projectCmd represents the project command
@@ -74,7 +75,8 @@ tfx project list --search "my-project"`,
 		Use:   "show",
 		Short: "Show project details",
 		Long:  "Show Project in a TFx Organization.",
-		Example: `tfx project show --id prj-abc123
+		Example: `
+tfx project show --id prj-abc123
 tfx project show --name myprojectname`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmdConfig, err := NewProjectShowConfig(cmd)
@@ -93,13 +95,6 @@ func init() {
 
 	// `tfx project show`
 	projectShowCmd.Flags().StringP("id", "i", "", "ID of the project.")
-	// projectShowCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
-	// 	projectID := viper.GetString("id")
-	// 	if projectID != "" && !strings.HasPrefix(projectID, "prj-") {
-	// 		return errors.New("project ID must start with 'prj-'")
-	// 	}
-	// 	return nil
-	// }
 	projectShowCmd.Flags().StringP("name", "n", "", "Name of the project.")
 	projectShowCmd.MarkFlagsMutuallyExclusive("id", "name")
 	projectShowCmd.MarkFlagsOneRequired("id", "name")
@@ -110,9 +105,13 @@ func init() {
 }
 
 func projectListAll(cmdConfig *ProjectListConfig) error {
-	o.AddMessageUserProvided("List Projects for all available Organizations", "")
+	c, err := client.NewFromViper()
+	if err != nil {
+		return err
+	}
 
-	projects, err := cmdConfig.Client.FetchProjectsAcrossOrgs(cmdConfig.Search)
+	o.AddMessageUserProvided("List Projects for all available Organizations", "")
+	projects, err := c.FetchProjectsAcrossOrgs(cmdConfig.Search)
 	if err != nil {
 		return err
 	}
@@ -126,9 +125,13 @@ func projectListAll(cmdConfig *ProjectListConfig) error {
 }
 
 func projectList(cmdConfig *ProjectListConfig) error {
-	o.AddMessageUserProvided("List Projects for Organization:", cmdConfig.Client.OrganizationName)
+	c, err := client.NewFromViper()
+	if err != nil {
+		return err
+	}
 
-	projects, err := cmdConfig.Client.FetchProjects(cmdConfig.Client.OrganizationName, cmdConfig.Search)
+	o.AddMessageUserProvided("List Projects for Organization:", c.OrganizationName)
+	projects, err := c.FetchProjects(c.OrganizationName, cmdConfig.Search)
 	if err != nil {
 		return errors.Wrap(err, "failed to list projects")
 	}
@@ -142,8 +145,12 @@ func projectList(cmdConfig *ProjectListConfig) error {
 }
 
 func projectShow(cmdConfig *ProjectShowConfig) error {
-	var p *tfe.Project
 	var err error
+	c, err := client.NewFromViper()
+	if err != nil {
+		return err
+	}
+	var p *tfe.Project
 
 	readOptions := &tfe.ProjectReadOptions{
 		Include: []tfe.ProjectIncludeOpt{
@@ -151,13 +158,13 @@ func projectShow(cmdConfig *ProjectShowConfig) error {
 		},
 	}
 
-	o.AddMessageUserProvided("Organization Name:", cmdConfig.Client.OrganizationName)
+	o.AddMessageUserProvided("Organization Name:", c.OrganizationName)
 	if cmdConfig.ID != "" {
 		o.AddMessageUserProvided("Project ID:", cmdConfig.ID)
-		p, err = cmdConfig.Client.FetchProject(cmdConfig.ID, readOptions)
+		p, err = c.FetchProject(cmdConfig.ID, readOptions)
 	} else {
 		o.AddMessageUserProvided("Project Name:", cmdConfig.Name)
-		p, err = cmdConfig.Client.FetchProjectByName(cmdConfig.Client.OrganizationName, cmdConfig.Name, readOptions)
+		p, err = c.FetchProjectByName(c.OrganizationName, cmdConfig.Name, readOptions)
 	}
 
 	if err != nil {
