@@ -160,6 +160,7 @@ func projectShow(c *client.TfxClient, projectID string, projectName string) erro
 		},
 	}
 
+	o.AddMessageUserProvided("Organization Name:", c.OrganizationName)
 	if projectID != "" {
 		o.AddMessageUserProvided("Project ID:", projectID)
 		p, err = c.FetchProject(projectID, readOptions)
@@ -180,9 +181,9 @@ func projectShow(c *client.TfxClient, projectID string, projectName string) erro
 	var duration string
 	if p.AutoDestroyActivityDuration.IsSpecified() {
 		if duration, err = p.AutoDestroyActivityDuration.Get(); err == nil {
+			o.AddDeferredMessageRead("Auto Destroy Activity Duration", duration)
 		}
 	}
-	o.AddDeferredMessageRead("Auto Destroy Activity Duration", duration)
 
 	tags := make(map[string]interface{})
 	for _, i := range p.EffectiveTagBindings {
