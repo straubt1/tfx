@@ -1,11 +1,13 @@
 //go:build integration
 // +build integration
 
-package client
+package data
 
 import (
 	"os"
 	"testing"
+
+	"github.com/straubt1/tfx/client"
 )
 
 // getIntegrationTestConfig retrieves test configuration from environment variables
@@ -25,13 +27,13 @@ func getIntegrationTestConfig(t *testing.T) (hostname, token, organization strin
 func TestFetchOrganizations_Integration(t *testing.T) {
 	hostname, token, org := getIntegrationTestConfig(t)
 
-	client, err := New(hostname, token, org)
+	c, err := client.New(hostname, token, org)
 	if err != nil {
 		t.Fatalf("Failed to create client: %v", err)
 	}
 
 	t.Run("fetch all organizations", func(t *testing.T) {
-		orgs, err := client.FetchOrganizations()
+		orgs, err := FetchOrganizations(c)
 		if err != nil {
 			t.Fatalf("FetchOrganizations() error = %v", err)
 		}
@@ -58,7 +60,7 @@ func TestFetchOrganizations_Integration(t *testing.T) {
 	})
 
 	t.Run("verify organization details", func(t *testing.T) {
-		orgs, err := client.FetchOrganizations()
+		orgs, err := FetchOrganizations(c)
 		if err != nil {
 			t.Fatalf("FetchOrganizations() error = %v", err)
 		}

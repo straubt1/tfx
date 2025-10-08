@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/straubt1/tfx/client"
+	"github.com/straubt1/tfx/data"
 	"github.com/straubt1/tfx/flags"
 )
 
@@ -94,7 +95,7 @@ func projectListAll(cmdConfig *flags.ProjectListFlags) error {
 	}
 
 	o.AddMessageUserProvided("List Projects for all available Organizations", "")
-	projects, err := c.FetchProjectsAcrossOrgs(cmdConfig.Search)
+	projects, err := data.FetchProjectsAcrossOrgs(c, cmdConfig.Search)
 	if err != nil {
 		return err
 	}
@@ -114,7 +115,7 @@ func projectList(cmdConfig *flags.ProjectListFlags) error {
 	}
 
 	o.AddMessageUserProvided("List Projects for Organization:", c.OrganizationName)
-	projects, err := c.FetchProjects(c.OrganizationName, cmdConfig.Search)
+	projects, err := data.FetchProjects(c, c.OrganizationName, cmdConfig.Search)
 	if err != nil {
 		return errors.Wrap(err, "failed to list projects")
 	}
@@ -143,10 +144,10 @@ func projectShow(cmdConfig *flags.ProjectShowFlags) error {
 	o.AddMessageUserProvided("Organization Name:", c.OrganizationName)
 	if cmdConfig.ID != "" {
 		o.AddMessageUserProvided("Project ID:", cmdConfig.ID)
-		p, err = c.FetchProject(cmdConfig.ID, readOptions)
+		p, err = data.FetchProject(c, cmdConfig.ID, readOptions)
 	} else {
 		o.AddMessageUserProvided("Project Name:", cmdConfig.Name)
-		p, err = c.FetchProjectByName(c.OrganizationName, cmdConfig.Name, readOptions)
+		p, err = data.FetchProjectByName(c, c.OrganizationName, cmdConfig.Name, readOptions)
 	}
 
 	if err != nil {

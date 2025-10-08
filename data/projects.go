@@ -1,13 +1,14 @@
-package client
+package data
 
 import (
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
+	"github.com/straubt1/tfx/client"
 )
 
 // FetchProjects fetches all projects for a given organization using pagination
-func (c *TfxClient) FetchProjects(orgName string, searchString string) ([]*tfe.Project, error) {
-	return FetchAll(c.Context, func(pageNumber int) ([]*tfe.Project, *Pagination, error) {
+func FetchProjects(c *client.TfxClient, orgName string, searchString string) ([]*tfe.Project, error) {
+	return client.FetchAll(c.Context, func(pageNumber int) ([]*tfe.Project, *client.Pagination, error) {
 		opts := &tfe.ProjectListOptions{
 			ListOptions: tfe.ListOptions{PageNumber: pageNumber, PageSize: 100},
 			Query:       searchString,
@@ -18,20 +19,20 @@ func (c *TfxClient) FetchProjects(orgName string, searchString string) ([]*tfe.P
 			return nil, nil, err
 		}
 
-		return result.Items, NewPaginationFromTFE(result.Pagination), nil
+		return result.Items, client.NewPaginationFromTFE(result.Pagination), nil
 	})
 }
 
 // FetchProjectsAcrossOrgs fetches projects across all organizations
-func (c *TfxClient) FetchProjectsAcrossOrgs(searchString string) ([]*tfe.Project, error) {
-	orgs, err := c.FetchOrganizations()
+func FetchProjectsAcrossOrgs(c *client.TfxClient, searchString string) ([]*tfe.Project, error) {
+	orgs, err := FetchOrganizations(c)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list organizations")
 	}
 
 	var allProjects []*tfe.Project
 	for _, org := range orgs {
-		projects, err := c.FetchProjects(org.Name, searchString)
+		projects, err := FetchProjects(c, org.Name, searchString)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to list projects for organization %s", org.Name)
 		}
@@ -42,13 +43,13 @@ func (c *TfxClient) FetchProjectsAcrossOrgs(searchString string) ([]*tfe.Project
 }
 
 // FetchProject fetches a single project by ID
-func (c *TfxClient) FetchProject(projectID string, options *tfe.ProjectReadOptions) (*tfe.Project, error) {
+func FetchProject(c *client.TfxClient, projectID string, options *tfe.ProjectReadOptions) (*tfe.Project, error) {
 	return c.Client.Projects.ReadWithOptions(c.Context, projectID, *options)
 }
 
 // FetchProjectByName fetches a single project by name in the specified organization
-func (c *TfxClient) FetchProjectByName(orgName string, projectName string, options *tfe.ProjectReadOptions) (*tfe.Project, error) {
-	projects, err := c.FetchProjects(orgName, projectName)
+func FetchProjectByName(c *client.TfxClient, orgName string, projectName string, options *tfe.ProjectReadOptions) (*tfe.Project, error) {
+	projects, err := FetchProjects(c, orgName, projectName)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch projects")
 	}
@@ -57,7 +58,7 @@ func (c *TfxClient) FetchProjectByName(orgName string, projectName string, optio
 	for _, p := range projects {
 		if p.Name == projectName {
 			// Fetch full project details with options
-			return c.FetchProject(p.ID, options)
+			return FetchProject(c, p.ID, options)
 		}
 	}
 
