@@ -10,10 +10,15 @@ type BaseView struct {
 	renderer Renderer
 }
 
+// isJSONMode checks if JSON output mode is enabled
+func isJSONMode() bool {
+	return viper.GetBool("json")
+}
+
 // NewBaseView creates a base view with the appropriate renderer
-func NewBaseView(isJSON bool) *BaseView {
+func NewBaseView() *BaseView {
 	var renderer Renderer
-	if isJSON {
+	if isJSONMode() {
 		renderer = NewJSONRenderer()
 	} else {
 		renderer = NewTerminalRenderer()
@@ -23,7 +28,7 @@ func NewBaseView(isJSON bool) *BaseView {
 
 // NewBaseViewFromViper creates a base view using viper config
 func NewBaseViewFromViper() *BaseView {
-	return NewBaseView(viper.GetBool("json"))
+	return NewBaseView()
 }
 
 // RenderError renders an error in the appropriate format
@@ -40,4 +45,10 @@ func (v *BaseView) IsJSON() bool {
 // Renderer returns the underlying renderer
 func (v *BaseView) Renderer() Renderer {
 	return v.renderer
+}
+
+// PrintCommandHeader prints a command header message (suppressed in JSON mode)
+// This can be called from the command layer before making API calls
+func (v *BaseView) PrintCommandHeader(format string, args ...interface{}) {
+	v.renderer.MessageCommandHeader(format, args...)
 }

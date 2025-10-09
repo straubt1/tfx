@@ -13,9 +13,9 @@ type ProjectListView struct {
 	*BaseView
 }
 
-func NewProjectListView(isJSON bool) *ProjectListView {
+func NewProjectListView() *ProjectListView {
 	return &ProjectListView{
-		BaseView: NewBaseView(isJSON),
+		BaseView: NewBaseView(),
 	}
 }
 

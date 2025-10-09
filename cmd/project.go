@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/straubt1/tfx/client"
 	"github.com/straubt1/tfx/cmd/flags"
+	view "github.com/straubt1/tfx/cmd/views"
 	"github.com/straubt1/tfx/data"
 )
 
@@ -129,48 +130,26 @@ func projectList(cmdConfig *flags.ProjectListFlags) error {
 }
 
 func projectShow(cmdConfig *flags.ProjectShowFlags) error {
+	// Create view for rendering
+	v := view.NewProjectShowView()
+
 	c, err := client.NewFromViper()
 	if err != nil {
-		return err
+		return v.RenderError(err)
 	}
 
 	var p *tfe.Project
-	readOptions := &tfe.ProjectReadOptions{
-		Include: []tfe.ProjectIncludeOpt{
-			tfe.ProjectEffectiveTagBindings,
-		},
-	}
-
-	o.AddMessageUserProvided("Organization Name:", c.OrganizationName)
 	if cmdConfig.ID != "" {
-		o.AddMessageUserProvided("Project ID:", cmdConfig.ID)
-		p, err = data.FetchProject(c, cmdConfig.ID, readOptions)
+		v.PrintCommandHeader("Showing project '%s' in organization '%s'", cmdConfig.ID, c.OrganizationName)
+		p, err = data.FetchProject(c, cmdConfig.ID)
 	} else {
-		o.AddMessageUserProvided("Project Name:", cmdConfig.Name)
-		p, err = data.FetchProjectByName(c, c.OrganizationName, cmdConfig.Name, readOptions)
+		v.PrintCommandHeader("Showing project '%s' in organization '%s'", cmdConfig.Name, c.OrganizationName)
+		p, err = data.FetchProjectByName(c, c.OrganizationName, cmdConfig.Name)
 	}
 
 	if err != nil {
-		logError(err, "failed to read project")
+		return v.RenderError(err)
 	}
 
-	o.AddDeferredMessageRead("Name", p.Name)
-	o.AddDeferredMessageRead("ID", p.ID)
-	o.AddDeferredMessageRead("Description", p.Description)
-	o.AddDeferredMessageRead("DefaultExecutionMode", p.DefaultExecutionMode)
-
-	var duration string
-	if p.AutoDestroyActivityDuration.IsSpecified() {
-		if duration, err = p.AutoDestroyActivityDuration.Get(); err == nil {
-			o.AddDeferredMessageRead("Auto Destroy Activity Duration", duration)
-		}
-	}
-
-	tags := make(map[string]interface{})
-	for _, i := range p.EffectiveTagBindings {
-		tags[i.Key] = i.Value
-	}
-	o.AddDeferredMapMessageRead("Tags", tags)
-
-	return nil
+	return v.Render(c.OrganizationName, p)
 }

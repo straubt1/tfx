@@ -43,12 +43,17 @@ func FetchProjectsAcrossOrgs(c *client.TfxClient, searchString string) ([]*tfe.P
 }
 
 // FetchProject fetches a single project by ID
-func FetchProject(c *client.TfxClient, projectID string, options *tfe.ProjectReadOptions) (*tfe.Project, error) {
+func FetchProject(c *client.TfxClient, projectID string) (*tfe.Project, error) {
+	options := &tfe.ProjectReadOptions{
+		Include: []tfe.ProjectIncludeOpt{
+			tfe.ProjectEffectiveTagBindings,
+		},
+	}
 	return c.Client.Projects.ReadWithOptions(c.Context, projectID, *options)
 }
 
 // FetchProjectByName fetches a single project by name in the specified organization
-func FetchProjectByName(c *client.TfxClient, orgName string, projectName string, options *tfe.ProjectReadOptions) (*tfe.Project, error) {
+func FetchProjectByName(c *client.TfxClient, orgName string, projectName string) (*tfe.Project, error) {
 	projects, err := FetchProjects(c, orgName, projectName)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch projects")
@@ -58,7 +63,7 @@ func FetchProjectByName(c *client.TfxClient, orgName string, projectName string,
 	for _, p := range projects {
 		if p.Name == projectName {
 			// Fetch full project details with options
-			return FetchProject(c, p.ID, options)
+			return FetchProject(c, p.ID)
 		}
 	}
 
