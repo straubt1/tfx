@@ -8,8 +8,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/straubt1/tfx/client"
+	"github.com/straubt1/tfx/cmd/flags"
 	"github.com/straubt1/tfx/data"
-	"github.com/straubt1/tfx/flags"
 )
 
 // organizationCmd represents the organization command
