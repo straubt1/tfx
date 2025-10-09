@@ -33,7 +33,7 @@ func TestFetchOrganizations_Integration(t *testing.T) {
 	}
 
 	t.Run("fetch all organizations", func(t *testing.T) {
-		orgs, err := FetchOrganizations(c)
+		orgs, err := FetchOrganizations(c, "")
 		if err != nil {
 			t.Fatalf("FetchOrganizations() error = %v", err)
 		}
@@ -60,7 +60,7 @@ func TestFetchOrganizations_Integration(t *testing.T) {
 	})
 
 	t.Run("verify organization details", func(t *testing.T) {
-		orgs, err := FetchOrganizations(c)
+		orgs, err := FetchOrganizations(c, "")
 		if err != nil {
 			t.Fatalf("FetchOrganizations() error = %v", err)
 		}

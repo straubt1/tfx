@@ -25,7 +25,7 @@ func FetchProjects(c *client.TfxClient, orgName string, searchString string) ([]
 
 // FetchProjectsAcrossOrgs fetches projects across all organizations
 func FetchProjectsAcrossOrgs(c *client.TfxClient, searchString string) ([]*tfe.Project, error) {
-	orgs, err := FetchOrganizations(c)
+	orgs, err := FetchOrganizations(c, "")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list organizations")
 	}
