@@ -12,6 +12,9 @@ func FetchProjects(c *client.TfxClient, orgName string, searchString string) ([]
 		opts := &tfe.ProjectListOptions{
 			ListOptions: tfe.ListOptions{PageNumber: pageNumber, PageSize: 100},
 			Query:       searchString,
+			Include: []tfe.ProjectIncludeOpt{
+				tfe.ProjectEffectiveTagBindings,
+			},
 		}
 
 		result, err := c.Client.Projects.List(c.Context, orgName, opts)

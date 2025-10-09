@@ -5,12 +5,16 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "TFX - CV List",
+      "name": "TFX - General Debug",
       "type": "go",
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}/../main.go",
-      "args": ["cv", "list", "--workspace-name=tfx-test"]
+      "args": [
+        "project",
+        "show",
+        "-i=prj-SGk9cJy4ntXaoxxx"
+      ]
     },
     {
       "name": "TFX - Workspace Run Show",
@@ -18,7 +22,12 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}/../main.go",
-      "args": ["workspace", "run", "show", "-i=run-tVxVKhhZeNn8GpZS"]
+      "args": [
+        "workspace",
+        "run",
+        "show",
+        "-i=run-tVxVKhhZeNn8GpZS"
+      ]
     },
     {
       "name": "TFX - Workspace Run List",
@@ -26,7 +35,12 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}/../main.go",
-      "args": ["workspace", "run", "list", "-w=tfx-test"]
+      "args": [
+        "workspace",
+        "run",
+        "list",
+        "-w=tfx-test"
+      ]
     },
     {
       "name": "TFX - Workspace Run Discard",
@@ -34,7 +48,12 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}/../main.go",
-      "args": ["workspace", "run", "discard", "-i=run-WH5WBvxJPLh1utN8"]
+      "args": [
+        "workspace",
+        "run",
+        "discard",
+        "-i=run-WH5WBvxJPLh1utN8"
+      ]
     },
     {
       "name": "TFX - Workspace Run Show config",
@@ -42,7 +61,12 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}/../main.go",
-      "args": ["workspace", "run", "discard", "-h"]
+      "args": [
+        "workspace",
+        "run",
+        "discard",
+        "-h"
+      ]
     },
     {
       "name": "TFX - Plan",
@@ -63,7 +87,10 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}/../main.go",
-      "args": ["apply", "--run-id=run-VCMv2kHVwS4RMVRu"]
+      "args": [
+        "apply",
+        "--run-id=run-VCMv2kHVwS4RMVRu"
+      ]
     },
     {
       "name": "TFX - PMR List",
@@ -71,7 +98,10 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}/../main.go",
-      "args": ["pmr", "list"]
+      "args": [
+        "pmr",
+        "list"
+      ]
     },
     {
       "name": "TFX - Module Download",
@@ -108,7 +138,11 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}/../main.go",
-      "args": ["tfv", "list", "--enabled=false"]
+      "args": [
+        "tfv",
+        "list",
+        "--enabled=false"
+      ]
     },
     {
       "name": "TFX - Test env",
@@ -116,7 +150,12 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}/../main.go",
-      "args": ["plan", "test", "--env", "a=14=33"]
+      "args": [
+        "plan",
+        "test",
+        "--env",
+        "a=14=33"
+      ]
     },
     {
       "name": "TFX - GPG Keys List",
@@ -124,7 +163,12 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}/../main.go",
-      "args": ["admin", "gpg", "list", "--tfeOrganization=terraform-tom"]
+      "args": [
+        "admin",
+        "gpg",
+        "list",
+        "--tfeOrganization=terraform-tom"
+      ]
     },
     {
       "name": "TFX - GPG Keys Delete",
@@ -132,7 +176,12 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}/../main.go",
-      "args": ["gpg", "delete", "-n=firefly", "--keyId=34365D9472D7468F"]
+      "args": [
+        "gpg",
+        "delete",
+        "-n=firefly",
+        "--keyId=34365D9472D7468F"
+      ]
     },
     {
       "name": "TFX - GPG Keys Show",
@@ -140,7 +189,12 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}/../main.go",
-      "args": ["gpg", "show", "-n=firefly", "--keyId=34365D9472D7468F"]
+      "args": [
+        "gpg",
+        "show",
+        "-n=firefly",
+        "--keyId=34365D9472D7468F"
+      ]
     },
     {
       "name": "TFX - TFE Download",
@@ -148,7 +202,12 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}/../main.go",
-      "args": ["release", "tfe", "download", "-r=639"]
+      "args": [
+        "release",
+        "tfe",
+        "download",
+        "-r=639"
+      ]
     },
     {
       "name": "TFX - Replicated List",
@@ -156,7 +215,11 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}/../main.go",
-      "args": ["airgap", "replicated", "list"]
+      "args": [
+        "airgap",
+        "replicated",
+        "list"
+      ]
     },
     {
       "name": "TFX - providers List",
@@ -177,7 +240,12 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}/../main.go",
-      "args": ["registry", "provider", "show", "-n=random"]
+      "args": [
+        "registry",
+        "provider",
+        "show",
+        "-n=random"
+      ]
     },
     {
       "name": "TFX - providers version create",
@@ -203,7 +271,12 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}/../main.go",
-      "args": ["variable", "list", "-w=tfx-test", "-o=json"]
+      "args": [
+        "variable",
+        "list",
+        "-w=tfx-test",
+        "-o=json"
+      ]
     },
     {
       "name": "TFX - variable create",
@@ -226,7 +299,12 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}/../main.go",
-      "args": ["variable", "show", "-w=tfx-test", "-k=variable3"]
+      "args": [
+        "variable",
+        "show",
+        "-w=tfx-test",
+        "-k=variable3"
+      ]
     },
     {
       "name": "TFX - project show",
@@ -234,7 +312,11 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}/../main.go",
-      "args": ["project", "show", "-i=prj-bXXfedUa9Xa598L8"]
+      "args": [
+        "project",
+        "show",
+        "-i=prj-bXXfedUa9Xa598L8"
+      ]
     }
   ]
 }

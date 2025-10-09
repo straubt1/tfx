@@ -90,43 +90,51 @@ func init() {
 }
 
 func projectListAll(cmdConfig *flags.ProjectListFlags) error {
+	// Create view for rendering
+	v := view.NewProjectListView()
+
 	c, err := client.NewFromViper()
 	if err != nil {
-		return err
+		return v.RenderError(err)
 	}
 
-	o.AddMessageUserProvided("List Projects for all available Organizations", "")
+	// Print command header before API call
+	if cmdConfig.Search != "" {
+		v.PrintCommandHeader("Listing projects across all organizations matching '%s'", cmdConfig.Search)
+	} else {
+		v.PrintCommandHeader("Listing all projects across all organizations")
+	}
+
 	projects, err := data.FetchProjectsAcrossOrgs(c, cmdConfig.Search)
 	if err != nil {
-		return err
+		return v.RenderError(err)
 	}
 
-	o.AddTableHeader("Organization", "Name", "Id", "Description")
-	for _, p := range projects {
-		o.AddTableRows(p.Organization.Name, p.Name, p.ID, p.Description)
-	}
-
-	return nil
+	return v.RenderAll(projects)
 }
 
 func projectList(cmdConfig *flags.ProjectListFlags) error {
+	// Create view for rendering
+	v := view.NewProjectListView()
+
 	c, err := client.NewFromViper()
 	if err != nil {
-		return err
+		return v.RenderError(err)
 	}
 
-	o.AddMessageUserProvided("List Projects for Organization:", c.OrganizationName)
+	// Print command header before API call
+	if cmdConfig.Search != "" {
+		v.PrintCommandHeader("Listing projects in organization '%s' matching '%s'", c.OrganizationName, cmdConfig.Search)
+	} else {
+		v.PrintCommandHeader("Listing projects in organization '%s'", c.OrganizationName)
+	}
+
 	projects, err := data.FetchProjects(c, c.OrganizationName, cmdConfig.Search)
 	if err != nil {
-		return errors.Wrap(err, "failed to list projects")
+		return v.RenderError(errors.Wrap(err, "failed to list projects"))
 	}
 
-	o.AddTableHeader("Name", "Id", "Description")
-	for _, p := range projects {
-		o.AddTableRows(p.Name, p.ID, p.Description)
-	}
-
-	return nil
+	return v.Render(c.OrganizationName, projects)
 }
 
 func projectShow(cmdConfig *flags.ProjectShowFlags) error {
