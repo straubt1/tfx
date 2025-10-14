@@ -17,12 +17,11 @@ type TfxClient struct {
 
 // New creates a new TFE client with the provided configuration
 func New(hostname, token, organization string) (*TfxClient, error) {
-	return NewWithContext(context.Background(), hostname, token, organization, "")
+	return NewWithContext(context.Background(), hostname, token, organization)
 }
 
 // NewWithContext creates a new TFE client with a parent context
-// If logFile is provided (non-empty), HTTP request/response logging will be enabled
-func NewWithContext(ctx context.Context, hostname, token, organization, logFile string) (*TfxClient, error) {
+func NewWithContext(ctx context.Context, hostname, token, organization string) (*TfxClient, error) {
 	if hostname == "" {
 		return nil, fmt.Errorf("hostname is required")
 	}
@@ -32,9 +31,9 @@ func NewWithContext(ctx context.Context, hostname, token, organization, logFile 
 
 	var config *tfe.Config
 
-	// Conditionally enable HTTP logging if logFile is provided
-	if logFile != "" {
-		httpClient, _, err := NewHTTPClientWithLogging(logFile)
+	// Conditionally enable HTTP logging if enabled
+	if IsTFXLogEnabled() {
+		httpClient, _, err := NewHTTPClientWithLogging()
 		if err != nil {
 			return nil, fmt.Errorf("failed to create HTTP client with logging: %w", err)
 		}

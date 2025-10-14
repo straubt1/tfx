@@ -12,12 +12,10 @@ func NewFromViper() (*TfxClient, error) {
 }
 
 // NewFromViperWithContext creates a TfxClient using viper configuration with a parent context
-// If the viper config contains "tfxLogFile", HTTP logging will be enabled to that file
 func NewFromViperWithContext(ctx context.Context) (*TfxClient, error) {
 	hostname := viper.GetString("tfeHostname")
 	token := viper.GetString("tfeToken")
 	organization := viper.GetString("tfeOrganization")
-	logFile := viper.GetString("tfxLogFile")
 
-	return NewWithContext(ctx, hostname, token, organization, logFile)
+	return NewWithContext(ctx, hostname, token, organization)
 }

@@ -54,6 +54,15 @@ if err != nil {
 }
 ```
 
+
+### Debugging
+
+If any of these ENV variables are set, enable the action:
+
+- "TFX_LOG" - this is the log level and if enabled, will log debug statements to the terminal
+- "TFX_LOG_PATH" - this is a directory string that will be created and where files can be saved
+
+
 ### HTTP Request/Response Logging
 
 For debugging or auditing purposes, you can enable HTTP logging to capture all API requests and responses:
