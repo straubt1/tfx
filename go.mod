@@ -3,7 +3,7 @@ module github.com/straubt1/tfx
 go 1.25.1
 
 require (
-	code.cloudfoundry.org/bytefmt v0.54.0
+	code.cloudfoundry.org/bytefmt v0.55.0
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/cavaliergopher/grab/v3 v3.0.1
 	github.com/coreos/go-semver v0.3.1
@@ -42,7 +42,7 @@ require (
 	github.com/sagikazarmark/locafero v0.12.0 // indirect
 	go.mongodb.org/mongo-driver v1.17.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/net v0.45.0 // indirect
+	golang.org/x/net v0.46.0 // indirect
 	golang.org/x/sync v0.17.0 // indirect
 )
 
@@ -64,7 +64,7 @@ require (
 	github.com/tidwall/match v1.2.0 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	golang.org/x/exp v0.0.0-20251002181428-27f1f14c8bb9
-	golang.org/x/sys v0.36.0 // indirect
-	golang.org/x/text v0.29.0 // indirect
+	golang.org/x/sys v0.37.0 // indirect
+	golang.org/x/text v0.30.0 // indirect
 	golang.org/x/time v0.13.0 // indirect
 )
