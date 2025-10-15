@@ -85,19 +85,19 @@ func (h *ColorHandler) formatLevel(level slog.Level) string {
 	switch {
 	case level < slog.LevelDebug:
 		levelStr = "TRACE"
-		colored = aurora.Faint(fmt.Sprintf("[%-5s]", levelStr)).String()
+		colored = aurora.Faint(fmt.Sprintf("[%s]", levelStr)).String()
 	case level < slog.LevelInfo:
 		levelStr = "DEBUG"
-		colored = aurora.Cyan(fmt.Sprintf("[%-5s]", levelStr)).String()
+		colored = aurora.Cyan(fmt.Sprintf("[%s]", levelStr)).String()
 	case level < slog.LevelWarn:
 		levelStr = "INFO"
-		colored = aurora.Green(fmt.Sprintf("[%-5s]", levelStr)).String()
+		colored = aurora.Green(fmt.Sprintf("[%s]", levelStr)).String()
 	case level < slog.LevelError:
 		levelStr = "WARN"
-		colored = aurora.Yellow(fmt.Sprintf("[%-5s]", levelStr)).String()
+		colored = aurora.Yellow(fmt.Sprintf("[%s]", levelStr)).String()
 	default:
 		levelStr = "ERROR"
-		colored = aurora.Red(fmt.Sprintf("[%-5s]", levelStr)).String()
+		colored = aurora.Red(fmt.Sprintf("[%s]", levelStr)).String()
 	}
 
 	return colored
