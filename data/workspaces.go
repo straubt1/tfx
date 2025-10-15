@@ -6,21 +6,42 @@ import (
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
 	"github.com/straubt1/tfx/client"
+	"github.com/straubt1/tfx/cmd/flags"
 	"github.com/straubt1/tfx/logger"
 )
 
 // FetchWorkspaces fetches all workspaces for a given organization using pagination
-func FetchWorkspaces(c *client.TfxClient, orgName string, searchString string, projectID string) ([]*tfe.Workspace, error) {
-	logger.Debug("Fetching workspaces", "organization", orgName, "searchString", searchString, "projectID", projectID)
+func FetchWorkspaces(c *client.TfxClient, orgName string, options *flags.WorkspaceListFlags) ([]*tfe.Workspace, error) {
+	logger.Debug("Fetching workspaces", "organization", orgName, "options", options)
 
 	return client.FetchAll(c.Context, func(pageNumber int) ([]*tfe.Workspace, *client.Pagination, error) {
 		logger.Trace("Fetching workspaces page", "organization", orgName, "page", pageNumber)
 
 		opts := &tfe.WorkspaceListOptions{
 			ListOptions: tfe.ListOptions{PageNumber: pageNumber, PageSize: 100},
-			Search:      searchString,
-			ProjectID:   projectID,
 			Include:     []tfe.WSIncludeOpt{"organization", "current_run"},
+		}
+
+		// Apply search and filter options if provided
+		if options != nil {
+			if options.Search != "" {
+				opts.Search = options.Search
+			}
+			if options.WildcardName != "" {
+				opts.WildcardName = options.WildcardName
+			}
+			if options.ProjectID != "" {
+				opts.ProjectID = options.ProjectID
+			}
+			if options.Tags != "" {
+				opts.Tags = options.Tags
+			}
+			if options.ExcludeTags != "" {
+				opts.ExcludeTags = options.ExcludeTags
+			}
+			if options.RunStatus != "" {
+				opts.CurrentRunStatus = options.RunStatus
+			}
 		}
 
 		result, err := c.Client.Workspaces.List(c.Context, orgName, opts)
@@ -35,8 +56,8 @@ func FetchWorkspaces(c *client.TfxClient, orgName string, searchString string, p
 }
 
 // FetchWorkspacesAcrossOrgs fetches workspaces across all organizations
-func FetchWorkspacesAcrossOrgs(c *client.TfxClient, searchString string, projectID string) ([]*tfe.Workspace, error) {
-	logger.Info("Fetching workspaces across all organizations", "searchString", searchString, "projectID", projectID)
+func FetchWorkspacesAcrossOrgs(c *client.TfxClient, options *flags.WorkspaceListFlags) ([]*tfe.Workspace, error) {
+	logger.Info("Fetching workspaces across all organizations", "options", options)
 
 	orgs, err := FetchOrganizations(c, "")
 	if err != nil {
@@ -50,7 +71,7 @@ func FetchWorkspacesAcrossOrgs(c *client.TfxClient, searchString string, project
 	for _, org := range orgs {
 		logger.Debug("Fetching workspaces for organization", "organization", org.Name)
 
-		workspaces, err := FetchWorkspaces(c, org.Name, searchString, projectID)
+		workspaces, err := FetchWorkspaces(c, org.Name, options)
 		if err != nil {
 			logger.Error("Failed to fetch workspaces", "organization", org.Name, "error", err)
 			return nil, errors.Wrapf(err, "failed to list workspaces for organization %s", org.Name)

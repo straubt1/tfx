@@ -53,11 +53,11 @@ func (v *OrganizationListView) Render(orgs []*tfe.Organization) error {
 	}
 
 	// Terminal mode: render as table
-	headers := []string{"Name", "Email", "ID"}
+	headers := []string{"Name", "ID", "Email"}
 	rows := make([][]interface{}, len(orgs))
 
 	for i, org := range orgs {
-		rows[i] = []interface{}{org.Name, org.Email, org.ExternalID}
+		rows[i] = []interface{}{org.Name, org.ExternalID, org.Email}
 	}
 
 	return v.renderer.RenderTable(headers, rows)

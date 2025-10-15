@@ -32,6 +32,23 @@ These are random things that have been on the back burner for a while.
 - [ ] TUI for diving deep into things
 - [ ] Having a diff across like entities (e.g. diff workspaces, project, etc...)
 
+## Command Refactor
+
+Items that came up while working on commands.
+
+### Workspace
+
+- Refactor out old helper functions at the bottom of cmd/workspace.go
+- Team Access
+  - we list the team name, but should we add access?
+- Remote Sharing
+  - Do we like the view of listing project names?
+```
+Remote State Sharing Workspaces:
+  - local-workspace
+  - aws-drift-test
+```
+
 ## Long Term Goals
 
 - Path to 1.0

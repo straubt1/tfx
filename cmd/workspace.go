@@ -34,10 +34,6 @@ var (
 				return err
 			}
 
-			if !data.ValidateRunStatus(cmdConfig.RunStatus) {
-				return errors.New("run status given is not allowed")
-			}
-
 			if cmdConfig.All {
 				return workspaceListAll(cmdConfig)
 			} else {
@@ -63,12 +59,16 @@ var (
 
 func init() {
 	// `tfx workspace list`
-	workspaceListCmd.Flags().StringP("search", "s", "", "Search string for Workspace Name (optional).")
-	workspaceListCmd.Flags().StringP("repository", "r", "", "Filter on Repository Identifier (i.e. username/repo_name) (optional).")
-	workspaceListCmd.Flags().String("run-status", "", "Filter on current run status (optional).")
-	workspaceListCmd.Flags().StringP("project-id", "p", "", "Filter on project ID (optional).")
-
+	workspaceListCmd.Flags().StringP("search", "s", "", "Search string anywhere in the Workspace Name (optional).")
+	workspaceListCmd.Flags().StringP("wildcard-name", "w", "", "Wildcard search string for Workspace Name, Examples: *-prod or prod-* (optional).")
+	workspaceListCmd.Flags().StringP("project-id", "p", "", "Filter on Workspaces in this Project (optional).")
+	workspaceListCmd.Flags().String("run-status", "", "Filter on Workspaces with this current run status (optional).")
+	workspaceListCmd.Flags().String("tags", "", "Filter on Workspaces with this tag (optional).")
+	workspaceListCmd.Flags().String("exclude-tags", "", "Filter out Workspaces with this tag (optional).")
 	workspaceListCmd.Flags().BoolP("all", "a", false, "List All Organizations Workspaces (optional).")
+
+	// remove?
+	workspaceListCmd.Flags().StringP("repository", "r", "", "Filter on Repository Identifier (i.e. username/repo_name) (optional).")
 
 	// `tfx workspace show`
 	workspaceShowCmd.Flags().StringP("name", "n", "", "Name of the workspace.")
@@ -95,14 +95,14 @@ func workspaceList(cmdConfig *flags.WorkspaceListFlags) error {
 		v.PrintCommandHeader("Listing workspaces in organization '%s'", c.OrganizationName)
 	}
 
-	workspaces, err := data.FetchWorkspaces(c, c.OrganizationName, cmdConfig.Search, cmdConfig.ProjectID)
+	workspaces, err := data.FetchWorkspaces(c, c.OrganizationName, cmdConfig)
 	if err != nil {
 		return v.RenderError(errors.Wrap(err, "failed to list workspaces"))
 	}
 
-	// Apply filters if needed
-	if cmdConfig.RunStatus != "" || cmdConfig.Repository != "" {
-		workspaces = data.FilterWorkspaces(workspaces, cmdConfig.RunStatus, cmdConfig.Repository)
+	// Apply client-side filters if needed (repository filter not supported by API)
+	if cmdConfig.Repository != "" {
+		workspaces = data.FilterWorkspaces(workspaces, "", cmdConfig.Repository)
 	}
 
 	return v.Render(c.OrganizationName, workspaces)
@@ -124,14 +124,14 @@ func workspaceListAll(cmdConfig *flags.WorkspaceListFlags) error {
 		v.PrintCommandHeader("Listing workspaces across all organizations")
 	}
 
-	workspaces, err := data.FetchWorkspacesAcrossOrgs(c, cmdConfig.Search, cmdConfig.ProjectID)
+	workspaces, err := data.FetchWorkspacesAcrossOrgs(c, cmdConfig)
 	if err != nil {
 		return v.RenderError(errors.Wrap(err, "failed to list workspaces"))
 	}
 
-	// Apply filters if needed
-	if cmdConfig.RunStatus != "" || cmdConfig.Repository != "" {
-		workspaces = data.FilterWorkspaces(workspaces, cmdConfig.RunStatus, cmdConfig.Repository)
+	// Apply client-side filters if needed (repository filter not supported by API)
+	if cmdConfig.Repository != "" {
+		workspaces = data.FilterWorkspaces(workspaces, "", cmdConfig.Repository)
 	}
 
 	return v.RenderAll(workspaces)
@@ -201,7 +201,12 @@ func workspaceListAllForOrganization(c TfxClientContext, orgName string, searchS
 		Context:          c.Context,
 		OrganizationName: c.OrganizationName,
 	}
-	return data.FetchWorkspaces(tfxClient, orgName, searchString, projectID)
+	// TODO: do we need the same filters as without -a
+	options := &flags.WorkspaceListFlags{
+		Search:    searchString,
+		ProjectID: projectID,
+	}
+	return data.FetchWorkspaces(tfxClient, orgName, options)
 }
 
 func organizationListAll(c TfxClientContext) ([]*tfe.Organization, error) {

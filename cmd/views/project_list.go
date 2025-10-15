@@ -25,7 +25,7 @@ type projectListOutput struct {
 	ID                          string            `json:"id"`
 	Description                 string            `json:"description"`
 	DefaultExecutionMode        string            `json:"defaultExecutionMode"`
-	AutoDestroyActivityDuration string            `json:"autoDestroyActivityDuration,omitempty"`
+	AutoDestroyActivityDuration string            `json:"autoDestroyActivityDuration"`
 	IsUnified                   bool              `json:"isUnified"`
 	DefaultAgentPool            *string           `json:"defaultAgentPool,omitempty"`
 	Tags                        map[string]string `json:"tags,omitempty"`
@@ -76,7 +76,7 @@ func (v *ProjectListView) RenderAll(projects []*tfe.Project) error {
 	}
 
 	// Terminal mode: render as table
-	headers := []string{"Organization", "Name", "ID", "Description"}
+	headers := []string{"Organization", "Name", "ID"}
 	rows := make([][]interface{}, len(projects))
 
 	for i, p := range projects {
@@ -84,7 +84,7 @@ func (v *ProjectListView) RenderAll(projects []*tfe.Project) error {
 		if p.Organization != nil {
 			orgName = p.Organization.Name
 		}
-		rows[i] = []interface{}{orgName, p.Name, p.ID, p.Description}
+		rows[i] = []interface{}{orgName, p.Name, p.ID}
 	}
 
 	return v.renderer.RenderTable(headers, rows)
@@ -129,11 +129,11 @@ func (v *ProjectListView) Render(orgName string, projects []*tfe.Project) error 
 	}
 
 	// Terminal mode: render as table
-	headers := []string{"Name", "ID", "Description"}
+	headers := []string{"Name", "ID"}
 	rows := make([][]interface{}, len(projects))
 
 	for i, p := range projects {
-		rows[i] = []interface{}{p.Name, p.ID, p.Description}
+		rows[i] = []interface{}{p.Name, p.ID}
 	}
 
 	return v.renderer.RenderTable(headers, rows)
