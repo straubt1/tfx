@@ -8,10 +8,36 @@ import (
 	"net/http/httputil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"time"
 
 	"github.com/straubt1/tfx/logger"
 )
+
+// Regex patterns to redact sensitive information from HTTP dumps
+var (
+	// Matches Authorization header with any token/credentials
+	authHeaderRegex = regexp.MustCompile(`(?i)(Authorization:\s+)([^\r\n]+)`)
+	// Matches other potential sensitive headers
+	cookieHeaderRegex = regexp.MustCompile(`(?i)(Cookie:\s+)([^\r\n]+)`)
+	apiKeyHeaderRegex = regexp.MustCompile(`(?i)(X-Api-Key:\s+)([^\r\n]+)`)
+)
+
+// redactSensitiveData replaces sensitive information in HTTP dumps with [REDACTED]
+func redactSensitiveData(dump []byte) []byte {
+	result := dump
+
+	// Redact Authorization header
+	result = authHeaderRegex.ReplaceAll(result, []byte("${1}[REDACTED]"))
+
+	// Redact Cookie header
+	result = cookieHeaderRegex.ReplaceAll(result, []byte("${1}[REDACTED]"))
+
+	// Redact API Key header
+	result = apiKeyHeaderRegex.ReplaceAll(result, []byte("${1}[REDACTED]"))
+
+	return result
+}
 
 // LoggingTransport wraps an http.RoundTripper to log requests and responses to a file
 type LoggingTransport struct {
@@ -50,7 +76,9 @@ func (t *LoggingTransport) logRequest(req *http.Request) {
 		if err != nil {
 			fmt.Fprintf(t.LogFile, "Error dumping request: %v\n", err)
 		} else {
-			t.LogFile.Write(reqDump)
+			// Redact sensitive data before writing to file
+			redactedDump := redactSensitiveData(reqDump)
+			t.LogFile.Write(redactedDump)
 		}
 	}
 
@@ -61,7 +89,9 @@ func (t *LoggingTransport) logRequest(req *http.Request) {
 		if err != nil {
 			logger.Error("Failed to dump HTTP request", "error", err)
 		} else {
-			logger.Trace("HTTP Request (full dump)", "request", string(reqDump))
+			// Redact sensitive data before logging
+			redactedDump := redactSensitiveData(reqDump)
+			logger.Trace("HTTP Request (full dump)", "request", string(redactedDump))
 		}
 	} else if logger.IsEnabled(slog.LevelDebug) {
 		// At DEBUG level, log request summary
@@ -82,7 +112,9 @@ func (t *LoggingTransport) logResponse(resp *http.Response) {
 		if err != nil {
 			fmt.Fprintf(t.LogFile, "Error dumping response: %v\n", err)
 		} else {
-			t.LogFile.Write(respDump)
+			// Redact sensitive data before writing to file
+			redactedDump := redactSensitiveData(respDump)
+			t.LogFile.Write(redactedDump)
 		}
 	}
 
@@ -93,7 +125,9 @@ func (t *LoggingTransport) logResponse(resp *http.Response) {
 		if err != nil {
 			logger.Error("Failed to dump HTTP response", "error", err)
 		} else {
-			logger.Trace("HTTP Response (full dump)", "response", string(respDump))
+			// Redact sensitive data before logging
+			redactedDump := redactSensitiveData(respDump)
+			logger.Trace("HTTP Response (full dump)", "response", string(redactedDump))
 		}
 	} else if logger.IsEnabled(slog.LevelDebug) {
 		// At DEBUG level, log response summary
