@@ -6,7 +6,6 @@ package data
 import (
 	"testing"
 
-	tfe "github.com/hashicorp/go-tfe"
 	"github.com/straubt1/tfx/client"
 )
 
@@ -121,8 +120,7 @@ func TestFetchProject_Integration(t *testing.T) {
 	testProject := projects[0]
 
 	t.Run("fetch project by ID", func(t *testing.T) {
-		options := &tfe.ProjectReadOptions{}
-		project, err := FetchProject(c, testProject.ID, options)
+		project, err := FetchProject(c, testProject.ID)
 		if err != nil {
 			t.Fatalf("FetchProject() error = %v", err)
 		}
@@ -138,8 +136,7 @@ func TestFetchProject_Integration(t *testing.T) {
 	})
 
 	t.Run("fetch project with invalid ID", func(t *testing.T) {
-		options := &tfe.ProjectReadOptions{}
-		_, err := FetchProject(c, "prj-invalid123456", options)
+		_, err := FetchProject(c, "prj-invalid123456")
 		if err == nil {
 			t.Error("Expected error for invalid project ID, got nil")
 		}
@@ -168,8 +165,7 @@ func TestFetchProjectByName_Integration(t *testing.T) {
 	testProject := projects[0]
 
 	t.Run("fetch project by name", func(t *testing.T) {
-		options := &tfe.ProjectReadOptions{}
-		project, err := FetchProjectByName(c, org, testProject.Name, options)
+		project, err := FetchProjectByName(c, org, testProject.Name)
 		if err != nil {
 			t.Fatalf("FetchProjectByName() error = %v", err)
 		}
@@ -185,8 +181,7 @@ func TestFetchProjectByName_Integration(t *testing.T) {
 	})
 
 	t.Run("fetch project with non-existent name", func(t *testing.T) {
-		options := &tfe.ProjectReadOptions{}
-		_, err := FetchProjectByName(c, org, "non-existent-project-name-12345", options)
+		_, err := FetchProjectByName(c, org, "non-existent-project-name-12345")
 		if err == nil {
 			t.Error("Expected error for non-existent project name, got nil")
 		}
@@ -194,8 +189,7 @@ func TestFetchProjectByName_Integration(t *testing.T) {
 	})
 
 	t.Run("fetch project with invalid organization", func(t *testing.T) {
-		options := &tfe.ProjectReadOptions{}
-		_, err := FetchProjectByName(c, "non-existent-org-12345", testProject.Name, options)
+		_, err := FetchProjectByName(c, "non-existent-org-12345", testProject.Name)
 		if err == nil {
 			t.Error("Expected error for invalid organization, got nil")
 		}

@@ -79,7 +79,7 @@ func TestNew(t *testing.T) {
 
 func TestNewWithContext(t *testing.T) {
 	ctx := context.Background()
-	client, err := NewWithContext(ctx, "app.terraform.io", "test-token", "test-org", "")
+	client, err := NewWithContext(ctx, "app.terraform.io", "test-token", "test-org")
 	if err != nil {
 		t.Fatalf("NewWithContext() unexpected error = %v", err)
 	}
@@ -90,30 +90,16 @@ func TestNewWithContext(t *testing.T) {
 
 func TestNewWithContextAndLogging(t *testing.T) {
 	ctx := context.Background()
-	logFile := "/tmp/test-tfx-http.log"
 
-	client, err := NewWithContext(ctx, "app.terraform.io", "test-token", "test-org", logFile)
+	client, err := NewWithContext(ctx, "app.terraform.io", "test-token", "test-org")
 	if err != nil {
 		t.Fatalf("NewWithContext() with logging unexpected error = %v", err)
+	}
+	if client == nil {
+		t.Error("NewWithContext() returned nil client")
+		return
 	}
 	if client.Context != ctx {
 		t.Error("NewWithContext() context not set correctly")
 	}
-	if client == nil {
-		t.Error("NewWithContext() returned nil client")
-	}
-
-	// Clean up log file
-	// Note: In a real scenario, you'd want to properly close the log file
-	// but since we don't return the closer from NewWithContext, we just clean up here
-	defer func() {
-		if err := removeTempFile(logFile); err != nil {
-			t.Logf("Warning: failed to remove temp log file: %v", err)
-		}
-	}()
-}
-
-func removeTempFile(path string) error {
-	// Simple helper to remove temp files
-	return nil // Skip actual removal in tests
 }
