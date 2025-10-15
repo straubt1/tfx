@@ -34,3 +34,4 @@ cv-*
 *.state
 site/cinder_del
 dist/
+logs/

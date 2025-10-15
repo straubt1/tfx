@@ -3,22 +3,20 @@ package client
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httputil"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
+
+	"github.com/straubt1/tfx/logger"
 )
 
 // LoggingTransport wraps an http.RoundTripper to log requests and responses to a file
 type LoggingTransport struct {
 	Transport http.RoundTripper
 	LogFile   *os.File
-	// If true, also write brief or debug output to stderr
-	LogToTerminal bool
-	// raw value of TFX_LOG (e.g. "debug")
-	LogLevel string
 }
 
 // RoundTrip implements the http.RoundTripper interface with logging
@@ -40,90 +38,83 @@ func (t *LoggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 }
 
 func (t *LoggingTransport) logRequest(req *http.Request) {
-	if t.LogFile == nil {
-		// still may want to log to terminal
-		if !t.LogToTerminal {
-			return
-		}
-	}
-
-	timestamp := time.Now().Format(time.RFC3339)
-	fmt.Fprintf(t.LogFile, "================================================================================\n")
-	fmt.Fprintf(t.LogFile, "REQUEST @ %s\n", timestamp)
-	fmt.Fprintf(t.LogFile, "================================================================================\n")
-
-	// Dump the request with body
-	reqDump, err := httputil.DumpRequestOut(req, true)
-	if err != nil {
-		if t.LogFile != nil {
-			fmt.Fprintf(t.LogFile, "Error dumping request: %v\n", err)
-		}
-		if t.LogToTerminal {
-			fmt.Fprintf(os.Stderr, "Error dumping request: %v\n", err)
-		}
-		return
-	}
-
+	// Log to file if enabled
 	if t.LogFile != nil {
-		t.LogFile.Write(reqDump)
-		t.LogFile.WriteString("\n")
+		timestamp := time.Now().Format(time.RFC3339)
+		fmt.Fprintf(t.LogFile, "================================================================================\n")
+		fmt.Fprintf(t.LogFile, "REQUEST @ %s\n", timestamp)
+		fmt.Fprintf(t.LogFile, "================================================================================\n")
+
+		// Dump the request with body
+		reqDump, err := httputil.DumpRequestOut(req, true)
+		if err != nil {
+			fmt.Fprintf(t.LogFile, "Error dumping request: %v\n", err)
+		} else {
+			t.LogFile.Write(reqDump)
+		}
 	}
 
-	if t.LogToTerminal {
-		// If debug level, print full dump; otherwise print summary
-		if strings.ToLower(t.LogLevel) == "debug" {
-			fmt.Fprintln(os.Stderr, string(reqDump))
+	// Log to logger based on log level
+	if logger.IsEnabled(logger.LevelTrace) {
+		// At TRACE level, log the full request dump
+		reqDump, err := httputil.DumpRequestOut(req, true)
+		if err != nil {
+			logger.Error("Failed to dump HTTP request", "error", err)
 		} else {
-			fmt.Fprintf(os.Stderr, "REQUEST %s %s\n", req.Method, req.URL.String())
+			logger.Trace("HTTP Request (full dump)", "request", string(reqDump))
 		}
+	} else if logger.IsEnabled(slog.LevelDebug) {
+		// At DEBUG level, log request summary
+		logger.Debug("HTTP Request", "method", req.Method, "url", req.URL.String())
 	}
 }
 
 func (t *LoggingTransport) logResponse(resp *http.Response) {
-	if t.LogFile == nil && !t.LogToTerminal {
-		return
-	}
-
-	timestamp := time.Now().Format(time.RFC3339)
-	fmt.Fprintf(t.LogFile, "--------------------------------------------------------------------------------\n")
-	fmt.Fprintf(t.LogFile, "RESPONSE @ %s\n", timestamp)
-	fmt.Fprintf(t.LogFile, "--------------------------------------------------------------------------------\n")
-
-	// Dump the response with body
-	respDump, err := httputil.DumpResponse(resp, true)
-	if err != nil {
-		if t.LogFile != nil {
-			fmt.Fprintf(t.LogFile, "Error dumping response: %v\n", err)
-		}
-		if t.LogToTerminal {
-			fmt.Fprintf(os.Stderr, "Error dumping response: %v\n", err)
-		}
-		return
-	}
-
+	// Log to file if enabled
 	if t.LogFile != nil {
-		t.LogFile.Write(respDump)
-		t.LogFile.WriteString("\n")
+		timestamp := time.Now().Format(time.RFC3339)
+		fmt.Fprintf(t.LogFile, "--------------------------------------------------------------------------------\n")
+		fmt.Fprintf(t.LogFile, "RESPONSE @ %s\n", timestamp)
+		fmt.Fprintf(t.LogFile, "--------------------------------------------------------------------------------\n")
+
+		// Dump the response with body
+		respDump, err := httputil.DumpResponse(resp, true)
+		if err != nil {
+			fmt.Fprintf(t.LogFile, "Error dumping response: %v\n", err)
+		} else {
+			t.LogFile.Write(respDump)
+		}
 	}
 
-	if t.LogToTerminal {
-		if strings.ToLower(t.LogLevel) == "debug" {
-			fmt.Fprintln(os.Stderr, string(respDump))
+	// Log to logger based on log level
+	if logger.IsEnabled(logger.LevelTrace) {
+		// At TRACE level, log the full response dump
+		respDump, err := httputil.DumpResponse(resp, true)
+		if err != nil {
+			logger.Error("Failed to dump HTTP response", "error", err)
 		} else {
-			fmt.Fprintf(os.Stderr, "RESPONSE %s %s - Status: %s\n", resp.Request.Method, resp.Request.URL.String(), resp.Status)
+			logger.Trace("HTTP Response (full dump)", "response", string(respDump))
 		}
+	} else if logger.IsEnabled(slog.LevelDebug) {
+		// At DEBUG level, log response summary
+		logger.Debug("HTTP Response",
+			"method", resp.Request.Method,
+			"url", resp.Request.URL.String(),
+			"status", resp.Status,
+			"statusCode", resp.StatusCode)
 	}
 }
 
 func (t *LoggingTransport) logError(err error) {
-	timestamp := time.Now().Format(time.RFC3339)
+	// Log to file if enabled
 	if t.LogFile != nil {
+		timestamp := time.Now().Format(time.RFC3339)
 		fmt.Fprintf(t.LogFile, "\n*** ERROR @ %s ***\n", timestamp)
 		fmt.Fprintf(t.LogFile, "%v\n", err)
 	}
-	if t.LogToTerminal {
-		fmt.Fprintf(os.Stderr, "*** ERROR @ %s ***\n%v\n", timestamp, err)
-	}
+
+	// Log to logger
+	logger.Error("HTTP transport error", "error", err)
 }
 
 // Close closes the log file
@@ -136,20 +127,7 @@ func (t *LoggingTransport) Close() error {
 
 func IsTFXLogEnabled() bool {
 	// Enabled when either TFX_LOG (terminal logging) or TFX_LOG_PATH (file logging) is set.
-	// The actual env lookup happens at package init and values are cached.
-	return tfxLogLevel != "" || tfxLogPath != ""
-}
-
-// NewHTTPClientWithLogging creates an HTTP client that logs all requests and responses to a file
-// package-level cached env values
-var (
-	tfxLogLevel string
-	tfxLogPath  string
-)
-
-func init() {
-	tfxLogLevel = strings.TrimSpace(os.Getenv("TFX_LOG"))
-	tfxLogPath = strings.TrimSpace(os.Getenv("TFX_LOG_PATH"))
+	return logger.IsEnabled(slog.LevelInfo) || logger.GetLogPath() != ""
 }
 
 // NewHTTPClientWithLogging creates an HTTP client that logs all requests and responses to a file
@@ -158,15 +136,16 @@ func NewHTTPClientWithLogging() (*http.Client, io.Closer, error) {
 	var logFile *os.File
 	var err error
 
-	if tfxLogPath != "" {
+	logPath := logger.GetLogPath()
+	if logPath != "" {
 		// Ensure directory exists
-		if err = os.MkdirAll(tfxLogPath, 0755); err != nil {
+		if err = os.MkdirAll(logPath, 0755); err != nil {
 			return nil, nil, fmt.Errorf("failed to create log directory: %w", err)
 		}
 
 		// Create a timestamped log file
 		filename := fmt.Sprintf("tfx_http_%s_%d.log", time.Now().Format("20060102_150405"), os.Getpid())
-		logFilePath := filepath.Join(tfxLogPath, filename)
+		logFilePath := filepath.Join(logPath, filename)
 
 		logFile, err = os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
@@ -175,17 +154,16 @@ func NewHTTPClientWithLogging() (*http.Client, io.Closer, error) {
 
 		// Write header to log file
 		timestamp := time.Now().Format(time.RFC3339)
-		// fmt.Fprintf(logFile, "\n\n")
 		fmt.Fprintf(logFile, "################################################################################\n")
 		fmt.Fprintf(logFile, "# TFX HTTP LOG - Started at %s\n", timestamp)
 		fmt.Fprintf(logFile, "################################################################################\n")
+
+		logger.Info("HTTP logging to file enabled", "path", logFilePath)
 	}
 
 	transport := &LoggingTransport{
-		Transport:     http.DefaultTransport,
-		LogFile:       logFile,
-		LogToTerminal: tfxLogLevel != "",
-		LogLevel:      tfxLogLevel,
+		Transport: http.DefaultTransport,
+		LogFile:   logFile,
 	}
 
 	client := &http.Client{

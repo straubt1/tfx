@@ -22,12 +22,15 @@ package cmd
 
 import (
 	"log"
+	"log/slog"
+	"os"
 
 	"github.com/go-viper/encoding/hcl"
 
 	"github.com/logrusorgru/aurora"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"github.com/straubt1/tfx/logger"
 	"github.com/straubt1/tfx/output"
 	"github.com/straubt1/tfx/version"
 
@@ -74,7 +77,7 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
+	cobra.OnInitialize(initConfig, initLogger)
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file, can be used to store common flags, (default is ./.tfx.hcl).")
 	rootCmd.PersistentFlags().String("tfeHostname", "app.terraform.io", "The hostname of TFE without the schema. Can also be set with the environment variable TFE_HOSTNAME.")
@@ -95,6 +98,16 @@ func init() {
 
 	// Turn off completion option
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
+}
+
+// initLogger initializes the logger based on TFX_LOG environment variable
+func initLogger() {
+	logLevel := os.Getenv("TFX_LOG")
+	logPath := os.Getenv("TFX_LOG_PATH")
+	logger.Init(logLevel, logPath)
+	if logger.IsEnabled(slog.LevelDebug) {
+		logger.Debug("Logger initialized", "level", logger.LevelString(logger.GetLevel()))
+	}
 }
 
 // initConfig reads in config file and ENV variables if set.
