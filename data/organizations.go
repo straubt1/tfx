@@ -10,7 +10,7 @@ import (
 func FetchOrganizations(c *client.TfxClient, searchString string) ([]*tfe.Organization, error) {
 	logger.Debug("Fetching organizations", "searchString", searchString)
 
-	return client.FetchAll(c.Context, func(pageNumber int) ([]*tfe.Organization, *client.Pagination, error) {
+	orgs, err := client.FetchAll(c.Context, func(pageNumber int) ([]*tfe.Organization, *client.Pagination, error) {
 		logger.Trace("Fetching organizations page", "page", pageNumber)
 
 		opts := &tfe.OrganizationListOptions{
@@ -27,6 +27,19 @@ func FetchOrganizations(c *client.TfxClient, searchString string) ([]*tfe.Organi
 		logger.Trace("Organizations page fetched", "page", pageNumber, "count", len(result.Items))
 		return result.Items, client.NewPaginationFromTFE(result.Pagination), nil
 	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Log all organization names
+	orgNames := make([]string, len(orgs))
+	for i, org := range orgs {
+		orgNames[i] = org.Name
+	}
+	logger.Info("Found organizations", "count", len(orgs), "names", orgNames)
+
+	return orgs, nil
 }
 
 // FetchOrganization fetches a single organization by name
