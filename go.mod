@@ -10,7 +10,7 @@ require (
 	github.com/fatih/color v1.18.0
 	github.com/go-viper/encoding/hcl v0.1.0
 	github.com/hashicorp/go-slug v0.16.8
-	github.com/hashicorp/go-tfe v1.93.0
+	github.com/hashicorp/go-tfe v1.95.0
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/jedib0t/go-pretty/v6 v6.6.8
 	github.com/logrusorgru/aurora v2.0.3+incompatible
