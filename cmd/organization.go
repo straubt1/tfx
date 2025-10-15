@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/straubt1/tfx/client"
 	"github.com/straubt1/tfx/cmd/flags"
+	view "github.com/straubt1/tfx/cmd/views"
 	"github.com/straubt1/tfx/data"
 )
 
@@ -30,12 +31,18 @@ tfx organization show --name "my-org"`,
 
 	// `tfx organization list` command
 	organizationListCmd = &cobra.Command{
-		Use:     "list",
-		Short:   "List Organizations",
-		Long:    "List all Organizations available to the authenticated user.",
-		Example: `tfx organization list`,
+		Use:   "list",
+		Short: "List Organizations",
+		Long:  "List all Organizations available to the authenticated user.",
+		Example: `
+tfx organization list
+tfx organization list --search "my-org"`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return organizationList()
+			cmdConfig, err := flags.ParseOrganizationListFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return organizationList(cmdConfig)
 		},
 	}
 
@@ -58,6 +65,9 @@ tfx organization show -n myorganization`,
 )
 
 func init() {
+	// `tfx organization list`
+	organizationListCmd.Flags().StringP("search", "s", "", "Search string for Organization Name (optional).")
+
 	// `tfx organization show`
 	organizationShowCmd.Flags().StringP("name", "n", "", "Name of the organization.")
 	organizationShowCmd.MarkFlagRequired("name")
@@ -67,69 +77,49 @@ func init() {
 	organizationCmd.AddCommand(organizationShowCmd)
 }
 
-func organizationList() error {
+func organizationList(cmdConfig *flags.OrganizationListFlags) error {
+	// Create view for rendering
+	v := view.NewOrganizationListView()
+
 	c, err := client.NewFromViper()
 	if err != nil {
-		return err
+		return v.RenderError(err)
 	}
 
-	o.AddMessageUserProvided("List Organizations", "")
-	orgs, err := data.FetchOrganizations(c, "")
+	// Print command header before API call
+	if cmdConfig.Search != "" {
+		v.PrintCommandHeader("Listing organizations matching '%s'", cmdConfig.Search)
+	} else {
+		v.PrintCommandHeader("Listing all organizations")
+	}
+
+	orgs, err := data.FetchOrganizations(c, cmdConfig.Search)
 	if err != nil {
-		return errors.Wrap(err, "failed to list organizations")
+		return v.RenderError(errors.Wrap(err, "failed to list organizations"))
 	}
 
-	o.AddTableHeader("Name", "Email", "External ID")
-	for _, org := range orgs {
-		o.AddTableRows(org.Name, org.Email, org.ExternalID)
-	}
-
-	return nil
+	return v.Render(orgs)
 }
 
 func organizationShow(cmdConfig *flags.OrganizationShowFlags) error {
+	// Create view for rendering
+	v := view.NewOrganizationShowView()
+
 	c, err := client.NewFromViper()
 	if err != nil {
-		return err
+		return v.RenderError(err)
 	}
 
-	var org *tfe.Organization
+	v.PrintCommandHeader("Showing organization '%s'", cmdConfig.Name)
+
 	readOptions := &tfe.OrganizationReadOptions{
 		Include: []tfe.OrganizationIncludeOpt{},
 	}
 
-	o.AddMessageUserProvided("Organization Name:", cmdConfig.Name)
-	org, err = data.FetchOrganization(c, cmdConfig.Name, readOptions)
-
+	org, err := data.FetchOrganization(c, cmdConfig.Name, readOptions)
 	if err != nil {
-		return errors.Wrap(err, "failed to read organization")
+		return v.RenderError(errors.Wrap(err, "failed to read organization"))
 	}
 
-	o.AddDeferredMessageRead("Name", org.Name)
-	o.AddDeferredMessageRead("Email", org.Email)
-	o.AddDeferredMessageRead("External ID", org.ExternalID)
-	o.AddDeferredMessageRead("Created At", org.CreatedAt)
-	o.AddDeferredMessageRead("Collaborator Auth Policy", org.CollaboratorAuthPolicy)
-	o.AddDeferredMessageRead("Cost Estimation Enabled", org.CostEstimationEnabled)
-	o.AddDeferredMessageRead("Owners Team SAML Role ID", org.OwnersTeamSAMLRoleID)
-	o.AddDeferredMessageRead("SAML Enabled", org.SAMLEnabled)
-	o.AddDeferredMessageRead("Session Remember Minutes", org.SessionRemember)
-	o.AddDeferredMessageRead("Session Timeout Minutes", org.SessionTimeout)
-	o.AddDeferredMessageRead("Two Factor Conformant", org.TwoFactorConformant)
-	o.AddDeferredMessageRead("Trial Expires At", org.TrialExpiresAt)
-	o.AddDeferredMessageRead("Default Execution Mode", org.DefaultExecutionMode)
-	o.AddDeferredMessageRead("Is Unified", org.IsUnified)
-
-	// Permissions
-	if org.Permissions != nil {
-		o.AddDeferredMessageRead("Can Create Team", org.Permissions.CanCreateTeam)
-		o.AddDeferredMessageRead("Can Create Workspace", org.Permissions.CanCreateWorkspace)
-		o.AddDeferredMessageRead("Can Create Workspace Migration", org.Permissions.CanCreateWorkspaceMigration)
-		o.AddDeferredMessageRead("Can Destroy", org.Permissions.CanDestroy)
-		o.AddDeferredMessageRead("Can Manage Run Tasks", org.Permissions.CanManageRunTasks)
-		o.AddDeferredMessageRead("Can Traverse", org.Permissions.CanTraverse)
-		o.AddDeferredMessageRead("Can Update", org.Permissions.CanUpdate)
-	}
-
-	return nil
+	return v.Render(org)
 }

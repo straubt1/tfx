@@ -29,6 +29,7 @@ These are random things that have been on the back burner for a while.
 
 - [ ] Embedded json filtering (similar to azure cli with JMESPath)
 - [ ] TUI for diving deep into things
+- [ ] Having a diff across like entities (e.g. diff workspaces, project, etc...)
 
 ## Long Term Goals
 

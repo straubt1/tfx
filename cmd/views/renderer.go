@@ -155,7 +155,7 @@ func (r *TerminalRenderer) RenderProperties(properties []PropertyPair) error {
 
 	// Print aligned properties with bold keys and blue values in order
 	for _, prop := range properties {
-		fmt.Printf("%-*s  %s\n", maxLen+1, aurora.Bold(prop.Key+":"), aurora.Blue(prop.Value))
+		fmt.Printf("%-*s  %s\n", maxLen+1, aurora.Bold(prop.Key+":"), aurora.Blue(fmt.Sprint(prop.Value)))
 	}
 
 	return nil
@@ -179,7 +179,7 @@ func (r *TerminalRenderer) RenderTags(label string, tags []PropertyPair) error {
 
 	// Print aligned tags with bold keys and blue values, indented
 	for _, tag := range tags {
-		fmt.Printf("  %-*s %s\n", maxLen+1, aurora.Bold(tag.Key+":"), aurora.Blue(tag.Value))
+		fmt.Printf("  %-*s %s\n", maxLen+1, aurora.Bold(tag.Key+":"), aurora.Blue(fmt.Sprint(tag.Value)))
 	}
 
 	return nil
