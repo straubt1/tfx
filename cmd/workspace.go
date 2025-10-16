@@ -184,9 +184,7 @@ func workspaceShow(cmdConfig *flags.WorkspaceShowFlags) error {
 	// Fetch current run if present
 	var currentRun *tfe.Run
 	if workspace.CurrentRun != nil {
-		currentRun, err = c.Client.Runs.ReadWithOptions(c.Context, workspace.CurrentRun.ID, &tfe.RunReadOptions{
-			Include: []tfe.RunIncludeOpt{},
-		})
+		currentRun, err = data.FetchRun(c, workspace.CurrentRun.ID)
 		if err != nil {
 			return v.RenderError(errors.Wrap(err, "failed to read workspace current run"))
 		}

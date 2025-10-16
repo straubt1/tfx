@@ -36,6 +36,11 @@ These are random things that have been on the back burner for a while.
 
 Items that came up while working on commands.
 
+### General
+
+- no c.Client calls in the cmd/ files
+- no fmt.Println() or like in cmd/view files
+
 ### Workspace
 
 - Refactor out old helper functions at the bottom of cmd/workspace.go
