@@ -54,6 +54,13 @@ Remote State Sharing Workspaces:
   - aws-drift-test
 ```
 
+### Workspace Variable
+
+- var-file on create and update, is this a good thing?
+  - I think yes, for HCL variables with new lines
+- update, delete flow
+  - get workspace id, then get variable id from key, then do the operation - should this be done in data layer?
+
 ## Long Term Goals
 
 - Path to 1.0
