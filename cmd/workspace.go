@@ -79,6 +79,36 @@ func init() {
 	workspaceCmd.AddCommand(workspaceShowCmd)
 }
 
+// printActiveFilters displays which filters are currently set
+func printActiveFilters(v *view.WorkspaceListView, cmdConfig *flags.WorkspaceListFlags) {
+	var filtersSet []string
+	if cmdConfig.ProjectID != "" {
+		filtersSet = append(filtersSet, "project-id: "+cmdConfig.ProjectID)
+	}
+	if cmdConfig.Tags != "" {
+		filtersSet = append(filtersSet, "tags: "+cmdConfig.Tags)
+	}
+	if cmdConfig.ExcludeTags != "" {
+		filtersSet = append(filtersSet, "exclude-tags: "+cmdConfig.ExcludeTags)
+	}
+	if cmdConfig.RunStatus != "" {
+		filtersSet = append(filtersSet, "run-status: "+cmdConfig.RunStatus)
+	}
+	if cmdConfig.Search != "" {
+		filtersSet = append(filtersSet, "search: "+cmdConfig.Search)
+	}
+	if cmdConfig.WildcardName != "" {
+		filtersSet = append(filtersSet, "wildcard-name: "+cmdConfig.WildcardName)
+	}
+
+	if len(filtersSet) > 0 {
+		v.PrintCommandFilter("Active filters:")
+		for _, filter := range filtersSet {
+			v.PrintCommandFilter("  - %s", filter)
+		}
+	}
+}
+
 func workspaceList(cmdConfig *flags.WorkspaceListFlags) error {
 	// Create view for rendering
 	v := view.NewWorkspaceListView()
@@ -89,11 +119,10 @@ func workspaceList(cmdConfig *flags.WorkspaceListFlags) error {
 	}
 
 	// Print command header before API call
-	if cmdConfig.ProjectID != "" {
-		v.PrintCommandHeader("Listing workspaces in organization '%s' and project ID '%s'", c.OrganizationName, cmdConfig.ProjectID)
-	} else {
-		v.PrintCommandHeader("Listing workspaces in organization '%s'", c.OrganizationName)
-	}
+	v.PrintCommandHeader("Listing workspaces in organization '%s'", c.OrganizationName)
+
+	// Show which filters are set
+	printActiveFilters(v, cmdConfig)
 
 	workspaces, err := data.FetchWorkspaces(c, c.OrganizationName, cmdConfig)
 	if err != nil {
@@ -118,11 +147,10 @@ func workspaceListAll(cmdConfig *flags.WorkspaceListFlags) error {
 	}
 
 	// Print command header before API call
-	if cmdConfig.ProjectID != "" {
-		v.PrintCommandHeader("Listing workspaces across all organizations and project ID '%s'", cmdConfig.ProjectID)
-	} else {
-		v.PrintCommandHeader("Listing workspaces across all organizations")
-	}
+	v.PrintCommandHeader("Listing workspaces across all organizations")
+
+	// Show which filters are set
+	printActiveFilters(v, cmdConfig)
 
 	workspaces, err := data.FetchWorkspacesAcrossOrgs(c, cmdConfig)
 	if err != nil {

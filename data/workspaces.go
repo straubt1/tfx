@@ -12,6 +12,7 @@ import (
 
 // FetchWorkspaces fetches all workspaces for a given organization using pagination
 func FetchWorkspaces(c *client.TfxClient, orgName string, options *flags.WorkspaceListFlags) ([]*tfe.Workspace, error) {
+	// TODO: options to JSON
 	logger.Debug("Fetching workspaces", "organization", orgName, "options", options)
 
 	return client.FetchAll(c.Context, func(pageNumber int) ([]*tfe.Workspace, *client.Pagination, error) {

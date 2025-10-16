@@ -52,3 +52,9 @@ func (v *BaseView) Renderer() Renderer {
 func (v *BaseView) PrintCommandHeader(format string, args ...interface{}) {
 	v.renderer.MessageCommandHeader(format, args...)
 }
+
+// PrintCommandFilter prints a filter message without separator line (suppressed in JSON mode)
+// This can be called from the command layer to display active filters
+func (v *BaseView) PrintCommandFilter(format string, args ...interface{}) {
+	v.renderer.MessageCommandFilter(format, args...)
+}

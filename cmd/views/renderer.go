@@ -24,6 +24,9 @@ type Renderer interface {
 	// MessageCommandHeader outputs command header information in green (suppressed in JSON mode)
 	MessageCommandHeader(format string, args ...interface{})
 
+	// MessageCommandFilter outputs filter information without separator line (suppressed in JSON mode)
+	MessageCommandFilter(format string, args ...interface{})
+
 	// RenderTable outputs a table
 	RenderTable(headers []string, rows [][]interface{}) error
 
@@ -66,10 +69,10 @@ func GetIfSpecified(property jsonapi.NullableAttr[string]) (duration string, err
 }
 
 func (r *TerminalRenderer) RenderError(err error) error {
-	fmt.Printf("%s %s\n", aurora.Red("✗"), aurora.Bold(aurora.Red("Error")))
-	fmt.Println()
-	fmt.Printf("%s\n", err.Error())
-	fmt.Println()
+	r.Message("%s %s", aurora.Red("✗"), aurora.Bold(aurora.Red("Error")))
+	r.Message("")
+	r.Message("%s", err.Error())
+	r.Message("")
 	// return err
 	return nil // Error is rendered, do not return it
 }
@@ -87,7 +90,7 @@ func (r *TerminalRenderer) MessageCommandHeader(format string, args ...interface
 	}
 	// Format and print the message
 	message := fmt.Sprintf(format, greenArgs...)
-	fmt.Printf("%s\n", message)
+	r.Message("%s", message)
 
 	// Calculate the visible length of the message (without ANSI color codes)
 	// We need to strip color codes to get the actual display width
@@ -98,7 +101,12 @@ func (r *TerminalRenderer) MessageCommandHeader(format string, args ...interface
 	for i := 0; i < visibleLength; i++ {
 		separator += "─"
 	}
-	fmt.Printf("%s\n", separator)
+	r.Message("%s", separator)
+}
+
+func (r *TerminalRenderer) MessageCommandFilter(format string, args ...interface{}) {
+	// Simply print the message without separator line
+	r.Message(format, args...)
 }
 
 func (r *TerminalRenderer) RenderTable(headers []string, rows [][]interface{}) error {
@@ -138,7 +146,7 @@ func (r *TerminalRenderer) RenderFields(fields map[string]interface{}) error {
 
 	// Print aligned fields
 	for key, value := range fields {
-		fmt.Printf("%-*s %s\n", maxLen+1, aurora.Bold(key+":"), aurora.Blue(value))
+		r.Message("%-*s %s", maxLen+1, aurora.Bold(key+":"), aurora.Blue(value))
 	}
 
 	return nil
@@ -155,7 +163,7 @@ func (r *TerminalRenderer) RenderProperties(properties []PropertyPair) error {
 
 	// Print aligned properties with bold keys and blue values in order
 	for _, prop := range properties {
-		fmt.Printf("%-*s  %s\n", maxLen+1, aurora.Bold(prop.Key+":"), aurora.Blue(fmt.Sprint(prop.Value)))
+		r.Message("%-*s  %s", maxLen+1, aurora.Bold(prop.Key+":"), aurora.Blue(fmt.Sprint(prop.Value)))
 	}
 
 	return nil
@@ -163,7 +171,8 @@ func (r *TerminalRenderer) RenderProperties(properties []PropertyPair) error {
 
 func (r *TerminalRenderer) RenderTags(label string, tags []PropertyPair) error {
 	// Print Tags header with blank line before
-	fmt.Printf("\n%s\n", aurora.Bold(label+":"))
+	r.Message("")
+	r.Message("%s", aurora.Bold(label+":"))
 
 	if len(tags) == 0 {
 		return nil
@@ -179,7 +188,7 @@ func (r *TerminalRenderer) RenderTags(label string, tags []PropertyPair) error {
 
 	// Print aligned tags with bold keys and blue values, indented
 	for _, tag := range tags {
-		fmt.Printf("  %-*s %s\n", maxLen+1, aurora.Bold(tag.Key+":"), aurora.Blue(fmt.Sprint(tag.Value)))
+		r.Message("  %-*s %s", maxLen+1, aurora.Bold(tag.Key+":"), aurora.Blue(fmt.Sprint(tag.Value)))
 	}
 
 	return nil
@@ -210,6 +219,10 @@ func (r *JSONRenderer) Message(format string, args ...interface{}) {
 
 func (r *JSONRenderer) MessageCommandHeader(format string, args ...interface{}) {
 	// Suppress command header messages in JSON mode
+}
+
+func (r *JSONRenderer) MessageCommandFilter(format string, args ...interface{}) {
+	// Suppress filter messages in JSON mode
 }
 
 func (r *JSONRenderer) RenderTable(headers []string, rows [][]interface{}) error {
