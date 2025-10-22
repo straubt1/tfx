@@ -34,11 +34,7 @@ var (
 				return err
 			}
 
-			if cmdConfig.All {
-				return workspaceListAll(cmdConfig)
-			} else {
-				return workspaceList(cmdConfig)
-			}
+			return workspaceList(cmdConfig)
 		},
 	}
 
@@ -116,40 +112,23 @@ func workspaceList(cmdConfig *flags.WorkspaceListFlags) error {
 	}
 
 	// Print command header before API call
-	v.PrintCommandHeader("Listing workspaces in organization '%s'", c.OrganizationName)
+	if cmdConfig.All {
+		v.PrintCommandHeader("Listing workspaces across all organizations")
+	} else {
+		v.PrintCommandHeader("Listing workspaces in organization '%s'", c.OrganizationName)
+	}
 
 	// Show which filters are set
 	printActiveFilters(v, cmdConfig)
 
-	workspaces, err := data.FetchWorkspaces(c, c.OrganizationName, cmdConfig)
+	// Fetch workspaces with appropriate scope
+	workspaces, err := data.FetchWorkspacesWithOrgScope(c, c.OrganizationName, cmdConfig)
 	if err != nil {
 		return v.RenderError(errors.Wrap(err, "failed to list workspaces"))
 	}
 
-	return v.Render(c.OrganizationName, workspaces)
-}
-
-func workspaceListAll(cmdConfig *flags.WorkspaceListFlags) error {
-	// Create view for rendering
-	v := view.NewWorkspaceListView()
-
-	c, err := client.NewFromViper()
-	if err != nil {
-		return v.RenderError(err)
-	}
-
-	// Print command header before API call
-	v.PrintCommandHeader("Listing workspaces across all organizations")
-
-	// Show which filters are set
-	printActiveFilters(v, cmdConfig)
-
-	workspaces, err := data.FetchWorkspacesAcrossOrgs(c, cmdConfig)
-	if err != nil {
-		return v.RenderError(errors.Wrap(err, "failed to list workspaces"))
-	}
-
-	return v.RenderAll(workspaces)
+	// Render with organization column if listing across all orgs
+	return v.Render(workspaces, cmdConfig.All)
 }
 
 func workspaceShow(cmdConfig *flags.WorkspaceShowFlags) error {

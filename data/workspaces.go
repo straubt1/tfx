@@ -56,8 +56,16 @@ func FetchWorkspaces(c *client.TfxClient, orgName string, options *flags.Workspa
 	})
 }
 
-// FetchWorkspacesAcrossOrgs fetches workspaces across all organizations
-func FetchWorkspacesAcrossOrgs(c *client.TfxClient, options *flags.WorkspaceListFlags) ([]*tfe.Workspace, error) {
+// FetchWorkspacesWithOrgScope fetches workspaces for either a single organization or across all organizations
+// If allOrgs is true, it will fetch across all organizations. Otherwise it will fetch for the specified orgName.
+func FetchWorkspacesWithOrgScope(c *client.TfxClient, orgName string, options *flags.WorkspaceListFlags) ([]*tfe.Workspace, error) {
+	if !options.All {
+		// Fetch workspaces for a single organization
+		logger.Info("Fetching workspaces for organization", "organization", orgName, "options", options)
+		return FetchWorkspaces(c, orgName, options)
+	}
+
+	// Fetch workspaces across all organizations
 	logger.Info("Fetching workspaces across all organizations", "options", options)
 
 	orgs, err := FetchOrganizations(c, "")
@@ -84,6 +92,15 @@ func FetchWorkspacesAcrossOrgs(c *client.TfxClient, options *flags.WorkspaceList
 
 	logger.Info("All workspaces fetched successfully", "totalWorkspaces", len(allWorkspaces), "organizations", len(orgs))
 	return allWorkspaces, nil
+}
+
+// FetchWorkspacesAcrossOrgs fetches workspaces across all organizations
+// Deprecated: Use FetchWorkspacesWithOrgScope instead
+func FetchWorkspacesAcrossOrgs(c *client.TfxClient, options *flags.WorkspaceListFlags) ([]*tfe.Workspace, error) {
+	// Ensure the All flag is set
+	optionsWithAll := *options
+	optionsWithAll.All = true
+	return FetchWorkspacesWithOrgScope(c, "", &optionsWithAll)
 }
 
 // FetchWorkspace fetches a single workspace by name in the specified organization

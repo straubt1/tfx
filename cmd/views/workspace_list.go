@@ -37,10 +37,11 @@ type workspaceListOutput struct {
 	Locked            bool   `json:"locked"`
 }
 
-// RenderAll renders all workspaces across organizations
-func (v *WorkspaceListView) RenderAll(workspaces []*tfe.Workspace) error {
+// Render renders workspaces for a single organization or across all organizations
+// If includeOrgColumn is true, the organization column will be included in the terminal output
+func (v *WorkspaceListView) Render(workspaces []*tfe.Workspace, includeOrgColumn bool) error {
 	if v.IsJSON() {
-		// Convert to JSON-safe representation
+		// Convert to JSON-safe representation (always includes organization)
 		output := make([]workspaceListOutput, len(workspaces))
 		for i, w := range workspaces {
 			orgName := ""
@@ -75,68 +76,29 @@ func (v *WorkspaceListView) RenderAll(workspaces []*tfe.Workspace) error {
 	}
 
 	// Terminal mode: render as table
-	headers := []string{"Organization", "Name", "Id", "Status"}
-	rows := make([][]interface{}, len(workspaces))
-
-	for i, w := range workspaces {
-		orgName := ""
-		if w.Organization != nil {
-			orgName = w.Organization.Name
-		}
-
-		currentRunStatus := ""
-		if w.CurrentRun != nil {
-			currentRunStatus = string(w.CurrentRun.Status)
-		}
-
-		rows[i] = []interface{}{orgName, w.Name, w.ID, currentRunStatus}
+	var headers []string
+	if includeOrgColumn {
+		headers = []string{"Organization", "Name", "Id", "Status"}
+	} else {
+		headers = []string{"Name", "Id", "Status"}
 	}
 
-	return v.renderer.RenderTable(headers, rows)
-}
-
-// Render renders workspaces for a single organization
-func (v *WorkspaceListView) Render(orgName string, workspaces []*tfe.Workspace) error {
-	if v.IsJSON() {
-		// Convert to JSON-safe representation
-		output := make([]workspaceListOutput, len(workspaces))
-		for i, w := range workspaces {
-			currentRunCreated := ""
-			currentRunStatus := ""
-			if w.CurrentRun != nil {
-				currentRunCreated = FormatDateTime(w.CurrentRun.CreatedAt)
-				currentRunStatus = string(w.CurrentRun.Status)
-			}
-
-			repository := ""
-			if w.VCSRepo != nil {
-				repository = w.VCSRepo.DisplayIdentifier
-			}
-
-			output[i] = workspaceListOutput{
-				Name:              w.Name,
-				ID:                w.ID,
-				ResourceCount:     w.ResourceCount,
-				CurrentRunCreated: currentRunCreated,
-				CurrentRunStatus:  currentRunStatus,
-				Repository:        repository,
-				Locked:            w.Locked,
-			}
-		}
-		return v.renderer.RenderJSON(output)
-	}
-
-	// Terminal mode: render as table
-	headers := []string{"Name", "Id", "Status"}
 	rows := make([][]interface{}, len(workspaces))
-
 	for i, w := range workspaces {
 		currentRunStatus := ""
 		if w.CurrentRun != nil {
 			currentRunStatus = string(w.CurrentRun.Status)
 		}
 
-		rows[i] = []interface{}{w.Name, w.ID, currentRunStatus}
+		if includeOrgColumn {
+			orgName := ""
+			if w.Organization != nil {
+				orgName = w.Organization.Name
+			}
+			rows[i] = []interface{}{orgName, w.Name, w.ID, currentRunStatus}
+		} else {
+			rows[i] = []interface{}{w.Name, w.ID, currentRunStatus}
+		}
 	}
 
 	return v.renderer.RenderTable(headers, rows)
