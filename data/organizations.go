@@ -17,7 +17,7 @@ func FetchOrganizationsWithOptions(c *client.TfxClient, options *OrganizationLis
 	if options != nil {
 		searchString = options.Search
 	}
-	
+
 	logger.Debug("Fetching organizations", "searchString", searchString)
 
 	orgs, err := client.FetchAll(c.Context, func(pageNumber int) ([]*tfe.Organization, *client.Pagination, error) {
