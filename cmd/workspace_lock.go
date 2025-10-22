@@ -1,30 +1,15 @@
-/*
-Copyright © 2021 Tom Straub <github.com/straubt1>
+// SPDX-License-Identifier: MIT
+// Copyright © 2025 Tom Straub <github.com/straubt1>
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-*/
 package cmd
 
 import (
-	tfe "github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/straubt1/tfx/client"
+	"github.com/straubt1/tfx/cmd/flags"
+	view "github.com/straubt1/tfx/cmd/views"
+	"github.com/straubt1/tfx/data"
 )
 
 var (
@@ -34,9 +19,11 @@ var (
 		Short: "Lock a Workspace",
 		Long:  "Lock a Workspace in a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return workspaceLock(
-				getTfxClientContext(),
-				*viperString("name"))
+			cmdConfig, err := flags.ParseWorkspaceLockFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return workspaceLock(cmdConfig)
 		},
 	}
 
@@ -45,10 +32,11 @@ var (
 		Short: "Lock All Workspaces",
 		Long:  "Lock All Workspaces in a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return workspaceLockAll(
-				getTfxClientContext(),
-				*viperString("search"),
-			)
+			cmdConfig, err := flags.ParseWorkspaceLockAllFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return workspaceLockAll(cmdConfig)
 		},
 	}
 
@@ -58,9 +46,11 @@ var (
 		Short: "Unlock a Workspace",
 		Long:  "Unlock a Workspace in a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return workspaceUnlock(
-				getTfxClientContext(),
-				*viperString("name"))
+			cmdConfig, err := flags.ParseWorkspaceUnlockFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return workspaceUnlock(cmdConfig)
 		},
 	}
 
@@ -70,10 +60,11 @@ var (
 		Short: "Unlock All Workspaces",
 		Long:  "Unlock All Workspaces in a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return workspaceUnlockAll(
-				getTfxClientContext(),
-				*viperString("search"),
-			)
+			cmdConfig, err := flags.ParseWorkspaceUnlockAllFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return workspaceUnlockAll(cmdConfig)
 		},
 	}
 )
@@ -99,102 +90,102 @@ func init() {
 	workspaceUnlockCmd.AddCommand(workspaceUnlockAllCmd)
 }
 
-func workspaceLock(c TfxClientContext, workspaceName string) error {
-	o.AddMessageUserProvided("Lock Workspace in Organization:", c.OrganizationName)
-	status, err := setWorkspaceLock(c, workspaceName, true)
+func workspaceLock(cmdConfig *flags.WorkspaceLockFlags) error {
+	v := view.NewWorkspaceLockView()
+
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "unable to lock workspace")
+		return v.RenderError(err)
 	}
 
-	o.AddDeferredMessageRead(workspaceName, status)
+	v.PrintCommandHeader("Locking workspace '%s'", cmdConfig.Name)
 
-	return nil
+	status, err := data.SetWorkspaceLock(c, c.OrganizationName, cmdConfig.Name, true)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "unable to lock workspace"))
+	}
+
+	return v.RenderSingle(cmdConfig.Name, status)
 }
 
-func workspaceLockAll(c TfxClientContext, searchString string) error {
-	o.AddMessageUserProvided("Lock All Workspace in Organization:", c.OrganizationName)
-	workspaceList, err := workspaceListAllForOrganization(c, c.OrganizationName, searchString, "")
-	if err != nil {
-		return errors.Wrap(err, "failed to list workspaces")
-	}
-	totalWorkspaces := len(workspaceList)
+func workspaceLockAll(cmdConfig *flags.WorkspaceLockAllFlags) error {
+	v := view.NewWorkspaceLockView()
 
-	o.AddFormattedMessageCalculated("Locking %d Workspaces, please wait...", totalWorkspaces)
-	for _, ws := range workspaceList {
-		status, err := setWorkspaceLock(c, ws.Name, true)
+	c, err := client.NewFromViper()
+	if err != nil {
+		return v.RenderError(err)
+	}
+
+	v.PrintCommandHeader("Locking workspaces in organization '%s'", c.OrganizationName)
+	if cmdConfig.Search != "" {
+		v.PrintCommandFilter("search: %s", cmdConfig.Search)
+	}
+
+	opts := &flags.WorkspaceListFlags{Search: cmdConfig.Search}
+	workspaces, err := data.FetchWorkspaces(c, c.OrganizationName, opts)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to list workspaces"))
+	}
+
+	results := make([]view.WorkspaceLockResult, 0, len(workspaces))
+	for _, ws := range workspaces {
+		status, err := data.SetWorkspaceLock(c, c.OrganizationName, ws.Name, true)
 		if err != nil {
-			o.AddDeferredMessageRead(ws.Name, err.Error())
+			results = append(results, view.WorkspaceLockResult{Name: ws.Name, Status: err.Error()})
 		} else {
-			o.AddDeferredMessageRead(ws.Name, status)
+			results = append(results, view.WorkspaceLockResult{Name: ws.Name, Status: status})
 		}
 	}
 
-	return nil
+	return v.RenderBulk(results)
 }
 
-func workspaceUnlock(c TfxClientContext, workspaceName string) error {
-	o.AddMessageUserProvided("Unlock Workspace in Organization:", c.OrganizationName)
-	status, err := setWorkspaceLock(c, workspaceName, false)
+func workspaceUnlock(cmdConfig *flags.WorkspaceUnlockFlags) error {
+	v := view.NewWorkspaceLockView()
+
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "unable to unlock workspace")
+		return v.RenderError(err)
 	}
 
-	o.AddDeferredMessageRead(workspaceName, status)
-	o.Close()
+	v.PrintCommandHeader("Unlocking workspace '%s'", cmdConfig.Name)
 
-	return nil
+	status, err := data.SetWorkspaceLock(c, c.OrganizationName, cmdConfig.Name, false)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "unable to unlock workspace"))
+	}
+
+	return v.RenderSingle(cmdConfig.Name, status)
 }
 
-func workspaceUnlockAll(c TfxClientContext, searchString string) error {
-	o.AddMessageUserProvided("Unlock All Workspace in Organization:", c.OrganizationName)
-	workspaceList, err := workspaceListAllForOrganization(c, c.OrganizationName, searchString, "")
-	if err != nil {
-		return errors.Wrap(err, "failed to list workspaces")
-	}
-	totalWorkspaces := len(workspaceList)
+func workspaceUnlockAll(cmdConfig *flags.WorkspaceUnlockAllFlags) error {
+	v := view.NewWorkspaceLockView()
 
-	o.AddFormattedMessageCalculated("Unlocking %d Workspaces, please wait...", totalWorkspaces)
-	for _, ws := range workspaceList {
-		status, err := setWorkspaceLock(c, ws.Name, false)
+	c, err := client.NewFromViper()
+	if err != nil {
+		return v.RenderError(err)
+	}
+
+	v.PrintCommandHeader("Unlocking workspaces in organization '%s'", c.OrganizationName)
+	if cmdConfig.Search != "" {
+		v.PrintCommandFilter("search: %s", cmdConfig.Search)
+	}
+
+	opts := &flags.WorkspaceListFlags{Search: cmdConfig.Search}
+	workspaces, err := data.FetchWorkspaces(c, c.OrganizationName, opts)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to list workspaces"))
+	}
+
+	results := make([]view.WorkspaceLockResult, 0, len(workspaces))
+	for _, ws := range workspaces {
+		status, err := data.SetWorkspaceLock(c, c.OrganizationName, ws.Name, false)
 		if err != nil {
-			o.AddDeferredMessageRead(ws.Name, err.Error())
+			results = append(results, view.WorkspaceLockResult{Name: ws.Name, Status: err.Error()})
 		} else {
-			o.AddDeferredMessageRead(ws.Name, status)
+			results = append(results, view.WorkspaceLockResult{Name: ws.Name, Status: status})
 		}
 	}
 
-	o.Close()
-
-	return nil
-}
-
-func setWorkspaceLock(c TfxClientContext, workspaceName string, lockSet bool) (string, error) {
-	w, err := c.Client.Workspaces.Read(c.Context, c.OrganizationName, workspaceName)
-	if err != nil {
-		return "", errors.New("failed to read workspace id")
-	}
-
-	if lockSet {
-		if w.Locked {
-			return "Workspace already locked", nil
-		}
-		_, err := c.Client.Workspaces.Lock(c.Context, w.ID, tfe.WorkspaceLockOptions{
-			Reason: tfe.String("Locked via TFx"),
-		})
-		if err != nil {
-			return "", errors.Wrap(err, "unable to lock workspace")
-		}
-		return "Locked", nil
-	} else {
-		if !w.Locked {
-			return "Workspace already unlocked", nil
-		}
-		// TODO: Force unlocking here to get around unlocking a WS that has an active run pending. Revisit impact.
-		_, err := c.Client.Workspaces.ForceUnlock(c.Context, w.ID)
-		// _, err := client.Workspaces.Unlock(ctx, w.ID)
-		if err != nil {
-			return "", errors.Wrap(err, "unable to unlock workspace")
-		}
-		return "Unlocked", nil
-	}
+	return v.RenderBulk(results)
 }

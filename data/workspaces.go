@@ -257,3 +257,36 @@ func GetTeamAccessNames(c *client.TfxClient, teamAccess []*tfe.TeamAccess) ([]in
 	logger.Debug("Team names fetched successfully", "count", len(teamNames))
 	return teamNames, nil
 }
+
+// SetWorkspaceLock locks or unlocks the workspace by name
+func SetWorkspaceLock(c *client.TfxClient, orgName, workspaceName string, lockSet bool) (string, error) {
+	logger.Debug("Setting workspace lock", "organization", orgName, "workspaceName", workspaceName, "lock", lockSet)
+
+	w, err := c.Client.Workspaces.Read(c.Context, orgName, workspaceName)
+	if err != nil {
+		logger.Error("Failed to read workspace", "organization", orgName, "workspaceName", workspaceName, "error", err)
+		return "", err
+	}
+
+	if lockSet {
+		if w.Locked {
+			return "Workspace already locked", nil
+		}
+		if _, err := c.Client.Workspaces.Lock(c.Context, w.ID, tfe.WorkspaceLockOptions{Reason: tfe.String("Locked via TFx")}); err != nil {
+			logger.Error("Failed to lock workspace", "workspaceID", w.ID, "error", err)
+			return "", err
+		}
+		return "Locked", nil
+	}
+
+	// Unlock path
+	if !w.Locked {
+		return "Workspace already unlocked", nil
+	}
+	// Use ForceUnlock to handle active run cases
+	if _, err := c.Client.Workspaces.ForceUnlock(c.Context, w.ID); err != nil {
+		logger.Error("Failed to unlock workspace", "workspaceID", w.ID, "error", err)
+		return "", err
+	}
+	return "Unlocked", nil
+}

@@ -65,6 +65,13 @@ Remote State Sharing Workspaces:
 - update, delete flow
   - get workspace id, then get variable id from key, then do the operation - should this be done in data layer?
 
+### Workspace Lock
+
+- consider combining lock and lock all commands
+- lock list
+- lock show (locked by)
+- consider a dry run mode, or approval prompt before unlocking (-y to skip)
+
 ## Long Term Goals
 
 - Path to 1.0
