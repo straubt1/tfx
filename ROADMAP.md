@@ -23,7 +23,6 @@ These are random things that have been on the back burner for a while.
 - [ ] Go version management is fragmented (actions, readme, and go.mod)
 - [ ] Versioning is manual and hard coded in version.go
 - [ ] GHA need renamed and cleaned up
-- [ ] Each Command needs an example, like in Projects
 - [ ] Update Org and Proj to make additional API call for agent pool settings (if set)
 
 ## Things that might be nice to have or a terrible idea
@@ -40,6 +39,11 @@ Items that came up while working on commands.
 
 - no c.Client calls in the cmd/ files
 - no fmt.Println() or like in cmd/view files
+- check for unused functions
+- [ ] Each Command needs an example, like in Projects
+- [ ] Create a `tfx team` command group for team related commands
+- [ ] Create a spinner package for showing spinners during long operations
+- [ ] When displaying times, be sure to indicate timezone or use local timezone
 
 ### Workspace
 

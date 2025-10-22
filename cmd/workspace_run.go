@@ -1,31 +1,17 @@
-// Copyright © 2021 Tom Straub <github.com/straubt1>
-
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
+// SPDX-License-Identifier: MIT
+// Copyright © 2025 Tom Straub <github.com/straubt1>
 
 package cmd
 
 import (
 	"fmt"
 
-	tfe "github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/straubt1/tfx/client"
+	"github.com/straubt1/tfx/cmd/flags"
+	view "github.com/straubt1/tfx/cmd/views"
+	"github.com/straubt1/tfx/data"
 )
 
 var (
@@ -42,10 +28,11 @@ var (
 		Short: "List Runs",
 		Long:  "List Runs of a TFx Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runList(
-				getTfxClientContext(),
-				*viperString("workspace-name"),
-				*viperInt("max-items"))
+			cmdConfig, err := flags.ParseRunListFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return runList(cmdConfig)
 		},
 	}
 
@@ -55,11 +42,11 @@ var (
 		Short: "Create Run",
 		Long:  "Create Run for a TFx Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runCreate(
-				getTfxClientContext(),
-				*viperString("workspace-name"),
-				*viperString("message"),
-				*viperString("configuration-version-id"))
+			cmdConfig, err := flags.ParseRunCreateFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return runCreate(cmdConfig)
 		},
 	}
 
@@ -69,9 +56,11 @@ var (
 		Short: "Show Run",
 		Long:  "Show Run details for a TFx Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runShow(
-				getTfxClientContext(),
-				*viperString("id"))
+			cmdConfig, err := flags.ParseRunShowFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return runShow(cmdConfig)
 		},
 	}
 
@@ -81,21 +70,25 @@ var (
 		Short: "Discard Run",
 		Long:  "Discard Run for a TFx Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runDiscard(
-				getTfxClientContext(),
-				*viperString("id"))
+			cmdConfig, err := flags.ParseRunDiscardFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return runDiscard(cmdConfig)
 		},
 	}
 
 	// `tfx workspace run cancel` command
 	runCancelCmd = &cobra.Command{
 		Use:   "cancel",
-		Short: "Cancel Run",
-		Long:  "Cancel Run for a TFx Workspace.",
+		Short: "Cancel Latest Run",
+		Long:  "Cancel Latest Run for a TFx Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runCancel(
-				getTfxClientContext(),
-				*viperString("workspace-name"))
+			cmdConfig, err := flags.ParseRunCancelFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return runCancel(cmdConfig)
 		},
 	}
 )
@@ -126,7 +119,6 @@ func init() {
 	// `tfx workspace run cancel` command
 	runCancelCmd.Flags().StringP("workspace-name", "w", "", "Workspace name")
 	runCancelCmd.MarkFlagRequired("w")
-	// runDiscardCmd.Flags().StringP("id", "i", "", "Run Id (i.e. run-*)")
 
 	workspaceCmd.AddCommand(runCmd)
 	runCmd.AddCommand(runListCmd)
@@ -136,175 +128,108 @@ func init() {
 	runCmd.AddCommand(runCancelCmd)
 }
 
-func workspaceRunListAll(c TfxClientContext, workspaceId string, maxItems int) ([]*tfe.Run, error) {
-	pageSize := 100
-	if maxItems < 100 {
-		pageSize = maxItems // Only get what we need in one page
+func runList(cmdConfig *flags.RunListFlags) error {
+	v := view.NewRunListView()
+
+	c, err := client.NewFromViper()
+	if err != nil {
+		return v.RenderError(err)
 	}
 
-	allItems := []*tfe.Run{}
-	opts := tfe.RunListOptions{
-		ListOptions: tfe.ListOptions{PageNumber: 1, PageSize: pageSize},
-		// Include all the things - https://www.terraform.io/cloud-docs/api-docs/run#run-operations
-		Operation: "plan_only,plan_and_apply,refresh_only,destroy,empty_apply",
-		Include:   []tfe.RunIncludeOpt{},
-	}
-	for {
-		items, err := c.Client.Runs.List(c.Context, workspaceId, &opts)
-		if err != nil {
-			return nil, err
-		}
+	v.PrintCommandHeader("Listing runs for workspace '%s'", cmdConfig.WorkspaceName)
 
-		allItems = append(allItems, items.Items...)
-		if len(allItems) >= maxItems {
-			break // Hit the max, break. For maxItems > 100 it is possible to return more than max in this approach
-		}
-
-		if items.CurrentPage >= items.TotalPages {
-			break
-		}
-		opts.PageNumber = items.NextPage
+	workspaceID, err := data.GetWorkspaceID(c, c.OrganizationName, cmdConfig.WorkspaceName)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "unable to read workspace id"))
 	}
 
-	return allItems, nil
+	runs, err := data.FetchRunsForWorkspace(c, workspaceID, cmdConfig.MaxItems)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to list runs"))
+	}
+
+	return v.Render(runs)
 }
 
-func runList(c TfxClientContext, workspaceName string, maxItems int) error {
-	o.AddMessageUserProvided("List Runs for Workspace:", workspaceName)
-	workspaceId, err := getWorkspaceId(c, workspaceName)
+func runCreate(cmdConfig *flags.RunCreateFlags) error {
+	v := view.NewRunCreateView()
+
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "unable to read workspace id")
+		return v.RenderError(err)
 	}
 
-	items, err := workspaceRunListAll(c, workspaceId, maxItems)
+	v.PrintCommandHeader("Creating run for workspace '%s'", cmdConfig.WorkspaceName)
+
+	run, err := data.CreateRun(c, c.OrganizationName, cmdConfig.WorkspaceName, cmdConfig.Message, cmdConfig.ConfigurationVersionID)
 	if err != nil {
-		return errors.Wrap(err, "failed to list runs")
+		return v.RenderError(errors.Wrap(err, "failed to create run"))
 	}
 
-	o.AddTableHeader("Id", "Configuration Version", "Status", "Plan Only", "Terraform Version", "Created", "Message")
-	for _, i := range items {
-		o.AddTableRows(i.ID, i.ConfigurationVersion.ID, i.Status, i.PlanOnly, i.TerraformVersion, FormatDateTime(i.CreatedAt), i.Message)
-	}
+	// Build link to run
+	link := fmt.Sprintf("https://%s/app/%s/workspaces/%s/runs/%s", c.Hostname, c.OrganizationName, cmdConfig.WorkspaceName, run.ID)
 
-	return nil
+	return v.Render(run, link)
 }
 
-func runCreate(c TfxClientContext, workspaceName string, message string, cvId string) error {
-	o.AddMessageUserProvided("Create Run for Workspace:", workspaceName)
-	var cv *tfe.ConfigurationVersion
-	w, err := c.Client.Workspaces.Read(c.Context, c.OrganizationName, workspaceName)
+func runShow(cmdConfig *flags.RunShowFlags) error {
+	v := view.NewRunShowView()
+
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "failed to read workspace")
+		return v.RenderError(err)
 	}
 
-	if cvId != "" {
-		o.AddMessageUserProvided("Configuration Version Provided:", cvId)
-		cv, err = c.Client.ConfigurationVersions.Read(c.Context, cvId)
-		if err != nil {
-			return errors.Wrap(err, "failed to read provider runId")
-		}
-	} else {
-		o.AddMessageUserProvided("The run will be created using the workspace's latest configuration version", "")
-	}
+	v.PrintCommandHeader("Showing run '%s'", cmdConfig.ID)
 
-	run, err := c.Client.Runs.Create(c.Context, tfe.RunCreateOptions{
-		Workspace:            w,
-		IsDestroy:            tfe.Bool(false),
-		Message:              tfe.String(message),
-		ConfigurationVersion: cv, // will be nil if not provided
-	})
+	run, err := data.FetchRun(c, cmdConfig.ID)
 	if err != nil {
-		return errors.Wrap(err, "failed to create a run")
+		return v.RenderError(errors.Wrap(err, "failed to read run from id"))
 	}
 
-	o.AddMessageUserProvided("Run Created", "")
-	o.AddDeferredMessageRead("ID", run.ID)
-	o.AddDeferredMessageRead("Configuration Version", run.ConfigurationVersion.ID)
-	o.AddDeferredMessageRead("Terraform Version", run.TerraformVersion)
-	o.AddDeferredMessageRead("Link",
-		fmt.Sprintf("https://%s/app/%s/workspaces/%s/runs/%s", c.Hostname, c.OrganizationName, workspaceName, run.ID))
-
-	return nil
+	return v.Render(run)
 }
 
-func runShow(c TfxClientContext, runId string) error {
-	o.AddMessageUserProvided("Show Run for Workspace:", runId)
-	run, err := c.Client.Runs.ReadWithOptions(c.Context, runId, &tfe.RunReadOptions{
-		Include: []tfe.RunIncludeOpt{},
-	})
+func runDiscard(cmdConfig *flags.RunDiscardFlags) error {
+	v := view.NewRunDiscardView()
+
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "failed to read run from id")
+		return v.RenderError(err)
 	}
 
-	o.AddDeferredMessageRead("ID", run.ID)
-	o.AddDeferredMessageRead("Configuration Version", run.ConfigurationVersion.ID)
-	o.AddDeferredMessageRead("Status", run.Status)
-	o.AddDeferredMessageRead("Message", run.Message)
-	o.AddDeferredMessageRead("Terraform Version", run.TerraformVersion)
-	o.AddDeferredMessageRead("Created", FormatDateTime(run.CreatedAt))
+	v.PrintCommandHeader("Discarding run '%s'", cmdConfig.ID)
 
-	return nil
+	if err := data.DiscardRun(c, cmdConfig.ID); err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to discard run"))
+	}
+
+	return v.Render(cmdConfig.ID)
 }
 
-func runDiscard(c TfxClientContext, runId string) error {
-	err := c.Client.Runs.Discard(c.Context, runId, tfe.RunDiscardOptions{
-		Comment: tfe.String("Discarded by tfx"),
-	})
+func runCancel(cmdConfig *flags.RunCancelFlags) error {
+	v := view.NewRunCancelView()
+
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "failed to discard run")
+		return v.RenderError(err)
 	}
 
-	o.AddDeferredMessageRead("Discarded run id", runId)
+	v.PrintCommandHeader("Canceling latest run for workspace '%s'", cmdConfig.WorkspaceName)
 
-	return nil
-}
-
-func runCancel(c TfxClientContext, workspaceName string) error {
-	o.AddMessageUserProvided("Cancel latest run for Workspace:", workspaceName)
-	workspaceId, err := getWorkspaceId(c, workspaceName)
+	workspaceID, err := data.GetWorkspaceID(c, c.OrganizationName, cmdConfig.WorkspaceName)
 	if err != nil {
-		return errors.Wrap(err, "unable to read workspace id")
+		return v.RenderError(errors.Wrap(err, "unable to read workspace id"))
 	}
 
-	runId, err := getLatestRunId(c, workspaceId)
+	runID, err := data.GetLatestRunID(c, workspaceID)
 	if err != nil {
-		return errors.Wrap(err, "failed to cancel run")
-	}
-	o.AddMessageUserProvided("Found latest Run:", runId)
-
-	err = c.Client.Runs.Cancel(c.Context, runId, tfe.RunCancelOptions{
-		Comment: tfe.String("Canceled via TFx"),
-	})
-	if err != nil {
-		return errors.Wrap(err, "failed to cancel run")
+		return v.RenderError(errors.Wrap(err, "failed to get latest run id"))
 	}
 
-	o.AddDeferredMessageRead("Cancelled run id", runId)
-
-	return nil
-}
-
-func getWorkspaceId(c TfxClientContext, workspaceName string) (string, error) {
-	w, err := c.Client.Workspaces.Read(c.Context, c.OrganizationName, workspaceName)
-	if err != nil {
-		return "", err
+	if err := data.CancelRun(c, runID); err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to cancel run"))
 	}
 
-	return w.ID, nil
-}
-
-func getLatestRunId(c TfxClientContext, workspaceId string) (string, error) {
-	// Get latest run
-	runList, err := c.Client.Runs.List(c.Context, workspaceId, &tfe.RunListOptions{
-		ListOptions: tfe.ListOptions{PageNumber: 1, PageSize: 1}})
-	if err != nil {
-		return "", errors.Wrap(err, "unable to read workspace runs")
-	}
-	if runList == nil {
-		return "", errors.Wrap(err, "unable to read latest workspace run")
-	}
-	if len(runList.Items) != 1 {
-		return "", errors.Wrap(err, "unable to read latest workspace run")
-	}
-	return runList.Items[0].ID, nil
+	return v.Render(runID)
 }
