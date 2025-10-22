@@ -93,7 +93,10 @@ func organizationList(cmdConfig *flags.OrganizationListFlags) error {
 		v.PrintCommandHeader("Listing all organizations")
 	}
 
-	orgs, err := data.FetchOrganizations(c, cmdConfig.Search)
+	options := &data.OrganizationListOptions{
+		Search: cmdConfig.Search,
+	}
+	orgs, err := data.FetchOrganizationsWithOptions(c, options)
 	if err != nil {
 		return v.RenderError(errors.Wrap(err, "failed to list organizations"))
 	}

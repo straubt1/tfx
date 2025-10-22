@@ -33,9 +33,17 @@ func FetchProjects(c *client.TfxClient, orgName string, searchString string) ([]
 	})
 }
 
-// FetchProjectsAcrossOrgs fetches projects across all organizations
-func FetchProjectsAcrossOrgs(c *client.TfxClient, searchString string) ([]*tfe.Project, error) {
-	logger.Info("Fetching projects across all organizations", "searchString", searchString)
+// FetchProjectsWithOrgScope fetches projects for either a single organization or across all organizations
+// If allOrgs is true, it will fetch across all organizations. Otherwise it will fetch for the specified orgName.
+func FetchProjectsWithOrgScope(c *client.TfxClient, orgName string, options *ProjectListOptions) ([]*tfe.Project, error) {
+	if !options.All {
+		// Fetch projects for a single organization
+		logger.Info("Fetching projects for organization", "organization", orgName, "searchString", options.Search)
+		return FetchProjects(c, orgName, options.Search)
+	}
+
+	// Fetch projects across all organizations
+	logger.Info("Fetching projects across all organizations", "searchString", options.Search)
 
 	orgs, err := FetchOrganizations(c, "")
 	if err != nil {
@@ -49,7 +57,7 @@ func FetchProjectsAcrossOrgs(c *client.TfxClient, searchString string) ([]*tfe.P
 	for _, org := range orgs {
 		logger.Debug("Fetching projects for organization", "organization", org.Name)
 
-		projects, err := FetchProjects(c, org.Name, searchString)
+		projects, err := FetchProjects(c, org.Name, options.Search)
 		if err != nil {
 			logger.Error("Failed to fetch projects", "organization", org.Name, "error", err)
 			return nil, errors.Wrapf(err, "failed to list projects for organization %s", org.Name)
@@ -61,6 +69,22 @@ func FetchProjectsAcrossOrgs(c *client.TfxClient, searchString string) ([]*tfe.P
 
 	logger.Info("All projects fetched successfully", "totalProjects", len(allProjects), "organizations", len(orgs))
 	return allProjects, nil
+}
+
+// ProjectListOptions holds options for listing projects
+type ProjectListOptions struct {
+	Search string
+	All    bool
+}
+
+// FetchProjectsAcrossOrgs fetches projects across all organizations
+// Deprecated: Use FetchProjectsWithOrgScope instead
+func FetchProjectsAcrossOrgs(c *client.TfxClient, searchString string) ([]*tfe.Project, error) {
+	options := &ProjectListOptions{
+		Search: searchString,
+		All:    true,
+	}
+	return FetchProjectsWithOrgScope(c, "", options)
 }
 
 // FetchProject fetches a single project by ID

@@ -6,8 +6,18 @@ import (
 	"github.com/straubt1/tfx/logger"
 )
 
-// FetchOrganizations fetches all organizations using pagination with optional search
-func FetchOrganizations(c *client.TfxClient, searchString string) ([]*tfe.Organization, error) {
+// OrganizationListOptions holds options for listing organizations
+type OrganizationListOptions struct {
+	Search string
+}
+
+// FetchOrganizationsWithOptions fetches all organizations using pagination with options
+func FetchOrganizationsWithOptions(c *client.TfxClient, options *OrganizationListOptions) ([]*tfe.Organization, error) {
+	searchString := ""
+	if options != nil {
+		searchString = options.Search
+	}
+	
 	logger.Debug("Fetching organizations", "searchString", searchString)
 
 	orgs, err := client.FetchAll(c.Context, func(pageNumber int) ([]*tfe.Organization, *client.Pagination, error) {
@@ -40,6 +50,15 @@ func FetchOrganizations(c *client.TfxClient, searchString string) ([]*tfe.Organi
 	logger.Info("Found organizations", "count", len(orgs), "names", orgNames)
 
 	return orgs, nil
+}
+
+// FetchOrganizations fetches all organizations using pagination with optional search
+// Deprecated: Use FetchOrganizationsWithOptions instead
+func FetchOrganizations(c *client.TfxClient, searchString string) ([]*tfe.Organization, error) {
+	options := &OrganizationListOptions{
+		Search: searchString,
+	}
+	return FetchOrganizationsWithOptions(c, options)
 }
 
 // FetchOrganization fetches a single organization by name

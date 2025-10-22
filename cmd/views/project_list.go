@@ -31,10 +31,11 @@ type projectListOutput struct {
 	Tags                        map[string]string `json:"tags,omitempty"`
 }
 
-// RenderAll renders all projects across organizations
-func (v *ProjectListView) RenderAll(projects []*tfe.Project) error {
+// Render renders projects for a single organization or across all organizations
+// If includeOrgColumn is true, the organization column will be included in the terminal output
+func (v *ProjectListView) Render(projects []*tfe.Project, includeOrgColumn bool) error {
 	if v.IsJSON() {
-		// Convert to JSON-safe representation
+		// Convert to JSON-safe representation (always includes organization)
 		output := make([]projectListOutput, len(projects))
 		for i, p := range projects {
 			orgName := ""
@@ -76,64 +77,24 @@ func (v *ProjectListView) RenderAll(projects []*tfe.Project) error {
 	}
 
 	// Terminal mode: render as table
-	headers := []string{"Organization", "Name", "ID"}
-	rows := make([][]interface{}, len(projects))
-
-	for i, p := range projects {
-		orgName := ""
-		if p.Organization != nil {
-			orgName = p.Organization.Name
-		}
-		rows[i] = []interface{}{orgName, p.Name, p.ID}
+	var headers []string
+	if includeOrgColumn {
+		headers = []string{"Organization", "Name", "ID"}
+	} else {
+		headers = []string{"Name", "ID"}
 	}
 
-	return v.renderer.RenderTable(headers, rows)
-}
-
-// Render renders projects for a single organization
-func (v *ProjectListView) Render(orgName string, projects []*tfe.Project) error {
-	if v.IsJSON() {
-		// Convert to JSON-safe representation
-		output := make([]projectListOutput, len(projects))
-		for i, p := range projects {
-			// Get auto-destroy duration if specified
-			duration, _ := GetIfSpecified(p.AutoDestroyActivityDuration)
-
-			// Get default agent pool if specified
-			var agentPoolName *string
-			if p.DefaultAgentPool != nil {
-				agentPoolName = &p.DefaultAgentPool.Name
-			}
-
-			// Extract tags
-			var tags map[string]string
-			if len(p.EffectiveTagBindings) > 0 {
-				tags = make(map[string]string)
-				for _, tag := range p.EffectiveTagBindings {
-					tags[tag.Key] = tag.Value
-				}
-			}
-
-			output[i] = projectListOutput{
-				Name:                        p.Name,
-				ID:                          p.ID,
-				Description:                 p.Description,
-				DefaultExecutionMode:        p.DefaultExecutionMode,
-				AutoDestroyActivityDuration: duration,
-				IsUnified:                   p.IsUnified,
-				DefaultAgentPool:            agentPoolName,
-				Tags:                        tags,
-			}
-		}
-		return v.renderer.RenderJSON(output)
-	}
-
-	// Terminal mode: render as table
-	headers := []string{"Name", "ID"}
 	rows := make([][]interface{}, len(projects))
-
 	for i, p := range projects {
-		rows[i] = []interface{}{p.Name, p.ID}
+		if includeOrgColumn {
+			orgName := ""
+			if p.Organization != nil {
+				orgName = p.Organization.Name
+			}
+			rows[i] = []interface{}{orgName, p.Name, p.ID}
+		} else {
+			rows[i] = []interface{}{p.Name, p.ID}
+		}
 	}
 
 	return v.renderer.RenderTable(headers, rows)

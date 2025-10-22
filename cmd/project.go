@@ -47,11 +47,7 @@ tfx project list --search "my-project"`,
 				return err
 			}
 
-			if cmdConfig.All {
-				return projectListAll(cmdConfig)
-			} else {
-				return projectList(cmdConfig)
-			}
+			return projectList(cmdConfig)
 		},
 	}
 
@@ -89,30 +85,6 @@ func init() {
 	projectCmd.AddCommand(projectShowCmd)
 }
 
-func projectListAll(cmdConfig *flags.ProjectListFlags) error {
-	// Create view for rendering
-	v := view.NewProjectListView()
-
-	c, err := client.NewFromViper()
-	if err != nil {
-		return v.RenderError(err)
-	}
-
-	// Print command header before API call
-	if cmdConfig.Search != "" {
-		v.PrintCommandHeader("Listing projects across all organizations matching '%s'", cmdConfig.Search)
-	} else {
-		v.PrintCommandHeader("Listing all projects across all organizations")
-	}
-
-	projects, err := data.FetchProjectsAcrossOrgs(c, cmdConfig.Search)
-	if err != nil {
-		return v.RenderError(err)
-	}
-
-	return v.RenderAll(projects)
-}
-
 func projectList(cmdConfig *flags.ProjectListFlags) error {
 	// Create view for rendering
 	v := view.NewProjectListView()
@@ -123,18 +95,32 @@ func projectList(cmdConfig *flags.ProjectListFlags) error {
 	}
 
 	// Print command header before API call
-	if cmdConfig.Search != "" {
-		v.PrintCommandHeader("Listing projects in organization '%s' matching '%s'", c.OrganizationName, cmdConfig.Search)
+	if cmdConfig.All {
+		if cmdConfig.Search != "" {
+			v.PrintCommandHeader("Listing projects across all organizations matching '%s'", cmdConfig.Search)
+		} else {
+			v.PrintCommandHeader("Listing all projects across all organizations")
+		}
 	} else {
-		v.PrintCommandHeader("Listing projects in organization '%s'", c.OrganizationName)
+		if cmdConfig.Search != "" {
+			v.PrintCommandHeader("Listing projects in organization '%s' matching '%s'", c.OrganizationName, cmdConfig.Search)
+		} else {
+			v.PrintCommandHeader("Listing projects in organization '%s'", c.OrganizationName)
+		}
 	}
 
-	projects, err := data.FetchProjects(c, c.OrganizationName, cmdConfig.Search)
+	// Fetch projects with appropriate scope
+	options := &data.ProjectListOptions{
+		Search: cmdConfig.Search,
+		All:    cmdConfig.All,
+	}
+	projects, err := data.FetchProjectsWithOrgScope(c, c.OrganizationName, options)
 	if err != nil {
 		return v.RenderError(errors.Wrap(err, "failed to list projects"))
 	}
 
-	return v.Render(c.OrganizationName, projects)
+	// Render with organization column if listing across all orgs
+	return v.Render(projects, cmdConfig.All)
 }
 
 func projectShow(cmdConfig *flags.ProjectShowFlags) error {
