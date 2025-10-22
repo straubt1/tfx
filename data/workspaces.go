@@ -158,23 +158,23 @@ func FetchWorkspaceTeamAccess(c *client.TfxClient, workspaceID string, maxItems 
 	return allItems, nil
 }
 
-// FilterWorkspaces filters workspaces based on run status and repository identifier
-func FilterWorkspaces(workspaces []*tfe.Workspace, runStatus string, repoIdentifier string) []*tfe.Workspace {
-	logger.Debug("Filtering workspaces", "runStatus", runStatus, "repoIdentifier", repoIdentifier, "totalWorkspaces", len(workspaces))
+// // FilterWorkspaces filters workspaces based on run status and repository identifier
+// func FilterWorkspaces(workspaces []*tfe.Workspace, runStatus string, repoIdentifier string) []*tfe.Workspace {
+// 	logger.Debug("Filtering workspaces", "runStatus", runStatus, "repoIdentifier", repoIdentifier, "totalWorkspaces", len(workspaces))
 
-	var result []*tfe.Workspace
+// 	var result []*tfe.Workspace
 
-	for _, w := range workspaces {
-		shouldInclude := hasRunStatus(*w, runStatus) && hasRepoIdentifier(*w, repoIdentifier)
+// 	for _, w := range workspaces {
+// 		shouldInclude := hasRunStatus(*w, runStatus) && hasRepoIdentifier(*w, repoIdentifier)
 
-		if shouldInclude {
-			result = append(result, w)
-		}
-	}
+// 		if shouldInclude {
+// 			result = append(result, w)
+// 		}
+// 	}
 
-	logger.Debug("Workspaces filtered", "filteredCount", len(result))
-	return result
-}
+// 	logger.Debug("Workspaces filtered", "filteredCount", len(result))
+// 	return result
+// }
 
 // hasRunStatus checks if a workspace matches the given run status filter
 // If no run status given, return true

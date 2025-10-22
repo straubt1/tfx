@@ -67,9 +67,6 @@ func init() {
 	workspaceListCmd.Flags().String("exclude-tags", "", "Filter out Workspaces with this tag (optional).")
 	workspaceListCmd.Flags().BoolP("all", "a", false, "List All Organizations Workspaces (optional).")
 
-	// remove?
-	workspaceListCmd.Flags().StringP("repository", "r", "", "Filter on Repository Identifier (i.e. username/repo_name) (optional).")
-
 	// `tfx workspace show`
 	workspaceShowCmd.Flags().StringP("name", "n", "", "Name of the workspace.")
 	workspaceShowCmd.MarkFlagRequired("name")
@@ -129,11 +126,6 @@ func workspaceList(cmdConfig *flags.WorkspaceListFlags) error {
 		return v.RenderError(errors.Wrap(err, "failed to list workspaces"))
 	}
 
-	// Apply client-side filters if needed (repository filter not supported by API)
-	if cmdConfig.Repository != "" {
-		workspaces = data.FilterWorkspaces(workspaces, "", cmdConfig.Repository)
-	}
-
 	return v.Render(c.OrganizationName, workspaces)
 }
 
@@ -155,11 +147,6 @@ func workspaceListAll(cmdConfig *flags.WorkspaceListFlags) error {
 	workspaces, err := data.FetchWorkspacesAcrossOrgs(c, cmdConfig)
 	if err != nil {
 		return v.RenderError(errors.Wrap(err, "failed to list workspaces"))
-	}
-
-	// Apply client-side filters if needed (repository filter not supported by API)
-	if cmdConfig.Repository != "" {
-		workspaces = data.FilterWorkspaces(workspaces, "", cmdConfig.Repository)
 	}
 
 	return v.RenderAll(workspaces)

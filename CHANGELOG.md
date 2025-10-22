@@ -53,6 +53,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fixed Workspace Variable Create when the value passed in would error in the `isFile()` function.
 * Bumped Docker to alpine:3.20.3
 
+**Removed**
+
+* `tfx workspace list --repository` flag has been removed.
+
 ## [v0.1.2] - 2023.10.13
 
 **Added**

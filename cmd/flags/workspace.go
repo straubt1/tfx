@@ -9,7 +9,6 @@ import (
 type WorkspaceListFlags struct {
 	Search       string
 	WildcardName string
-	Repository   string
 	RunStatus    string
 	ProjectID    string
 	Tags         string
@@ -27,7 +26,6 @@ func ParseWorkspaceListFlags(cmd *cobra.Command) (*WorkspaceListFlags, error) {
 	return &WorkspaceListFlags{
 		Search:       viper.GetString("search"),
 		WildcardName: viper.GetString("wildcard-name"),
-		Repository:   viper.GetString("repository"),
 		RunStatus:    viper.GetString("run-status"),
 		ProjectID:    viper.GetString("project-id"),
 		Tags:         viper.GetString("tags"),
