@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	tfe "github.com/hashicorp/go-tfe"
-	"github.com/logrusorgru/aurora"
 )
 
 // WorkspaceShowView handles rendering for workspace show command
@@ -129,19 +128,18 @@ func (v *WorkspaceShowView) Render(
 
 	// Render team access if present
 	if len(teamNames) > 0 {
-		fmt.Println()
-		fmt.Printf("%s\n", aurora.Bold("Team Access:"))
+		v.renderer.Message("")
+		v.renderer.Message("Team Access:")
 		for _, name := range teamNames {
-			fmt.Printf("  - %s\n", name)
+			v.renderer.Message("  - %s", name)
 		}
 	}
 
 	// Render remote state sharing if present
 	if !workspace.GlobalRemoteState && len(remoteStateConsumers) > 0 {
-		fmt.Println()
-		fmt.Printf("%s\n", aurora.Bold("Remote State Sharing Workspaces:"))
+		v.renderer.Message("Remote State Sharing Workspaces:")
 		for _, ws := range remoteStateConsumers {
-			fmt.Printf("  - %s\n", ws.Name)
+			v.renderer.Message("  - %s", ws.Name)
 		}
 	}
 
