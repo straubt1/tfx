@@ -7,7 +7,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sync"
+	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/hashicorp/jsonapi"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/logrusorgru/aurora"
@@ -50,10 +53,22 @@ type PropertyPair struct {
 }
 
 // TerminalRenderer renders output for human consumption
-type TerminalRenderer struct{}
+type TerminalRenderer struct {
+	s       *spinner.Spinner
+	running bool
+	mu      sync.Mutex
+	depth   int
+}
 
 func NewTerminalRenderer() *TerminalRenderer {
-	return &TerminalRenderer{}
+	// Initialize spinner with character set type [14] and start automatically
+	sp := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+	sp.Color("cyan")
+	sp.Suffix = "  TFx is working..."
+	// Start the spinner immediately
+	sp.Start()
+
+	return &TerminalRenderer{s: sp, running: true}
 }
 
 // Helper functions
@@ -69,6 +84,8 @@ func GetIfSpecified(property jsonapi.NullableAttr[string]) (duration string, err
 }
 
 func (r *TerminalRenderer) RenderError(err error) error {
+	r.stopSpinner()
+	defer r.startSpinner()
 	r.Message("%s %s", aurora.Red("✗"), aurora.Bold(aurora.Red("Error")))
 	r.Message("")
 	r.Message("%s", err.Error())
@@ -78,11 +95,15 @@ func (r *TerminalRenderer) RenderError(err error) error {
 }
 
 func (r *TerminalRenderer) Message(format string, args ...interface{}) {
+	r.stopSpinner()
+	defer r.startSpinner()
 	// Allow colored output in messages
 	fmt.Printf(format+"\n", args...)
 }
 
 func (r *TerminalRenderer) MessageCommandHeader(format string, args ...interface{}) {
+	r.stopSpinner()
+	defer r.startSpinner()
 	// Apply green color to all arguments
 	greenArgs := make([]interface{}, len(args))
 	for i, arg := range args {
@@ -105,11 +126,15 @@ func (r *TerminalRenderer) MessageCommandHeader(format string, args ...interface
 }
 
 func (r *TerminalRenderer) MessageCommandFilter(format string, args ...interface{}) {
+	r.stopSpinner()
+	defer r.startSpinner()
 	// Simply print the message without separator line
 	r.Message(format, args...)
 }
 
 func (r *TerminalRenderer) RenderTable(headers []string, rows [][]interface{}) error {
+	r.stopSpinner()
+	defer r.startSpinner()
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
 
@@ -136,6 +161,8 @@ func (r *TerminalRenderer) RenderTable(headers []string, rows [][]interface{}) e
 }
 
 func (r *TerminalRenderer) RenderFields(fields map[string]interface{}) error {
+	r.stopSpinner()
+	defer r.startSpinner()
 	// Calculate max key length for alignment
 	maxLen := 0
 	for key := range fields {
@@ -153,6 +180,8 @@ func (r *TerminalRenderer) RenderFields(fields map[string]interface{}) error {
 }
 
 func (r *TerminalRenderer) RenderProperties(properties []PropertyPair) error {
+	r.stopSpinner()
+	defer r.startSpinner()
 	// Calculate max key length for alignment
 	maxLen := 0
 	for _, prop := range properties {
@@ -170,6 +199,8 @@ func (r *TerminalRenderer) RenderProperties(properties []PropertyPair) error {
 }
 
 func (r *TerminalRenderer) RenderTags(label string, tags []PropertyPair) error {
+	r.stopSpinner()
+	defer r.startSpinner()
 	// Print Tags header with blank line before
 	r.Message("")
 	r.Message("%s", aurora.Bold(label+":"))
@@ -195,8 +226,35 @@ func (r *TerminalRenderer) RenderTags(label string, tags []PropertyPair) error {
 }
 
 func (r *TerminalRenderer) RenderJSON(data interface{}) error {
+	r.stopSpinner()
+	defer r.startSpinner()
 	// Terminal renderer doesn't typically use this, but implement for interface
 	return json.NewEncoder(os.Stdout).Encode(data)
+}
+
+// spinner control helpers
+func (r *TerminalRenderer) stopSpinner() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	// Increase render depth; stop spinner only when entering outermost render
+	r.depth++
+	if r.depth == 1 && r.s != nil && r.running {
+		r.s.Stop()
+		r.running = false
+	}
+}
+
+func (r *TerminalRenderer) startSpinner() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.depth > 0 {
+		r.depth--
+	}
+	// Restart spinner only when exiting outermost render
+	if r.depth == 0 && r.s != nil && !r.running {
+		r.s.Start()
+		r.running = true
+	}
 }
 
 // JSONRenderer renders output as JSON
