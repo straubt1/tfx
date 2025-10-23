@@ -209,13 +209,3 @@ func organizationListAll(c TfxClientContext) ([]*tfe.Organization, error) {
 	}
 	return data.FetchOrganizations(tfxClient, "")
 }
-
-// Legacy compatibility: provide getWorkspaceId for older command files
-func getWorkspaceId(c TfxClientContext, workspaceName string) (string, error) {
-	tfxClient := &client.TfxClient{
-		Client:           c.Client,
-		Context:          c.Context,
-		OrganizationName: c.OrganizationName,
-	}
-	return data.GetWorkspaceID(tfxClient, c.OrganizationName, workspaceName)
-}
