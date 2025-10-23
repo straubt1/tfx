@@ -22,9 +22,12 @@ package cmd
 import (
 	"math"
 
-	tfe "github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/straubt1/tfx/client"
+	"github.com/straubt1/tfx/cmd/flags"
+	view "github.com/straubt1/tfx/cmd/views"
+	"github.com/straubt1/tfx/data"
 )
 
 var (
@@ -41,14 +44,14 @@ var (
 		Short: "List Providers in a Private Registry",
 		Long:  "List Providers in a Private Registry of a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := *viperInt("max-items")
-			if *viperBool("all") {
-				m = math.MaxInt
+			cmdConfig, err := flags.ParseRegistryProviderListFlags(cmd)
+			if err != nil {
+				return err
 			}
-
-			return registryProviderList(
-				getTfxClientContext(),
-				m)
+			if cmdConfig.All {
+				cmdConfig.MaxItems = math.MaxInt
+			}
+			return registryProviderList(cmdConfig)
 		},
 	}
 
@@ -58,9 +61,11 @@ var (
 		Short: "Create a Provider in a Private Registry",
 		Long:  "Create a Provider in a Private Registry of a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return registryProviderCreate(
-				getTfxClientContext(),
-				*viperString("name"))
+			cmdConfig, err := flags.ParseRegistryProviderCreateFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return registryProviderCreate(cmdConfig)
 		},
 	}
 
@@ -70,9 +75,11 @@ var (
 		Short: "Show details about a Provider in a Private Registry",
 		Long:  "Show details about a Provider in a Private Registry of a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return registryProviderShow(
-				getTfxClientContext(),
-				*viperString("name"))
+			cmdConfig, err := flags.ParseRegistryProviderShowFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return registryProviderShow(cmdConfig)
 		},
 	}
 
@@ -82,9 +89,11 @@ var (
 		Short: "Delete a Provider in a Private Registry",
 		Long:  "Delete a Provider in a Private Registry of a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return registryProviderDelete(
-				getTfxClientContext(),
-				*viperString("name"))
+			cmdConfig, err := flags.ParseRegistryProviderDeleteFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return registryProviderDelete(cmdConfig)
 		},
 	}
 )
@@ -113,108 +122,57 @@ func init() {
 	registryProviderCmd.AddCommand(registryProviderDeleteCmd)
 }
 
-func registryProviderListAll(c TfxClientContext, maxItems int) ([]*tfe.RegistryProvider, error) {
-	pageSize := 100
-	if maxItems < 100 {
-		pageSize = maxItems // Only get what we need in one page
+func registryProviderList(cmdConfig *flags.RegistryProviderListFlags) error {
+	v := view.NewRegistryProviderListView()
+	c, err := client.NewFromViper()
+	if err != nil {
+		return v.RenderError(err)
 	}
-
-	allItems := []*tfe.RegistryProvider{}
-	opts := tfe.RegistryProviderListOptions{
-		ListOptions: tfe.ListOptions{PageNumber: 1, PageSize: pageSize},
-		// RegistryName: tfe.PrivateRegistry, // Can restrict to just private
-		// Include: &[]tfe.RegistryProviderIncludeOps{"provider-versions"}, does not work, cant get provider versions from this call?
+	v.PrintCommandHeader("List Providers in Registry for Organization: %s", c.OrganizationName)
+	items, err := data.ListRegistryProviders(c, c.OrganizationName, cmdConfig.MaxItems)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to list providers"))
 	}
-	for {
-		items, err := c.Client.RegistryProviders.List(c.Context, c.OrganizationName, &opts)
-		if err != nil {
-			return nil, err
-		}
-
-		allItems = append(allItems, items.Items...)
-		if len(allItems) >= maxItems {
-			break // Hit the max, break. For maxItems > 100 it is possible to return more than max in this approach
-		}
-
-		if items.CurrentPage >= items.TotalPages {
-			break
-		}
-		opts.PageNumber = items.NextPage
-	}
-
-	return allItems, nil
+	return v.Render(items)
 }
 
-func registryProviderList(c TfxClientContext, maxItems int) error {
-	o.AddMessageUserProvided("List Providers in Registry for Organization:", c.OrganizationName)
-	items, err := registryProviderListAll(c, maxItems)
+func registryProviderCreate(cmdConfig *flags.RegistryProviderCreateFlags) error {
+	v := view.NewRegistryProviderCreateView()
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "failed to list providers")
+		return v.RenderError(err)
 	}
-
-	o.AddTableHeader("Name", "Registry", "ID", "Published")
-	for _, i := range items {
-		o.AddTableRows(i.Name, i.RegistryName, i.ID, i.UpdatedAt)
+	v.PrintCommandHeader("Create Provider in Registry for Organization: %s", c.OrganizationName)
+	provider, err := data.CreateRegistryProvider(c, c.OrganizationName, cmdConfig.Name)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to create provider"))
 	}
-
-	return nil
+	return v.Render(provider)
 }
 
-func registryProviderCreate(c TfxClientContext, providerName string) error {
-	o.AddMessageUserProvided("Create Provider in Registry for Organization:", c.OrganizationName)
-	provider, err := c.Client.RegistryProviders.Create(c.Context, c.OrganizationName, tfe.RegistryProviderCreateOptions{
-		Name:         providerName,
-		Namespace:    c.OrganizationName, // always org name for RegistryName "private"
-		RegistryName: tfe.PrivateRegistry,
-	})
+func registryProviderShow(cmdConfig *flags.RegistryProviderShowFlags) error {
+	v := view.NewRegistryProviderShowView()
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "failed to create provider")
+		return v.RenderError(err)
 	}
-
-	o.AddMessageUserProvided("Provider Created:", provider.Name)
-	o.AddDeferredMessageRead("ID", provider.ID)
-	o.AddDeferredMessageRead("Namespace", provider.Namespace)
-	o.AddDeferredMessageRead("Created", provider.UpdatedAt)
-
-	return nil
+	v.PrintCommandHeader("Show Provider in Registry for Organization: %s", c.OrganizationName)
+	provider, err := data.ReadRegistryProvider(c, c.OrganizationName, cmdConfig.Name)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to read provider"))
+	}
+	return v.Render(provider)
 }
 
-func registryProviderShow(c TfxClientContext, providerName string) error {
-	o.AddMessageUserProvided("Show Provider in Registry for Organization:", c.OrganizationName)
-	provider, err := c.Client.RegistryProviders.Read(c.Context, tfe.RegistryProviderID{
-		OrganizationName: c.OrganizationName,
-		Name:             providerName,
-		Namespace:        c.OrganizationName, // always org name for RegistryName "private"
-		RegistryName:     tfe.PrivateRegistry,
-	}, &tfe.RegistryProviderReadOptions{
-		Include: []tfe.RegistryProviderIncludeOps{},
-	})
+func registryProviderDelete(cmdConfig *flags.RegistryProviderDeleteFlags) error {
+	v := view.NewRegistryProviderDeleteView()
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "failed to read provider")
+		return v.RenderError(err)
 	}
-
-	o.AddDeferredMessageRead("Name", provider.Name)
-	o.AddDeferredMessageRead("ID", provider.ID)
-	o.AddDeferredMessageRead("Namespace", provider.Namespace)
-	o.AddDeferredMessageRead("Created", provider.UpdatedAt)
-
-	return nil
-}
-
-func registryProviderDelete(c TfxClientContext, providerName string) error {
-	o.AddMessageUserProvided("Delete Provider in Registry for Organization:", c.OrganizationName)
-	err := c.Client.RegistryProviders.Delete(c.Context, tfe.RegistryProviderID{
-		OrganizationName: c.OrganizationName,
-		Name:             providerName,
-		Namespace:        c.OrganizationName, // always org name for RegistryName "private"
-		RegistryName:     tfe.PrivateRegistry,
-	})
-	if err != nil {
-		return errors.Wrap(err, "failed to delete provider")
+	v.PrintCommandHeader("Delete Provider in Registry for Organization: %s", c.OrganizationName)
+	if err := data.DeleteRegistryProvider(c, c.OrganizationName, cmdConfig.Name); err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to delete provider"))
 	}
-
-	o.AddMessageUserProvided("Provider Deleted:", providerName)
-	o.AddDeferredMessageRead("Status", "Success")
-
-	return nil
+	return v.Render(cmdConfig.Name)
 }

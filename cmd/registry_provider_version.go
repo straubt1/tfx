@@ -22,9 +22,12 @@ package cmd
 import (
 	"fmt"
 
-	tfe "github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/straubt1/tfx/client"
+	"github.com/straubt1/tfx/cmd/flags"
+	view "github.com/straubt1/tfx/cmd/views"
+	"github.com/straubt1/tfx/data"
 )
 
 var (
@@ -41,9 +44,11 @@ var (
 		Short: "List Provider Versions in a Private Registry",
 		Long:  "List Provider Versions for a Provider in a Private Registry of a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return registryProviderVersionList(
-				getTfxClientContext(),
-				*viperString("name"))
+			cmdConfig, err := flags.ParseRegistryProviderVersionListFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return registryProviderVersionList(cmdConfig)
 		},
 	}
 
@@ -53,21 +58,20 @@ var (
 		Short: "Create a Provider Version in a Private Registry",
 		Long:  "Create a Provider Version for a Provider in a Private Registry of a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !isFile(*viperString("shasums")) {
+			cmdConfig, err := flags.ParseRegistryProviderVersionCreateFlags(cmd)
+			if err != nil {
+				return err
+			}
+			if _, err := viperSemanticVersionString("version"); err != nil {
+				return errors.New("invalid semantic version")
+			}
+			if !isFile(cmdConfig.Shasums) {
 				return errors.New("shasums file does not exist")
 			}
-			if !isFile(*viperString("shasums-sig")) {
+			if !isFile(cmdConfig.ShasumsSig) {
 				return errors.New("shasumssig file does not exist")
 			}
-
-			return registryProviderVersionCreate(
-				getTfxClientContext(),
-				*viperString("name"),
-				*viperString("version"),
-				*viperString("key-id"),
-				*viperString("shasums"),
-				*viperString("shasums-sig"),
-			)
+			return registryProviderVersionCreate(cmdConfig)
 		},
 	}
 
@@ -77,10 +81,14 @@ var (
 		Short: "Show details of a Provider Version in a Private Registry",
 		Long:  "Show details of a Provider Version for a Provider in a Private Registry of a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return registryProviderVersionShow(
-				getTfxClientContext(),
-				*viperString("name"),
-				*viperString("version"))
+			cmdConfig, err := flags.ParseRegistryProviderVersionShowFlags(cmd)
+			if err != nil {
+				return err
+			}
+			if _, err := viperSemanticVersionString("version"); err != nil {
+				return errors.New("invalid semantic version")
+			}
+			return registryProviderVersionShow(cmdConfig)
 		},
 	}
 
@@ -90,9 +98,14 @@ var (
 		Short: "Delete a Provider Version in a Private Registry",
 		Long:  "Delete a Provider Version for a Provider in a Private Registry of a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return registryProviderVersionDelete(getTfxClientContext(),
-				*viperString("name"),
-				*viperString("version"))
+			cmdConfig, err := flags.ParseRegistryProviderVersionDeleteFlags(cmd)
+			if err != nil {
+				return err
+			}
+			if _, err := viperSemanticVersionString("version"); err != nil {
+				return errors.New("invalid semantic version")
+			}
+			return registryProviderVersionDelete(cmdConfig)
 		},
 	}
 )
@@ -133,138 +146,75 @@ func init() {
 	registryProviderVersionCmd.AddCommand(registryProviderVersionDeleteCmd)
 }
 
-func registryProviderVersionsListAll(c TfxClientContext, providerName string) ([]*tfe.RegistryProviderVersion, error) {
-	allItems := []*tfe.RegistryProviderVersion{}
-	opts := tfe.RegistryProviderVersionListOptions{
-		ListOptions: tfe.ListOptions{
-			PageNumber: 1,
-			PageSize:   100,
-		},
+func registryProviderVersionList(cmdConfig *flags.RegistryProviderVersionListFlags) error {
+	v := view.NewRegistryProviderVersionListView()
+	c, err := client.NewFromViper()
+	if err != nil {
+		return v.RenderError(err)
 	}
-	for {
-		items, err := c.Client.RegistryProviderVersions.List(c.Context,
-			tfe.RegistryProviderID{
-				OrganizationName: c.OrganizationName,
-				Namespace:        c.OrganizationName, // always org name for RegistryName "private"
-				RegistryName:     tfe.PrivateRegistry,
-				Name:             providerName,
-			}, &opts)
-		if err != nil {
-			return nil, err
-		}
-
-		allItems = append(allItems, items.Items...)
-		if items.CurrentPage >= items.TotalPages {
-			break
-		}
-		opts.PageNumber = items.NextPage
+	v.PrintCommandHeader("List Provider Versions in Registry for Organization: %s", c.OrganizationName)
+	v.PrintCommandFilter("Provider Name: %s", cmdConfig.Name)
+	items, err := data.ListRegistryProviderVersions(c, c.OrganizationName, cmdConfig.Name)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "Failed to list provider versions"))
 	}
-
-	return allItems, nil
+	return v.Render(items)
 }
 
-func registryProviderVersionList(c TfxClientContext, providerName string) error {
-	o.AddMessageUserProvided("List Provider Versions in Registry for Organization:", c.OrganizationName)
-	o.AddMessageUserProvided("Provider Name:", providerName)
-	items, err := registryProviderVersionsListAll(c, providerName)
+func registryProviderVersionCreate(cmdConfig *flags.RegistryProviderVersionCreateFlags) error {
+	v := view.NewRegistryProviderVersionCreateView()
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "Failed to list provider versions")
+		return v.RenderError(err)
 	}
-
-	o.AddTableHeader("Name", "Registry", "Published", "SHASUM Uploaded", "SHASUM Sig Uploaded")
-	for _, i := range items {
-		o.AddTableRows(i.ID, i.Version, i.UpdatedAt, i.ShasumsUploaded, i.ShasumsSigUploaded)
+	v.PrintCommandHeader("Create Provider Version in Registry for Organization: %s", c.OrganizationName)
+	v.PrintCommandFilter("Provider Name: %s", cmdConfig.Name)
+	p, err := data.CreateRegistryProviderVersion(c, c.OrganizationName, cmdConfig.Name, cmdConfig.Version, cmdConfig.KeyID)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to create provider version"))
 	}
-
-	return nil
+	v.Renderer().Message("Uploading shasums and sig")
+	if err := UploadBinary(p.Links["shasums-upload"].(string), cmdConfig.Shasums); err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to upload shasums"))
+	}
+	if err := UploadBinary(p.Links["shasums-sig-upload"].(string), cmdConfig.ShasumsSig); err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to upload shasums sig"))
+	}
+	fmt.Println(cmdConfig.Shasums, cmdConfig.ShasumsSig, p.CreatedAt)
+	return v.Render(p)
 }
 
-func registryProviderVersionCreate(c TfxClientContext, providerName string, providerVersion string, keyId string, shasums string, shasumssig string) error {
-	o.AddMessageUserProvided("Create Provider Version in Registry for Organization:", c.OrganizationName)
-	o.AddMessageUserProvided("Provider Name:", providerName)
-	p, err := c.Client.RegistryProviderVersions.Create(c.Context, tfe.RegistryProviderID{
-		OrganizationName: c.OrganizationName,
-		Namespace:        c.OrganizationName, // always org name for RegistryName "private"
-		RegistryName:     tfe.PrivateRegistry,
-		Name:             providerName,
-	}, tfe.RegistryProviderVersionCreateOptions{
-		Version: providerVersion,
-		KeyID:   keyId,
-		// Protocols: []string{},
-	})
+func registryProviderVersionShow(cmdConfig *flags.RegistryProviderVersionShowFlags) error {
+	v := view.NewRegistryProviderVersionShowView()
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "failed to create provider version")
+		return v.RenderError(err)
 	}
-
-	o.AddMessageUserProvided("Uploading shasums and sig", "")
-	err = UploadBinary(p.Links["shasums-upload"].(string), shasums)
+	v.PrintCommandHeader("Show Provider Version in Registry for Organization: %s", c.OrganizationName)
+	provider, err := data.ReadRegistryProviderVersion(c, c.OrganizationName, cmdConfig.Name, cmdConfig.Version)
 	if err != nil {
-		logError(err, "failed to upload shasums")
+		return v.RenderError(errors.Wrap(err, "failed to read provider version"))
 	}
-	err = UploadBinary(p.Links["shasums-sig-upload"].(string), shasumssig)
-	if err != nil {
-		logError(err, "failed to upload shasums sig")
-	}
-	fmt.Println(shasums, shasumssig, p.CreatedAt)
-
-	o.AddMessageUserProvided("Provider Version Created", "")
-	o.AddDeferredMessageRead("Name", providerName)
-	o.AddDeferredMessageRead("ID", p.ID)
-	o.AddDeferredMessageRead("Version", p.Version)
-	o.AddDeferredMessageRead("Created", p.UpdatedAt)
-
-	return nil
-}
-
-func registryProviderVersionShow(c TfxClientContext, providerName string, providerVersion string) error {
-	o.AddMessageUserProvided("Show Provider Version in Registry for Organization:", c.OrganizationName)
-	provider, err := c.Client.RegistryProviderVersions.Read(c.Context, tfe.RegistryProviderVersionID{
-		RegistryProviderID: tfe.RegistryProviderID{
-			OrganizationName: c.OrganizationName,
-			Namespace:        c.OrganizationName, // always org name for RegistryName "private"
-			RegistryName:     tfe.PrivateRegistry,
-			Name:             providerName,
-		},
-		Version: providerVersion,
-	})
-	if err != nil {
-		return errors.Wrap(err, "failed to read provider version")
-	}
-
-	o.AddDeferredMessageRead("Name", providerName)
-	o.AddDeferredMessageRead("Version", provider.Version)
-	o.AddDeferredMessageRead("ID", provider.ID)
-	o.AddDeferredMessageRead("Shasums Uploaded", provider.ShasumsUploaded)
-	o.AddDeferredMessageRead("Shasums Sig Uploaded", provider.ShasumsSigUploaded)
-	// If the Shasums have been uploaded, display them (might be a better place for this?)
+	var shas string
 	if provider.ShasumsUploaded {
 		sha, err := DownloadTextFile(provider.Links["shasums-download"].(string))
 		if err != nil {
-			return errors.Wrap(err, "Failed to read shasums download link")
+			return v.RenderError(errors.Wrap(err, "Failed to read shasums download link"))
 		}
-		o.AddDeferredMessageRead("Shasums", "\n"+sha)
+		shas = sha
 	}
-
-	return nil
+	return v.Render(provider, shas)
 }
 
-func registryProviderVersionDelete(c TfxClientContext, providerName string, providerVersion string) error {
-	o.AddMessageUserProvided("Delete Provider Version in Registry for Organization:", c.OrganizationName)
-	err := c.Client.RegistryProviderVersions.Delete(c.Context, tfe.RegistryProviderVersionID{
-		RegistryProviderID: tfe.RegistryProviderID{
-			OrganizationName: c.OrganizationName,
-			Name:             providerName,
-			Namespace:        c.OrganizationName, // always org name for RegistryName "private"
-			RegistryName:     tfe.PrivateRegistry,
-		},
-		Version: providerVersion,
-	})
+func registryProviderVersionDelete(cmdConfig *flags.RegistryProviderVersionDeleteFlags) error {
+	v := view.NewRegistryProviderVersionDeleteView()
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "Failed to Delete Provider Version")
+		return v.RenderError(err)
 	}
-
-	o.AddMessageUserProvided("Provider Version Deleted:", providerName)
-	o.AddDeferredMessageRead("Status", "Success")
-
-	return nil
+	v.PrintCommandHeader("Delete Provider Version in Registry for Organization: %s", c.OrganizationName)
+	if err := data.DeleteRegistryProviderVersion(c, c.OrganizationName, cmdConfig.Name, cmdConfig.Version); err != nil {
+		return v.RenderError(errors.Wrap(err, "Failed to Delete Provider Version"))
+	}
+	return v.Render(cmdConfig.Name)
 }

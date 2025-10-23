@@ -18,6 +18,7 @@ These are random things that have been on the back burner for a while.
   - Get specific errors from the tfe client and format them nicely
 - [x] List and show command output (what to display and how to format it for list/show)
   - List might only show id.name.description but when outputted to json, should it be the full object?
+- [ ] Fix spinner when logging is enabled (currently broken)
 - [ ] Integration Testing (HCPT is easy, TFE versions is harder)
 - [ ] Automated Releases and updates to the [brew tap repo](https://github.com/straubt1/homebrew-tap)
 - [ ] Go version management is fragmented (actions, readme, and go.mod)
