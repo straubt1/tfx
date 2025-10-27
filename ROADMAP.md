@@ -25,6 +25,7 @@ These are random things that have been on the back burner for a while.
 - [ ] Versioning is manual and hard coded in version.go
 - [ ] GHA need renamed and cleaned up
 - [ ] Update Org and Proj to make additional API call for agent pool settings (if set)
+- [ ] Allow for TFE to have a bad certificate (self-signed)
 
 ## Things that might be nice to have or a terrible idea
 
