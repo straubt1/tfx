@@ -54,7 +54,13 @@ func initialize() {
 			spinner = nil // No spinner in JSON mode
 		} else {
 			renderer = NewTerminalRenderer()
-			spinner = NewSpinner()
+			// Only create spinner if logging is not enabled
+			// When TFX_LOG is set, disable spinner to avoid interference with log output
+			if logLevel == "" || logLevel == "NONE" || logLevel == "none" {
+				spinner = NewSpinner()
+			} else {
+				spinner = nil // No spinner when logging is enabled
+			}
 		}
 
 		logger := NewLogger(logLevel, logPath)

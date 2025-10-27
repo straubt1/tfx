@@ -29,6 +29,7 @@ These are random things that have been on the back burner for a while.
 
 ## Things that might be nice to have or a terrible idea
 
+- [ ] Hide the generic tfeHostname etc... things, but update Help to have a `-full` flag or something
 - [ ] Embedded json filtering (similar to azure cli with JMESPath)
 - [ ] TUI for diving deep into things
 - [ ] Having a diff across like entities (e.g. diff workspaces, project, etc...)
