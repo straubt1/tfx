@@ -22,15 +22,12 @@ package cmd
 
 import (
 	"log"
-	"log/slog"
-	"os"
 
 	"github.com/go-viper/encoding/hcl"
 
 	"github.com/logrusorgru/aurora"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"github.com/straubt1/tfx/logger"
 	"github.com/straubt1/tfx/output"
 	"github.com/straubt1/tfx/version"
 
@@ -40,7 +37,6 @@ import (
 
 var (
 	cfgFile string
-	o       *output.Output
 
 	// Required to leverage viper defaults for optional Flags
 	bindPFlags = func(cmd *cobra.Command, args []string) {
@@ -67,17 +63,18 @@ var rootCmd = &cobra.Command{
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	// Close output stream always before exiting
-	if err := rootCmd.Execute(); err != nil {
-		o.Close()
+	err := rootCmd.Execute()
+
+	// Always close output system for clean shutdown
+	output.Get().Close()
+
+	if err != nil {
 		log.Fatal(aurora.Red(err))
-	} else {
-		o.Close()
 	}
 }
 
 func init() {
-	cobra.OnInitialize(initConfig, initLogger)
+	cobra.OnInitialize(initConfig)
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file, can be used to store common flags, (default is ./.tfx.hcl).")
 	rootCmd.PersistentFlags().String("tfeHostname", "app.terraform.io", "The hostname of TFE without the schema. Can also be set with the environment variable TFE_HOSTNAME.")
@@ -98,16 +95,6 @@ func init() {
 
 	// Turn off completion option
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
-}
-
-// initLogger initializes the logger based on TFX_LOG environment variable
-func initLogger() {
-	logLevel := os.Getenv("TFX_LOG")
-	logPath := os.Getenv("TFX_LOG_PATH")
-	logger.Init(logLevel, logPath)
-	if logger.IsEnabled(slog.LevelDebug) {
-		logger.Debug("Logger initialized", "level", logger.LevelString(logger.GetLevel()))
-	}
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -148,11 +135,11 @@ func initConfig() {
 	// More info: https://github.com/spf13/viper/issues/397
 	postInitCommands(rootCmd.Commands())
 
-	// Initialize output
-	o = output.New(*viperBool("json"))
-	// Print if config file was found
+	// Output system initializes automatically on first use via output.Get()
+	// Show config file message if found
 	if isConfigFile {
-		o.AddMessageCalculated("Using config file:", viper.ConfigFileUsed())
+		out := output.Get()
+		out.Message("Using config file: %s", viper.ConfigFileUsed())
 	}
 }
 

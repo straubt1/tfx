@@ -73,7 +73,7 @@ func (v *ProjectListView) Render(projects []*tfe.Project, includeOrgColumn bool)
 				Tags:                        tags,
 			}
 		}
-		return v.renderer.RenderJSON(output)
+		return v.Output().RenderJSON(output)
 	}
 
 	// Terminal mode: render as table
@@ -97,5 +97,5 @@ func (v *ProjectListView) Render(projects []*tfe.Project, includeOrgColumn bool)
 		}
 	}
 
-	return v.renderer.RenderTable(headers, rows)
+	return v.Output().RenderTable(headers, rows)
 }

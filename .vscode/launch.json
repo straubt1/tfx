@@ -11,9 +11,8 @@
       "mode": "auto",
       "program": "${fileDirname}/../main.go",
       "args": [
-        "project",
-        "show",
-        "-i=prj-SGk9cJy4ntXaoxxx"
+        "org",
+        "list"
       ]
     },
     {

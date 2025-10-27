@@ -35,7 +35,7 @@ func (v *StateVersionListView) Render(items []*tfe.StateVersion) error {
 				Created:          FormatDateTime(sv.CreatedAt),
 			}
 		}
-		return v.renderer.RenderJSON(out)
+		return v.Output().RenderJSON(out)
 	}
 	headers := []string{"Id", "Terraform Version", "Serial", "Run Id", "Created"}
 	rows := make([][]interface{}, len(items))
@@ -46,5 +46,5 @@ func (v *StateVersionListView) Render(items []*tfe.StateVersion) error {
 		}
 		rows[i] = []interface{}{sv.ID, sv.TerraformVersion, sv.Serial, runID, FormatDateTime(sv.CreatedAt)}
 	}
-	return v.renderer.RenderTable(headers, rows)
+	return v.Output().RenderTable(headers, rows)
 }

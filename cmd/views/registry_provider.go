@@ -27,19 +27,19 @@ func NewRegistryProviderDeleteView() *RegistryProviderDeleteView {
 
 func (v *RegistryProviderListView) Render(items []*tfe.RegistryProvider) error {
 	if v.IsJSON() {
-		return v.renderer.RenderJSON(items)
+		return v.Output().RenderJSON(items)
 	}
 	headers := []string{"Name", "Registry", "ID", "Published"}
 	rows := make([][]interface{}, len(items))
 	for i, p := range items {
 		rows[i] = []interface{}{p.Name, p.RegistryName, p.ID, p.UpdatedAt}
 	}
-	return v.renderer.RenderTable(headers, rows)
+	return v.Output().RenderTable(headers, rows)
 }
 
 func (v *RegistryProviderCreateView) Render(p *tfe.RegistryProvider) error {
 	if v.IsJSON() {
-		return v.renderer.RenderJSON(p)
+		return v.Output().RenderJSON(p)
 	}
 	props := []PropertyPair{
 		{Key: "Name", Value: p.Name},
@@ -47,12 +47,12 @@ func (v *RegistryProviderCreateView) Render(p *tfe.RegistryProvider) error {
 		{Key: "Namespace", Value: p.Namespace},
 		{Key: "Created", Value: p.UpdatedAt},
 	}
-	return v.renderer.RenderProperties(props)
+	return v.Output().RenderProperties(props)
 }
 
 func (v *RegistryProviderShowView) Render(p *tfe.RegistryProvider) error {
 	if v.IsJSON() {
-		return v.renderer.RenderJSON(p)
+		return v.Output().RenderJSON(p)
 	}
 	props := []PropertyPair{
 		{Key: "Name", Value: p.Name},
@@ -60,12 +60,12 @@ func (v *RegistryProviderShowView) Render(p *tfe.RegistryProvider) error {
 		{Key: "Namespace", Value: p.Namespace},
 		{Key: "Created", Value: p.UpdatedAt},
 	}
-	return v.renderer.RenderProperties(props)
+	return v.Output().RenderProperties(props)
 }
 
 func (v *RegistryProviderDeleteView) Render(name string) error {
 	if v.IsJSON() {
-		return v.renderer.RenderJSON(map[string]interface{}{"status": "Success", "name": name})
+		return v.Output().RenderJSON(map[string]interface{}{"status": "Success", "name": name})
 	}
-	return v.renderer.RenderProperties([]PropertyPair{{Key: "Status", Value: "Success"}, {Key: "Name", Value: name}})
+	return v.Output().RenderProperties([]PropertyPair{{Key: "Status", Value: "Success"}, {Key: "Name", Value: name}})
 }

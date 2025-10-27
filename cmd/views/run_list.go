@@ -40,7 +40,7 @@ func (v *RunListView) Render(items []*tfe.Run) error {
 				Message:              r.Message,
 			}
 		}
-		return v.renderer.RenderJSON(out)
+		return v.Output().RenderJSON(out)
 	}
 
 	headers := []string{"Id", "Configuration Version", "Created"}
@@ -52,5 +52,5 @@ func (v *RunListView) Render(items []*tfe.Run) error {
 		}
 		rows[i] = []interface{}{r.ID, cv, FormatDateTime(r.CreatedAt)}
 	}
-	return v.renderer.RenderTable(headers, rows)
+	return v.Output().RenderTable(headers, rows)
 }

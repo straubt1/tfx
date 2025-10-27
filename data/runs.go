@@ -6,28 +6,28 @@ package data
 import (
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/straubt1/tfx/client"
-	"github.com/straubt1/tfx/logger"
+	"github.com/straubt1/tfx/output"
 )
 
 // FetchRun retrieves a run by ID with optional includes
 func FetchRun(c *client.TfxClient, runID string) (*tfe.Run, error) {
-	logger.Debug("Fetching run by ID", "runID", runID)
+	output.Get().Logger().Debug("Fetching run by ID", "runID", runID)
 
 	run, err := c.Client.Runs.ReadWithOptions(c.Context, runID, &tfe.RunReadOptions{
 		Include: []tfe.RunIncludeOpt{},
 	})
 	if err != nil {
-		logger.Error("Failed to fetch run", "runID", runID, "error", err)
+		output.Get().Logger().Error("Failed to fetch run", "runID", runID, "error", err)
 		return nil, err
 	}
 
-	logger.Debug("Run fetched successfully", "runID", runID, "status", run.Status)
+	output.Get().Logger().Debug("Run fetched successfully", "runID", runID, "status", run.Status)
 	return run, nil
 }
 
 // FetchRunsForWorkspace lists runs for a workspace limited by maxItems
 func FetchRunsForWorkspace(c *client.TfxClient, workspaceID string, maxItems int) ([]*tfe.Run, error) {
-	logger.Debug("Fetching runs for workspace", "workspaceID", workspaceID, "maxItems", maxItems)
+	output.Get().Logger().Debug("Fetching runs for workspace", "workspaceID", workspaceID, "maxItems", maxItems)
 
 	// Determine page size: fetch only what we need if <=100
 	pageSize := 100
@@ -44,7 +44,7 @@ func FetchRunsForWorkspace(c *client.TfxClient, workspaceID string, maxItems int
 	for {
 		res, err := c.Client.Runs.List(c.Context, workspaceID, opts)
 		if err != nil {
-			logger.Error("Failed to list runs", "workspaceID", workspaceID, "page", opts.PageNumber, "error", err)
+			output.Get().Logger().Error("Failed to list runs", "workspaceID", workspaceID, "page", opts.PageNumber, "error", err)
 			return nil, err
 		}
 		all = append(all, res.Items...)
@@ -65,17 +65,17 @@ func FetchRunsForWorkspace(c *client.TfxClient, workspaceID string, maxItems int
 		all = all[:maxItems]
 	}
 
-	logger.Debug("Runs fetched", "workspaceID", workspaceID, "count", len(all))
+	output.Get().Logger().Debug("Runs fetched", "workspaceID", workspaceID, "count", len(all))
 	return all, nil
 }
 
 // CreateRun creates a run for a workspace, optionally using a specific configuration version
 func CreateRun(c *client.TfxClient, orgName, workspaceName, message, configurationVersionID string) (*tfe.Run, error) {
-	logger.Debug("Creating run", "organization", orgName, "workspaceName", workspaceName, "cvID", configurationVersionID)
+	output.Get().Logger().Debug("Creating run", "organization", orgName, "workspaceName", workspaceName, "cvID", configurationVersionID)
 
 	w, err := c.Client.Workspaces.Read(c.Context, orgName, workspaceName)
 	if err != nil {
-		logger.Error("Failed to read workspace", "organization", orgName, "workspaceName", workspaceName, "error", err)
+		output.Get().Logger().Error("Failed to read workspace", "organization", orgName, "workspaceName", workspaceName, "error", err)
 		return nil, err
 	}
 
@@ -83,7 +83,7 @@ func CreateRun(c *client.TfxClient, orgName, workspaceName, message, configurati
 	if configurationVersionID != "" {
 		cv, err = c.Client.ConfigurationVersions.Read(c.Context, configurationVersionID)
 		if err != nil {
-			logger.Error("Failed to read configuration version", "cvID", configurationVersionID, "error", err)
+			output.Get().Logger().Error("Failed to read configuration version", "cvID", configurationVersionID, "error", err)
 			return nil, err
 		}
 	}
@@ -95,19 +95,19 @@ func CreateRun(c *client.TfxClient, orgName, workspaceName, message, configurati
 		ConfigurationVersion: cv, // may be nil
 	})
 	if err != nil {
-		logger.Error("Failed to create run", "organization", orgName, "workspaceName", workspaceName, "error", err)
+		output.Get().Logger().Error("Failed to create run", "organization", orgName, "workspaceName", workspaceName, "error", err)
 		return nil, err
 	}
 
-	logger.Debug("Run created", "runID", run.ID)
+	output.Get().Logger().Debug("Run created", "runID", run.ID)
 	return run, nil
 }
 
 // DiscardRun discards a run by ID
 func DiscardRun(c *client.TfxClient, runID string) error {
-	logger.Debug("Discarding run", "runID", runID)
+	output.Get().Logger().Debug("Discarding run", "runID", runID)
 	if err := c.Client.Runs.Discard(c.Context, runID, tfe.RunDiscardOptions{Comment: tfe.String("Discarded by tfx")}); err != nil {
-		logger.Error("Failed to discard run", "runID", runID, "error", err)
+		output.Get().Logger().Error("Failed to discard run", "runID", runID, "error", err)
 		return err
 	}
 	return nil
@@ -115,9 +115,9 @@ func DiscardRun(c *client.TfxClient, runID string) error {
 
 // CancelRun cancels a run by ID
 func CancelRun(c *client.TfxClient, runID string) error {
-	logger.Debug("Canceling run", "runID", runID)
+	output.Get().Logger().Debug("Canceling run", "runID", runID)
 	if err := c.Client.Runs.Cancel(c.Context, runID, tfe.RunCancelOptions{Comment: tfe.String("Canceled via TFx")}); err != nil {
-		logger.Error("Failed to cancel run", "runID", runID, "error", err)
+		output.Get().Logger().Error("Failed to cancel run", "runID", runID, "error", err)
 		return err
 	}
 	return nil
@@ -125,17 +125,17 @@ func CancelRun(c *client.TfxClient, runID string) error {
 
 // GetLatestRunID returns the most recent run ID for a workspace
 func GetLatestRunID(c *client.TfxClient, workspaceID string) (string, error) {
-	logger.Debug("Getting latest run ID", "workspaceID", workspaceID)
+	output.Get().Logger().Debug("Getting latest run ID", "workspaceID", workspaceID)
 
 	res, err := c.Client.Runs.List(c.Context, workspaceID, &tfe.RunListOptions{
 		ListOptions: tfe.ListOptions{PageNumber: 1, PageSize: 1},
 	})
 	if err != nil {
-		logger.Error("Failed to list runs for latest", "workspaceID", workspaceID, "error", err)
+		output.Get().Logger().Error("Failed to list runs for latest", "workspaceID", workspaceID, "error", err)
 		return "", err
 	}
 	if res == nil || len(res.Items) != 1 {
-		logger.Error("Latest run not found", "workspaceID", workspaceID)
+		output.Get().Logger().Error("Latest run not found", "workspaceID", workspaceID)
 		return "", tfe.ErrResourceNotFound
 	}
 	return res.Items[0].ID, nil

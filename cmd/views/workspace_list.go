@@ -72,7 +72,7 @@ func (v *WorkspaceListView) Render(workspaces []*tfe.Workspace, includeOrgColumn
 				Locked:            w.Locked,
 			}
 		}
-		return v.renderer.RenderJSON(output)
+		return v.Output().RenderJSON(output)
 	}
 
 	// Terminal mode: render as table
@@ -101,5 +101,5 @@ func (v *WorkspaceListView) Render(workspaces []*tfe.Workspace, includeOrgColumn
 		}
 	}
 
-	return v.renderer.RenderTable(headers, rows)
+	return v.Output().RenderTable(headers, rows)
 }

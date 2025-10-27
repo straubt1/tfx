@@ -11,11 +11,11 @@ func NewStateVersionDownloadView() *StateVersionDownloadView {
 
 func (v *StateVersionDownloadView) Render(filename string) error {
 	if v.IsJSON() {
-		return v.renderer.RenderJSON(map[string]string{"file": filename, "status": "Success"})
+		return v.Output().RenderJSON(map[string]string{"file": filename, "status": "Success"})
 	}
 	props := []PropertyPair{
 		{Key: "Status", Value: "Success"},
 		{Key: "File", Value: filename},
 	}
-	return v.renderer.RenderProperties(props)
+	return v.Output().RenderProperties(props)
 }

@@ -11,7 +11,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/straubt1/tfx/logger"
+	"github.com/straubt1/tfx/output"
 )
 
 // Regex patterns to redact sensitive information from HTTP dumps
@@ -83,19 +83,19 @@ func (t *LoggingTransport) logRequest(req *http.Request) {
 	}
 
 	// Log to logger based on log level
-	if logger.IsEnabled(logger.LevelTrace) {
+	if output.Get().Logger().IsEnabled(output.LevelTrace) {
 		// At TRACE level, log the full request dump
 		reqDump, err := httputil.DumpRequestOut(req, true)
 		if err != nil {
-			logger.Error("Failed to dump HTTP request", "error", err)
+			output.Get().Logger().Error("Failed to dump HTTP request", "error", err)
 		} else {
 			// Redact sensitive data before logging
 			redactedDump := redactSensitiveData(reqDump)
-			logger.Trace("HTTP Request (full dump)", "request", string(redactedDump))
+			output.Get().Logger().Trace("HTTP Request (full dump)", "request", string(redactedDump))
 		}
-	} else if logger.IsEnabled(slog.LevelDebug) {
+	} else if output.Get().Logger().IsEnabled(slog.LevelDebug) {
 		// At DEBUG level, log request summary
-		logger.Debug("HTTP Request", "method", req.Method, "url", req.URL.String())
+		output.Get().Logger().Debug("HTTP Request", "method", req.Method, "url", req.URL.String())
 	}
 }
 
@@ -119,19 +119,19 @@ func (t *LoggingTransport) logResponse(resp *http.Response) {
 	}
 
 	// Log to logger based on log level
-	if logger.IsEnabled(logger.LevelTrace) {
+	if output.Get().Logger().IsEnabled(output.LevelTrace) {
 		// At TRACE level, log the full response dump
 		respDump, err := httputil.DumpResponse(resp, true)
 		if err != nil {
-			logger.Error("Failed to dump HTTP response", "error", err)
+			output.Get().Logger().Error("Failed to dump HTTP response", "error", err)
 		} else {
 			// Redact sensitive data before logging
 			redactedDump := redactSensitiveData(respDump)
-			logger.Trace("HTTP Response (full dump)", "response", string(redactedDump))
+			output.Get().Logger().Trace("HTTP Response (full dump)", "response", string(redactedDump))
 		}
-	} else if logger.IsEnabled(slog.LevelDebug) {
+	} else if output.Get().Logger().IsEnabled(slog.LevelDebug) {
 		// At DEBUG level, log response summary
-		logger.Debug("HTTP Response",
+		output.Get().Logger().Debug("HTTP Response",
 			"method", resp.Request.Method,
 			"url", resp.Request.URL.String(),
 			"status", resp.Status,
@@ -148,7 +148,7 @@ func (t *LoggingTransport) logError(err error) {
 	}
 
 	// Log to logger
-	logger.Error("HTTP transport error", "error", err)
+	output.Get().Logger().Error("HTTP transport error", "error", err)
 }
 
 // Close closes the log file
@@ -161,7 +161,7 @@ func (t *LoggingTransport) Close() error {
 
 func IsTFXLogEnabled() bool {
 	// Enabled when either TFX_LOG (terminal logging) or TFX_LOG_PATH (file logging) is set.
-	return logger.IsEnabled(slog.LevelInfo) || logger.GetLogPath() != ""
+	return output.Get().Logger().IsEnabled(slog.LevelInfo) || output.Get().Logger().GetLogPath() != ""
 }
 
 // NewHTTPClientWithLogging creates an HTTP client that logs all requests and responses to a file
@@ -170,7 +170,7 @@ func NewHTTPClientWithLogging() (*http.Client, io.Closer, error) {
 	var logFile *os.File
 	var err error
 
-	logPath := logger.GetLogPath()
+	logPath := output.Get().Logger().GetLogPath()
 	if logPath != "" {
 		// Ensure directory exists
 		if err = os.MkdirAll(logPath, 0755); err != nil {
@@ -192,7 +192,7 @@ func NewHTTPClientWithLogging() (*http.Client, io.Closer, error) {
 		fmt.Fprintf(logFile, "# TFX HTTP LOG - Started at %s\n", timestamp)
 		fmt.Fprintf(logFile, "################################################################################\n")
 
-		logger.Info("HTTP logging to file enabled", "path", logFilePath)
+		output.Get().Logger().Info("HTTP logging to file enabled", "path", logFilePath)
 	}
 
 	transport := &LoggingTransport{

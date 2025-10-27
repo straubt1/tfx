@@ -28,7 +28,7 @@ func (v *ConfigVersionShowView) Render(cv *tfe.ConfigurationVersion) error {
 			out["message"] = cv.IngressAttributes.CommitMessage
 			out["link"] = cv.IngressAttributes.CommitURL
 		}
-		return v.renderer.RenderJSON(out)
+		return v.Output().RenderJSON(out)
 	}
 	props := []PropertyPair{
 		{Key: "ID", Value: cv.ID},
@@ -38,7 +38,7 @@ func (v *ConfigVersionShowView) Render(cv *tfe.ConfigurationVersion) error {
 	if cv.ErrorMessage != "" {
 		props = append(props, PropertyPair{Key: "Error Message", Value: cv.ErrorMessage})
 	}
-	if err := v.renderer.RenderProperties(props); err != nil {
+	if err := v.Output().RenderProperties(props); err != nil {
 		return err
 	}
 	tags := []PropertyPair{}
@@ -51,5 +51,5 @@ func (v *ConfigVersionShowView) Render(cv *tfe.ConfigurationVersion) error {
 			PropertyPair{Key: "Link", Value: cv.IngressAttributes.CommitURL},
 		)
 	}
-	return v.renderer.RenderTags("VCS", tags)
+	return v.Output().RenderTags("VCS", tags)
 }

@@ -26,7 +26,7 @@ func (v *RunShowView) Render(run *tfe.Run) error {
 		if run.ConfigurationVersion != nil {
 			cv = run.ConfigurationVersion.ID
 		}
-		return v.renderer.RenderJSON(runShowOutput{
+		return v.Output().RenderJSON(runShowOutput{
 			ID:                   run.ID,
 			ConfigurationVersion: cv,
 			Status:               string(run.Status),
@@ -48,5 +48,5 @@ func (v *RunShowView) Render(run *tfe.Run) error {
 		{Key: "Terraform Version", Value: run.TerraformVersion},
 		{Key: "Created", Value: FormatDateTime(run.CreatedAt)},
 	}
-	return v.renderer.RenderProperties(props)
+	return v.Output().RenderProperties(props)
 }

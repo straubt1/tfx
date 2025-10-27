@@ -15,7 +15,7 @@ func NewStateVersionCreateView() *StateVersionCreateView {
 
 func (v *StateVersionCreateView) Render(sv *tfe.StateVersion) error {
 	if v.IsJSON() {
-		return v.renderer.RenderJSON(map[string]interface{}{
+		return v.Output().RenderJSON(map[string]interface{}{
 			"id":               sv.ID,
 			"terraformVersion": sv.TerraformVersion,
 			"serial":           sv.Serial,
@@ -24,5 +24,5 @@ func (v *StateVersionCreateView) Render(sv *tfe.StateVersion) error {
 	props := []PropertyPair{
 		{Key: "Created Serial", Value: sv.Serial},
 	}
-	return v.renderer.RenderProperties(props)
+	return v.Output().RenderProperties(props)
 }

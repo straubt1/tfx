@@ -14,20 +14,20 @@ func NewWorkspaceLockView() *WorkspaceLockView { return &WorkspaceLockView{NewBa
 
 func (v *WorkspaceLockView) RenderSingle(name, status string) error {
 	if v.IsJSON() {
-		return v.renderer.RenderJSON(WorkspaceLockResult{Name: name, Status: status})
+		return v.Output().RenderJSON(WorkspaceLockResult{Name: name, Status: status})
 	}
 	props := []PropertyPair{{Key: name, Value: status}}
-	return v.renderer.RenderProperties(props)
+	return v.Output().RenderProperties(props)
 }
 
 func (v *WorkspaceLockView) RenderBulk(results []WorkspaceLockResult) error {
 	if v.IsJSON() {
-		return v.renderer.RenderJSON(results)
+		return v.Output().RenderJSON(results)
 	}
 	headers := []string{"Workspace", "Status"}
 	rows := make([][]interface{}, len(results))
 	for i, r := range results {
 		rows[i] = []interface{}{r.Name, r.Status}
 	}
-	return v.renderer.RenderTable(headers, rows)
+	return v.Output().RenderTable(headers, rows)
 }

@@ -45,7 +45,7 @@ func (v *VariableListView) Render(workspaceName string, variables []*tfe.Variabl
 				Description: variable.Description,
 			}
 		}
-		return v.renderer.RenderJSON(output)
+		return v.Output().RenderJSON(output)
 	}
 
 	// Terminal mode: render as table
@@ -76,5 +76,5 @@ func (v *VariableListView) Render(workspaceName string, variables []*tfe.Variabl
 		}
 	}
 
-	return v.renderer.RenderTable(headers, rows)
+	return v.Output().RenderTable(headers, rows)
 }

@@ -31,7 +31,7 @@ func (v *VariableCreateView) Render(variable *tfe.Variable) error {
 			Category:    string(variable.Category),
 			Description: variable.Description,
 		}
-		return v.renderer.RenderJSON(output)
+		return v.Output().RenderJSON(output)
 	}
 
 	// Terminal mode: render key fields in order
@@ -45,5 +45,5 @@ func (v *VariableCreateView) Render(variable *tfe.Variable) error {
 		{Key: "Description", Value: variable.Description},
 	}
 
-	return v.renderer.RenderProperties(properties)
+	return v.Output().RenderProperties(properties)
 }

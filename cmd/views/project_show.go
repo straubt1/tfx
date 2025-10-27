@@ -61,7 +61,7 @@ func (v *ProjectShowView) Render(orgName string, project *tfe.Project) error {
 			}
 		}
 
-		return v.renderer.RenderJSON(output)
+		return v.Output().RenderJSON(output)
 	}
 
 	// Terminal mode: render key fields in order
@@ -73,7 +73,7 @@ func (v *ProjectShowView) Render(orgName string, project *tfe.Project) error {
 		{Key: "Auto Destroy", Value: duration},
 	}
 
-	err = v.renderer.RenderProperties(properties)
+	err = v.Output().RenderProperties(properties)
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func (v *ProjectShowView) Render(orgName string, project *tfe.Project) error {
 	for _, tag := range project.EffectiveTagBindings {
 		tags = append(tags, PropertyPair{Key: tag.Key, Value: tag.Value})
 	}
-	err = v.renderer.RenderTags("Tags", tags)
+	err = v.Output().RenderTags("Tags", tags)
 	if err != nil {
 		return err
 	}

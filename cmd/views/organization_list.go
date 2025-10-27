@@ -49,7 +49,7 @@ func (v *OrganizationListView) Render(orgs []*tfe.Organization) error {
 				IsUnified:              org.IsUnified,
 			}
 		}
-		return v.renderer.RenderJSON(output)
+		return v.Output().RenderJSON(output)
 	}
 
 	// Terminal mode: render as table
@@ -60,5 +60,5 @@ func (v *OrganizationListView) Render(orgs []*tfe.Organization) error {
 		rows[i] = []interface{}{org.Name, org.ExternalID, org.Email}
 	}
 
-	return v.renderer.RenderTable(headers, rows)
+	return v.Output().RenderTable(headers, rows)
 }

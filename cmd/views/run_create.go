@@ -24,7 +24,7 @@ func (v *RunCreateView) Render(run *tfe.Run, link string) error {
 		if run.ConfigurationVersion != nil {
 			cv = run.ConfigurationVersion.ID
 		}
-		return v.renderer.RenderJSON(runCreateOutput{
+		return v.Output().RenderJSON(runCreateOutput{
 			ID:                   run.ID,
 			ConfigurationVersion: cv,
 			TerraformVersion:     run.TerraformVersion,
@@ -42,5 +42,5 @@ func (v *RunCreateView) Render(run *tfe.Run, link string) error {
 		{Key: "Terraform Version", Value: run.TerraformVersion},
 		{Key: "Link", Value: link},
 	}
-	return v.renderer.RenderProperties(props)
+	return v.Output().RenderProperties(props)
 }

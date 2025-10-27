@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/straubt1/tfx/output"
 )
 
 func isFile(filename string) bool {
@@ -50,12 +52,14 @@ func getDirectory(directory string, additional ...string) (string, error) {
 			return "", errors.New("directory is not valid")
 		}
 	} else {
-		o.AddMessageUserProvided("Directory not supplied, creating a temp directory", "")
-		dst, err := ioutil.TempDir("", "slug")
-		if err != nil {
-			return "", errors.New("failed to create temp directory")
+		if directory == "" {
+			output.Get().Message("Directory not supplied, creating a temp directory")
+			tempDir, err := os.MkdirTemp("", "tfx-")
+			if err != nil {
+				return "", err
+			}
+			directory = tempDir
 		}
-		directory = dst
 	}
 
 	// add additional path, this may not exist yet but we have verified the top directory does

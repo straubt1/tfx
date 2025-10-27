@@ -39,19 +39,19 @@ func (v *RegistryModuleListView) Render(items []*tfe.RegistryModule) error {
 		for i, m := range items {
 			out[i] = registryModuleListOutput{m.Name, m.Provider, m.ID, string(m.Status), len(m.VersionStatuses)}
 		}
-		return v.renderer.RenderJSON(out)
+		return v.Output().RenderJSON(out)
 	}
 	headers := []string{"Name", "Provider", "ID", "Status", "Versions"}
 	rows := make([][]interface{}, len(items))
 	for i, m := range items {
 		rows[i] = []interface{}{m.Name, m.Provider, m.ID, string(m.Status), len(m.VersionStatuses)}
 	}
-	return v.renderer.RenderTable(headers, rows)
+	return v.Output().RenderTable(headers, rows)
 }
 
 func (v *RegistryModuleCreateView) Render(m *tfe.RegistryModule) error {
 	if v.IsJSON() {
-		return v.renderer.RenderJSON(m)
+		return v.Output().RenderJSON(m)
 	}
 	props := []PropertyPair{
 		{Key: "Name", Value: m.Name},
@@ -59,12 +59,12 @@ func (v *RegistryModuleCreateView) Render(m *tfe.RegistryModule) error {
 		{Key: "ID", Value: m.ID},
 		{Key: "Namespace", Value: m.Namespace},
 	}
-	return v.renderer.RenderProperties(props)
+	return v.Output().RenderProperties(props)
 }
 
 func (v *RegistryModuleShowView) Render(m *tfe.RegistryModule) error {
 	if v.IsJSON() {
-		return v.renderer.RenderJSON(m)
+		return v.Output().RenderJSON(m)
 	}
 	props := []PropertyPair{
 		{Key: "ID", Value: m.ID},
@@ -76,12 +76,12 @@ func (v *RegistryModuleShowView) Render(m *tfe.RegistryModule) error {
 	if len(m.VersionStatuses) > 0 {
 		props = append(props, PropertyPair{Key: "Latest Version", Value: m.VersionStatuses[0].Version})
 	}
-	return v.renderer.RenderProperties(props)
+	return v.Output().RenderProperties(props)
 }
 
 func (v *RegistryModuleDeleteView) Render(name string) error {
 	if v.IsJSON() {
-		return v.renderer.RenderJSON(map[string]interface{}{"status": "Success", "name": name})
+		return v.Output().RenderJSON(map[string]interface{}{"status": "Success", "name": name})
 	}
-	return v.renderer.RenderProperties([]PropertyPair{{Key: "Status", Value: "Success"}, {Key: "Name", Value: name}})
+	return v.Output().RenderProperties([]PropertyPair{{Key: "Status", Value: "Success"}, {Key: "Name", Value: name}})
 }

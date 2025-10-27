@@ -95,7 +95,7 @@ func (v *WorkspaceShowView) Render(
 			}
 		}
 
-		return v.renderer.RenderJSON(output)
+		return v.Output().RenderJSON(output)
 	}
 
 	// Terminal mode: render key fields in order
@@ -121,25 +121,25 @@ func (v *WorkspaceShowView) Render(
 		)
 	}
 
-	err := v.renderer.RenderProperties(properties)
+	err := v.Output().RenderProperties(properties)
 	if err != nil {
 		return err
 	}
 
 	// Render team access if present
 	if len(teamNames) > 0 {
-		v.renderer.Message("")
-		v.renderer.Message("Team Access:")
+		v.Output().Message("")
+		v.Output().Message("Team Access:")
 		for _, name := range teamNames {
-			v.renderer.Message("  - %s", name)
+			v.Output().Message("  - %s", name)
 		}
 	}
 
 	// Render remote state sharing if present
 	if !workspace.GlobalRemoteState && len(remoteStateConsumers) > 0 {
-		v.renderer.Message("Remote State Sharing Workspaces:")
+		v.Output().Message("Remote State Sharing Workspaces:")
 		for _, ws := range remoteStateConsumers {
-			v.renderer.Message("  - %s", ws.Name)
+			v.Output().Message("  - %s", ws.Name)
 		}
 	}
 

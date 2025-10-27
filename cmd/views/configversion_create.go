@@ -15,7 +15,7 @@ func NewConfigVersionCreateView() *ConfigVersionCreateView {
 
 func (v *ConfigVersionCreateView) Render(cv *tfe.ConfigurationVersion) error {
 	if v.IsJSON() {
-		return v.renderer.RenderJSON(map[string]interface{}{
+		return v.Output().RenderJSON(map[string]interface{}{
 			"id":          cv.ID,
 			"speculative": cv.Speculative,
 			"status":      cv.Status,
@@ -26,5 +26,5 @@ func (v *ConfigVersionCreateView) Render(cv *tfe.ConfigurationVersion) error {
 		{Key: "ID", Value: cv.ID},
 		{Key: "Speculative", Value: cv.Speculative},
 	}
-	return v.renderer.RenderProperties(props)
+	return v.Output().RenderProperties(props)
 }

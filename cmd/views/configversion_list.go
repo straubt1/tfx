@@ -45,7 +45,7 @@ func (v *ConfigVersionListView) Render(items []*tfe.ConfigurationVersion) error 
 				Message:     message,
 			}
 		}
-		return v.renderer.RenderJSON(out)
+		return v.Output().RenderJSON(out)
 	}
 	headers := []string{"Id", "Speculative", "Status", "Repo", "Branch", "Commit", "Message"}
 	rows := make([][]interface{}, len(items))
@@ -62,5 +62,5 @@ func (v *ConfigVersionListView) Render(items []*tfe.ConfigurationVersion) error 
 		}
 		rows[i] = []interface{}{cv.ID, cv.Speculative, cv.Status, repo, branch, commit, message}
 	}
-	return v.renderer.RenderTable(headers, rows)
+	return v.Output().RenderTable(headers, rows)
 }

@@ -23,7 +23,7 @@ func (v *StateVersionShowView) Render(sv *tfe.StateVersion) error {
 		} else {
 			runID = nil
 		}
-		return v.renderer.RenderJSON(map[string]interface{}{
+		return v.Output().RenderJSON(map[string]interface{}{
 			"id":               sv.ID,
 			"created":          FormatDateTime(sv.CreatedAt),
 			"terraformVersion": sv.TerraformVersion,
@@ -45,7 +45,7 @@ func (v *StateVersionShowView) Render(sv *tfe.StateVersion) error {
 		{Key: "State Version", Value: sv.StateVersion},
 		{Key: "Run Id", Value: runID},
 	}
-	if err := v.renderer.RenderProperties(props); err != nil {
+	if err := v.Output().RenderProperties(props); err != nil {
 		return err
 	}
 	// Render outputs (if any)
@@ -53,5 +53,5 @@ func (v *StateVersionShowView) Render(sv *tfe.StateVersion) error {
 	for _, o := range sv.Outputs {
 		tags = append(tags, PropertyPair{Key: o.Name, Value: o.Value})
 	}
-	return v.renderer.RenderTags("Outputs", tags)
+	return v.Output().RenderTags("Outputs", tags)
 }

@@ -48,7 +48,7 @@ func (v *TeamListView) Render(access []*tfe.TeamAccess, teamNames []string) erro
 				StateVersions:    string(a.StateVersions),
 			}
 		}
-		return v.renderer.RenderJSON(output)
+		return v.Output().RenderJSON(output)
 	}
 
 	headers := []string{"Name", "Team Id", "Team Access Id", "Access Type", "Runs", "Workspace Locking", "Sentinel Mocks", "Run Tasks", "Variables", "State Versions"}
@@ -67,7 +67,7 @@ func (v *TeamListView) Render(access []*tfe.TeamAccess, teamNames []string) erro
 			a.StateVersions,
 		}
 	}
-	return v.renderer.RenderTable(headers, rows)
+	return v.Output().RenderTable(headers, rows)
 }
 
 // safeIndex returns the element at index i if within bounds, otherwise empty string

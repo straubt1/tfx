@@ -11,11 +11,11 @@ func NewConfigVersionDownloadView() *ConfigVersionDownloadView {
 
 func (v *ConfigVersionDownloadView) Render(directory string) error {
 	if v.IsJSON() {
-		return v.renderer.RenderJSON(map[string]string{"status": "Success", "directory": directory})
+		return v.Output().RenderJSON(map[string]string{"status": "Success", "directory": directory})
 	}
 	props := []PropertyPair{
 		{Key: "Status", Value: "Success"},
 		{Key: "Directory", Value: directory},
 	}
-	return v.renderer.RenderProperties(props)
+	return v.Output().RenderProperties(props)
 }

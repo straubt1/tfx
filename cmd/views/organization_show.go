@@ -87,7 +87,7 @@ func (v *OrganizationShowView) Render(org *tfe.Organization) error {
 			}
 		}
 
-		return v.renderer.RenderJSON(output)
+		return v.Output().RenderJSON(output)
 	}
 
 	// Terminal mode: render key fields in order
@@ -108,7 +108,7 @@ func (v *OrganizationShowView) Render(org *tfe.Organization) error {
 		{Key: "Is Unified", Value: org.IsUnified},
 	}
 
-	err := v.renderer.RenderProperties(properties)
+	err := v.Output().RenderProperties(properties)
 	if err != nil {
 		return err
 	}
@@ -124,7 +124,7 @@ func (v *OrganizationShowView) Render(org *tfe.Organization) error {
 			{Key: "Can Traverse", Value: org.Permissions.CanTraverse},
 			{Key: "Can Update", Value: org.Permissions.CanUpdate},
 		}
-		err = v.renderer.RenderTags("Permissions", permissions)
+		err = v.Output().RenderTags("Permissions", permissions)
 		if err != nil {
 			return err
 		}

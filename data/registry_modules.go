@@ -6,12 +6,12 @@ package data
 import (
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/straubt1/tfx/client"
-	"github.com/straubt1/tfx/logger"
+	"github.com/straubt1/tfx/output"
 )
 
 // ListRegistryModules lists modules in the private registry for an organization, up to maxItems
 func ListRegistryModules(c *client.TfxClient, orgName string, maxItems int) ([]*tfe.RegistryModule, error) {
-	logger.Debug("Listing registry modules", "org", orgName, "maxItems", maxItems)
+	output.Get().Logger().Debug("Listing registry modules", "org", orgName, "maxItems", maxItems)
 
 	items, err := client.FetchAll(c.Context, func(pageNumber int) ([]*tfe.RegistryModule, *client.Pagination, error) {
 		opts := &tfe.RegistryModuleListOptions{ListOptions: tfe.ListOptions{PageNumber: pageNumber, PageSize: 100}}
@@ -33,7 +33,7 @@ func ListRegistryModules(c *client.TfxClient, orgName string, maxItems int) ([]*
 
 // CreateRegistryModule creates a new module in the private registry
 func CreateRegistryModule(c *client.TfxClient, orgName, name, provider string) (*tfe.RegistryModule, error) {
-	logger.Debug("Creating registry module", "org", orgName, "name", name, "provider", provider)
+	output.Get().Logger().Debug("Creating registry module", "org", orgName, "name", name, "provider", provider)
 	return c.Client.RegistryModules.Create(c.Context, orgName, tfe.RegistryModuleCreateOptions{
 		Name:     &name,
 		Provider: &provider,
@@ -42,7 +42,7 @@ func CreateRegistryModule(c *client.TfxClient, orgName, name, provider string) (
 
 // ReadRegistryModule reads a module by name and provider
 func ReadRegistryModule(c *client.TfxClient, orgName, name, provider string) (*tfe.RegistryModule, error) {
-	logger.Debug("Reading registry module", "org", orgName, "name", name, "provider", provider)
+	output.Get().Logger().Debug("Reading registry module", "org", orgName, "name", name, "provider", provider)
 	return c.Client.RegistryModules.Read(c.Context, tfe.RegistryModuleID{
 		Organization: orgName,
 		Name:         name,
@@ -54,7 +54,7 @@ func ReadRegistryModule(c *client.TfxClient, orgName, name, provider string) (*t
 
 // DeleteRegistryModule deletes a module by name and provider
 func DeleteRegistryModule(c *client.TfxClient, orgName, name, provider string) error {
-	logger.Debug("Deleting registry module", "org", orgName, "name", name, "provider", provider)
+	output.Get().Logger().Debug("Deleting registry module", "org", orgName, "name", name, "provider", provider)
 	return c.Client.RegistryModules.DeleteProvider(c.Context, tfe.RegistryModuleID{
 		Organization: orgName,
 		Name:         name,
@@ -65,13 +65,13 @@ func DeleteRegistryModule(c *client.TfxClient, orgName, name, provider string) e
 
 // ListRegistryModuleVersions returns the module and its VersionStatuses
 func ListRegistryModuleVersions(c *client.TfxClient, orgName, name, provider string) (*tfe.RegistryModule, error) {
-	logger.Debug("Listing module versions", "org", orgName, "name", name, "provider", provider)
+	output.Get().Logger().Debug("Listing module versions", "org", orgName, "name", name, "provider", provider)
 	return ReadRegistryModule(c, orgName, name, provider)
 }
 
 // CreateRegistryModuleVersion creates a new module version and uploads the directory
 func CreateRegistryModuleVersion(c *client.TfxClient, orgName, name, provider, version, directory string) (*tfe.RegistryModuleVersion, error) {
-	logger.Debug("Creating module version", "org", orgName, "name", name, "provider", provider, "version", version)
+	output.Get().Logger().Debug("Creating module version", "org", orgName, "name", name, "provider", provider, "version", version)
 	mv, err := c.Client.RegistryModules.CreateVersion(c.Context, tfe.RegistryModuleID{
 		Organization: orgName,
 		Name:         name,
@@ -90,7 +90,7 @@ func CreateRegistryModuleVersion(c *client.TfxClient, orgName, name, provider, v
 
 // DeleteRegistryModuleVersion deletes a module version
 func DeleteRegistryModuleVersion(c *client.TfxClient, orgName, name, provider, version string) error {
-	logger.Debug("Deleting module version", "org", orgName, "name", name, "provider", provider, "version", version)
+	output.Get().Logger().Debug("Deleting module version", "org", orgName, "name", name, "provider", provider, "version", version)
 	return c.Client.RegistryModules.DeleteVersion(c.Context, tfe.RegistryModuleID{
 		Organization: orgName,
 		Name:         name,

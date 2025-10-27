@@ -27,7 +27,7 @@ func (v *VariableDeleteView) Render(key string) error {
 			Status: "Success",
 			Key:    key,
 		}
-		return v.renderer.RenderJSON(output)
+		return v.Output().RenderJSON(output)
 	}
 
 	// Terminal mode: render status
@@ -36,5 +36,5 @@ func (v *VariableDeleteView) Render(key string) error {
 		{Key: "Key", Value: key},
 	}
 
-	return v.renderer.RenderProperties(properties)
+	return v.Output().RenderProperties(properties)
 }

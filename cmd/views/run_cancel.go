@@ -9,8 +9,8 @@ func NewRunCancelView() *RunCancelView { return &RunCancelView{NewBaseView()} }
 
 func (v *RunCancelView) Render(runID string) error {
 	if v.IsJSON() {
-		return v.renderer.RenderJSON(map[string]string{"cancelledRunId": runID})
+		return v.Output().RenderJSON(map[string]string{"cancelledRunId": runID})
 	}
 	props := []PropertyPair{{Key: "Cancelled run id", Value: runID}}
-	return v.renderer.RenderProperties(props)
+	return v.Output().RenderProperties(props)
 }

@@ -7,16 +7,16 @@ import (
 	"github.com/pkg/errors"
 	"github.com/straubt1/tfx/client"
 	"github.com/straubt1/tfx/cmd/flags"
-	"github.com/straubt1/tfx/logger"
+	"github.com/straubt1/tfx/output"
 )
 
 // FetchWorkspaces fetches all workspaces for a given organization using pagination
 func FetchWorkspaces(c *client.TfxClient, orgName string, options *flags.WorkspaceListFlags) ([]*tfe.Workspace, error) {
 	// TODO: options to JSON
-	logger.Debug("Fetching workspaces", "organization", orgName, "options", options)
+	output.Get().Logger().Debug("Fetching workspaces", "organization", orgName, "options", options)
 
 	return client.FetchAll(c.Context, func(pageNumber int) ([]*tfe.Workspace, *client.Pagination, error) {
-		logger.Trace("Fetching workspaces page", "organization", orgName, "page", pageNumber)
+		output.Get().Logger().Trace("Fetching workspaces page", "organization", orgName, "page", pageNumber)
 
 		opts := &tfe.WorkspaceListOptions{
 			ListOptions: tfe.ListOptions{PageNumber: pageNumber, PageSize: 100},
@@ -47,11 +47,11 @@ func FetchWorkspaces(c *client.TfxClient, orgName string, options *flags.Workspa
 
 		result, err := c.Client.Workspaces.List(c.Context, orgName, opts)
 		if err != nil {
-			logger.Error("Failed to fetch workspaces page", "organization", orgName, "page", pageNumber, "error", err)
+			output.Get().Logger().Error("Failed to fetch workspaces page", "organization", orgName, "page", pageNumber, "error", err)
 			return nil, nil, err
 		}
 
-		logger.Trace("Workspaces page fetched", "organization", orgName, "page", pageNumber, "count", len(result.Items))
+		output.Get().Logger().Trace("Workspaces page fetched", "organization", orgName, "page", pageNumber, "count", len(result.Items))
 		return result.Items, client.NewPaginationFromTFE(result.Pagination), nil
 	})
 }
@@ -61,36 +61,36 @@ func FetchWorkspaces(c *client.TfxClient, orgName string, options *flags.Workspa
 func FetchWorkspacesWithOrgScope(c *client.TfxClient, orgName string, options *flags.WorkspaceListFlags) ([]*tfe.Workspace, error) {
 	if !options.All {
 		// Fetch workspaces for a single organization
-		logger.Info("Fetching workspaces for organization", "organization", orgName, "options", options)
+		output.Get().Logger().Info("Fetching workspaces for organization", "organization", orgName, "options", options)
 		return FetchWorkspaces(c, orgName, options)
 	}
 
 	// Fetch workspaces across all organizations
-	logger.Info("Fetching workspaces across all organizations", "options", options)
+	output.Get().Logger().Info("Fetching workspaces across all organizations", "options", options)
 
 	orgs, err := FetchOrganizations(c, "")
 	if err != nil {
-		logger.Error("Failed to fetch organizations", "error", err)
+		output.Get().Logger().Error("Failed to fetch organizations", "error", err)
 		return nil, errors.Wrap(err, "failed to list organizations")
 	}
 
-	logger.Debug("Organizations fetched", "count", len(orgs))
+	output.Get().Logger().Debug("Organizations fetched", "count", len(orgs))
 
 	var allWorkspaces []*tfe.Workspace
 	for _, org := range orgs {
-		logger.Debug("Fetching workspaces for organization", "organization", org.Name)
+		output.Get().Logger().Debug("Fetching workspaces for organization", "organization", org.Name)
 
 		workspaces, err := FetchWorkspaces(c, org.Name, options)
 		if err != nil {
-			logger.Error("Failed to fetch workspaces", "organization", org.Name, "error", err)
+			output.Get().Logger().Error("Failed to fetch workspaces", "organization", org.Name, "error", err)
 			return nil, errors.Wrapf(err, "failed to list workspaces for organization %s", org.Name)
 		}
 
-		logger.Debug("Workspaces fetched for organization", "organization", org.Name, "count", len(workspaces))
+		output.Get().Logger().Debug("Workspaces fetched for organization", "organization", org.Name, "count", len(workspaces))
 		allWorkspaces = append(allWorkspaces, workspaces...)
 	}
 
-	logger.Info("All workspaces fetched successfully", "totalWorkspaces", len(allWorkspaces), "organizations", len(orgs))
+	output.Get().Logger().Info("All workspaces fetched successfully", "totalWorkspaces", len(allWorkspaces), "organizations", len(orgs))
 	return allWorkspaces, nil
 }
 
@@ -105,24 +105,24 @@ func FetchWorkspacesAcrossOrgs(c *client.TfxClient, options *flags.WorkspaceList
 
 // FetchWorkspace fetches a single workspace by name in the specified organization
 func FetchWorkspace(c *client.TfxClient, orgName string, workspaceName string) (*tfe.Workspace, error) {
-	logger.Debug("Fetching workspace by name", "organization", orgName, "workspaceName", workspaceName)
+	output.Get().Logger().Debug("Fetching workspace by name", "organization", orgName, "workspaceName", workspaceName)
 
 	workspace, err := c.Client.Workspaces.Read(c.Context, orgName, workspaceName)
 	if err != nil {
-		logger.Error("Failed to fetch workspace", "organization", orgName, "workspaceName", workspaceName, "error", err)
+		output.Get().Logger().Error("Failed to fetch workspace", "organization", orgName, "workspaceName", workspaceName, "error", err)
 		return nil, err
 	}
 
-	logger.Debug("Workspace fetched successfully", "organization", orgName, "workspaceName", workspaceName, "workspaceID", workspace.ID)
+	output.Get().Logger().Debug("Workspace fetched successfully", "organization", orgName, "workspaceName", workspaceName, "workspaceID", workspace.ID)
 	return workspace, nil
 }
 
 // FetchWorkspaceRemoteStateConsumers fetches all remote state consumers for a workspace
 func FetchWorkspaceRemoteStateConsumers(c *client.TfxClient, workspaceID string) ([]*tfe.Workspace, error) {
-	logger.Debug("Fetching remote state consumers", "workspaceID", workspaceID)
+	output.Get().Logger().Debug("Fetching remote state consumers", "workspaceID", workspaceID)
 
 	return client.FetchAll(c.Context, func(pageNumber int) ([]*tfe.Workspace, *client.Pagination, error) {
-		logger.Trace("Fetching remote state consumers page", "workspaceID", workspaceID, "page", pageNumber)
+		output.Get().Logger().Trace("Fetching remote state consumers page", "workspaceID", workspaceID, "page", pageNumber)
 
 		opts := &tfe.RemoteStateConsumersListOptions{
 			ListOptions: tfe.ListOptions{PageNumber: pageNumber, PageSize: 100},
@@ -130,18 +130,18 @@ func FetchWorkspaceRemoteStateConsumers(c *client.TfxClient, workspaceID string)
 
 		result, err := c.Client.Workspaces.ListRemoteStateConsumers(c.Context, workspaceID, opts)
 		if err != nil {
-			logger.Error("Failed to fetch remote state consumers page", "workspaceID", workspaceID, "page", pageNumber, "error", err)
+			output.Get().Logger().Error("Failed to fetch remote state consumers page", "workspaceID", workspaceID, "page", pageNumber, "error", err)
 			return nil, nil, err
 		}
 
-		logger.Trace("Remote state consumers page fetched", "workspaceID", workspaceID, "page", pageNumber, "count", len(result.Items))
+		output.Get().Logger().Trace("Remote state consumers page fetched", "workspaceID", workspaceID, "page", pageNumber, "count", len(result.Items))
 		return result.Items, client.NewPaginationFromTFE(result.Pagination), nil
 	})
 }
 
 // FetchWorkspaceTeamAccess fetches all team access for a workspace
 func FetchWorkspaceTeamAccess(c *client.TfxClient, workspaceID string, maxItems int) ([]*tfe.TeamAccess, error) {
-	logger.Debug("Fetching team access", "workspaceID", workspaceID)
+	output.Get().Logger().Debug("Fetching team access", "workspaceID", workspaceID)
 
 	if maxItems == 0 {
 		maxItems = math.MaxInt
@@ -154,15 +154,15 @@ func FetchWorkspaceTeamAccess(c *client.TfxClient, workspaceID string, maxItems 
 	}
 
 	for {
-		logger.Trace("Fetching team access page", "workspaceID", workspaceID, "page", opts.PageNumber)
+		output.Get().Logger().Trace("Fetching team access page", "workspaceID", workspaceID, "page", opts.PageNumber)
 
 		result, err := c.Client.TeamAccess.List(c.Context, &opts)
 		if err != nil {
-			logger.Error("Failed to fetch team access page", "workspaceID", workspaceID, "page", opts.PageNumber, "error", err)
+			output.Get().Logger().Error("Failed to fetch team access page", "workspaceID", workspaceID, "page", opts.PageNumber, "error", err)
 			return nil, err
 		}
 
-		logger.Trace("Team access page fetched", "workspaceID", workspaceID, "page", opts.PageNumber, "count", len(result.Items))
+		output.Get().Logger().Trace("Team access page fetched", "workspaceID", workspaceID, "page", opts.PageNumber, "count", len(result.Items))
 		allItems = append(allItems, result.Items...)
 
 		if result.CurrentPage >= result.TotalPages || len(allItems) >= maxItems {
@@ -171,13 +171,13 @@ func FetchWorkspaceTeamAccess(c *client.TfxClient, workspaceID string, maxItems 
 		opts.PageNumber = result.NextPage
 	}
 
-	logger.Debug("Team access fetched successfully", "workspaceID", workspaceID, "count", len(allItems))
+	output.Get().Logger().Debug("Team access fetched successfully", "workspaceID", workspaceID, "count", len(allItems))
 	return allItems, nil
 }
 
 // // FilterWorkspaces filters workspaces based on run status and repository identifier
 // func FilterWorkspaces(workspaces []*tfe.Workspace, runStatus string, repoIdentifier string) []*tfe.Workspace {
-// 	logger.Debug("Filtering workspaces", "runStatus", runStatus, "repoIdentifier", repoIdentifier, "totalWorkspaces", len(workspaces))
+// 	output.Get().Logger().Debug("Filtering workspaces", "runStatus", runStatus, "repoIdentifier", repoIdentifier, "totalWorkspaces", len(workspaces))
 
 // 	var result []*tfe.Workspace
 
@@ -189,7 +189,7 @@ func FetchWorkspaceTeamAccess(c *client.TfxClient, workspaceID string, maxItems 
 // 		}
 // 	}
 
-// 	logger.Debug("Workspaces filtered", "filteredCount", len(result))
+// 	output.Get().Logger().Debug("Workspaces filtered", "filteredCount", len(result))
 // 	return result
 // }
 
@@ -242,29 +242,29 @@ func ValidateRunStatus(s string) bool {
 
 // GetTeamAccessNames retrieves team names from team access objects
 func GetTeamAccessNames(c *client.TfxClient, teamAccess []*tfe.TeamAccess) ([]interface{}, error) {
-	logger.Debug("Fetching team names from team access", "count", len(teamAccess))
+	output.Get().Logger().Debug("Fetching team names from team access", "count", len(teamAccess))
 
 	var teamNames []interface{}
 	for _, ta := range teamAccess {
 		team, err := c.Client.Teams.Read(c.Context, ta.Team.ID)
 		if err != nil {
-			logger.Error("Failed to fetch team", "teamID", ta.Team.ID, "error", err)
+			output.Get().Logger().Error("Failed to fetch team", "teamID", ta.Team.ID, "error", err)
 			return nil, errors.Wrapf(err, "failed to read team %s", ta.Team.ID)
 		}
 		teamNames = append(teamNames, team.Name)
 	}
 
-	logger.Debug("Team names fetched successfully", "count", len(teamNames))
+	output.Get().Logger().Debug("Team names fetched successfully", "count", len(teamNames))
 	return teamNames, nil
 }
 
 // SetWorkspaceLock locks or unlocks the workspace by name
 func SetWorkspaceLock(c *client.TfxClient, orgName, workspaceName string, lockSet bool) (string, error) {
-	logger.Debug("Setting workspace lock", "organization", orgName, "workspaceName", workspaceName, "lock", lockSet)
+	output.Get().Logger().Debug("Setting workspace lock", "organization", orgName, "workspaceName", workspaceName, "lock", lockSet)
 
 	w, err := c.Client.Workspaces.Read(c.Context, orgName, workspaceName)
 	if err != nil {
-		logger.Error("Failed to read workspace", "organization", orgName, "workspaceName", workspaceName, "error", err)
+		output.Get().Logger().Error("Failed to read workspace", "organization", orgName, "workspaceName", workspaceName, "error", err)
 		return "", err
 	}
 
@@ -273,7 +273,7 @@ func SetWorkspaceLock(c *client.TfxClient, orgName, workspaceName string, lockSe
 			return "Workspace already locked", nil
 		}
 		if _, err := c.Client.Workspaces.Lock(c.Context, w.ID, tfe.WorkspaceLockOptions{Reason: tfe.String("Locked via TFx")}); err != nil {
-			logger.Error("Failed to lock workspace", "workspaceID", w.ID, "error", err)
+			output.Get().Logger().Error("Failed to lock workspace", "workspaceID", w.ID, "error", err)
 			return "", err
 		}
 		return "Locked", nil
@@ -285,7 +285,7 @@ func SetWorkspaceLock(c *client.TfxClient, orgName, workspaceName string, lockSe
 	}
 	// Use ForceUnlock to handle active run cases
 	if _, err := c.Client.Workspaces.ForceUnlock(c.Context, w.ID); err != nil {
-		logger.Error("Failed to unlock workspace", "workspaceID", w.ID, "error", err)
+		output.Get().Logger().Error("Failed to unlock workspace", "workspaceID", w.ID, "error", err)
 		return "", err
 	}
 	return "Unlocked", nil

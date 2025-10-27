@@ -13,7 +13,7 @@ import (
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
 	"github.com/straubt1/tfx/client"
-	"github.com/straubt1/tfx/logger"
+	"github.com/straubt1/tfx/output"
 	"github.com/tidwall/sjson"
 )
 
@@ -27,7 +27,7 @@ type StateFile struct {
 
 // FetchStateVersions lists state versions for a workspace name with max-items
 func FetchStateVersions(c *client.TfxClient, orgName, workspaceName string, maxItems int) ([]*tfe.StateVersion, error) {
-	logger.Debug("Fetching state versions", "organization", orgName, "workspace", workspaceName, "maxItems", maxItems)
+	output.Get().Logger().Debug("Fetching state versions", "organization", orgName, "workspace", workspaceName, "maxItems", maxItems)
 
 	pageSize := 100
 	if maxItems > 0 && maxItems < 100 {
@@ -44,7 +44,7 @@ func FetchStateVersions(c *client.TfxClient, orgName, workspaceName string, maxI
 	for {
 		res, err := c.Client.StateVersions.List(c.Context, opts)
 		if err != nil {
-			logger.Error("Failed to list state versions", "workspace", workspaceName, "page", opts.PageNumber, "error", err)
+			output.Get().Logger().Error("Failed to list state versions", "workspace", workspaceName, "page", opts.PageNumber, "error", err)
 			return nil, err
 		}
 
@@ -63,7 +63,7 @@ func FetchStateVersions(c *client.TfxClient, orgName, workspaceName string, maxI
 		all = all[:maxItems]
 	}
 
-	logger.Debug("State versions fetched", "count", len(all))
+	output.Get().Logger().Debug("State versions fetched", "count", len(all))
 	return all, nil
 }
 
@@ -125,7 +125,7 @@ func CreateStateVersionFromFile(c *client.TfxClient, orgName, workspaceName, fil
 
 	// Unlock workspace (best effort)
 	if _, err := c.Client.Workspaces.Unlock(c.Context, workspaceID); err != nil {
-		logger.Warn("Failed to unlock workspace after state create", "workspaceID", workspaceID, "error", err)
+		output.Get().Logger().Warn("Failed to unlock workspace after state create", "workspaceID", workspaceID, "error", err)
 	}
 
 	return sv, nil

@@ -3,58 +3,55 @@
 
 package view
 
-import "github.com/spf13/viper"
+import (
+	"github.com/straubt1/tfx/output"
+)
 
 // BaseView provides common functionality for all command views
+// It wraps the singleton output instance for convenience
 type BaseView struct {
-	renderer Renderer
+	out *output.Output
 }
 
-// isJSONMode checks if JSON output mode is enabled
-func isJSONMode() bool {
-	return viper.GetBool("json")
-}
-
-// NewBaseView creates a base view with the appropriate renderer
+// NewBaseView creates a base view using the singleton output instance
 func NewBaseView() *BaseView {
-	var renderer Renderer
-	if isJSONMode() {
-		renderer = NewJSONRenderer()
-	} else {
-		renderer = NewTerminalRenderer()
+	return &BaseView{
+		out: output.Get(),
 	}
-	return &BaseView{renderer: renderer}
 }
 
-// NewBaseViewFromViper creates a base view using viper config
-func NewBaseViewFromViper() *BaseView {
-	return NewBaseView()
+// Output returns the singleton output instance
+func (v *BaseView) Output() *output.Output {
+	return v.out
 }
 
 // RenderError renders an error in the appropriate format
 func (v *BaseView) RenderError(err error) error {
-	return v.renderer.RenderError(err)
+	return v.out.RenderError(err)
 }
 
 // IsJSON returns true if using JSON output mode
 func (v *BaseView) IsJSON() bool {
-	_, ok := v.renderer.(*JSONRenderer)
-	return ok
+	return v.out.IsJSON()
 }
 
 // Renderer returns the underlying renderer
-func (v *BaseView) Renderer() Renderer {
-	return v.renderer
+func (v *BaseView) Renderer() output.Renderer {
+	return v.out.Renderer()
 }
 
 // PrintCommandHeader prints a command header message (suppressed in JSON mode)
-// This can be called from the command layer before making API calls
 func (v *BaseView) PrintCommandHeader(format string, args ...interface{}) {
-	v.renderer.MessageCommandHeader(format, args...)
+	v.out.MessageCommandHeader(format, args...)
 }
 
-// PrintCommandFilter prints a filter message without separator line (suppressed in JSON mode)
-// This can be called from the command layer to display active filters
+// PrintCommandFilter prints a filter message (suppressed in JSON mode)
 func (v *BaseView) PrintCommandFilter(format string, args ...interface{}) {
-	v.renderer.MessageCommandFilter(format, args...)
+	v.out.MessageCommandFilter(format, args...)
 }
+
+// PropertyPair is re-exported from output package for convenience
+type PropertyPair = output.PropertyPair
+
+// GetIfSpecified is re-exported from output package for convenience
+var GetIfSpecified = output.GetIfSpecified
