@@ -1,116 +1,126 @@
-//go:build ignore
-
-// Copyright © 2021 Tom Straub <github.com/straubt1>
-
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
+// SPDX-License-Identifier: MIT
+// Copyright © 2025 Tom Straub <github.com/straubt1>
 
 package cmd
 
 import (
-	"io/ioutil"
+	"os"
 
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/straubt1/tfx/client"
+	"github.com/straubt1/tfx/cmd/flags"
+	view "github.com/straubt1/tfx/cmd/views"
+	"github.com/straubt1/tfx/data"
 )
 
 // gpgCmd represents the gpg command
 var (
+	// `tfx admin gpg` command
 	gpgCmd = &cobra.Command{
 		Use:   "gpg",
 		Short: "GPG Keys",
-		Long:  "Work with GPG Keys of a TFx Organization.",
+		Long:  "Work with GPG Keys in the Private Registry",
+		Example: `
+List all GPG keys for a namespace:
+tfx admin gpg list --namespace myorg
+
+Create a GPG key from a file:
+tfx admin gpg create --namespace myorg --public-key /path/to/key.asc
+
+Show a GPG key:
+tfx admin gpg show --namespace myorg --id 37AD5AEF6A5D6D5C`,
 	}
 
+	// `tfx admin gpg list` command
 	gpgListCmd = &cobra.Command{
 		Use:   "list",
 		Short: "List GPG Keys",
-		Long:  "List GPG Keys of a TFx Organization.",
+		Long:  "List GPG Keys in the Private Registry for a namespace.",
+		Example: `
+tfx admin gpg list --namespace myorg`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return gpgList(
-				getTfxClientContext())
+			cmdConfig, err := flags.ParseAdminGPGListFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return gpgList(cmdConfig)
 		},
 	}
 
+	// `tfx admin gpg create` command
 	gpgCreateCmd = &cobra.Command{
 		Use:   "create",
 		Short: "Create GPG Key",
-		Long:  "Create GPG Key for a TFx Organization.",
+		Long:  "Create GPG Key in the Private Registry for a namespace.",
+		Example: `
+tfx admin gpg create --namespace myorg --public-key /path/to/key.asc`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !isFile(*viperString("public-key")) {
-				return errors.New("publicKey file does not exist")
+			cmdConfig, err := flags.ParseAdminGPGCreateFlags(cmd)
+			if err != nil {
+				return err
 			}
-
-			return gpgCreate(
-				getTfxClientContext(),
-				*viperString("namespace"),
-				*viperString("public-key"),
-				*viperString("registry-name"))
+			return gpgCreate(cmdConfig)
 		},
 	}
 
+	// `tfx admin gpg show` command
 	gpgShowCmd = &cobra.Command{
 		Use:   "show",
 		Short: "Show GPG Key",
-		Long:  "Show GPG Key for a TFx Organization.",
+		Long:  "Show GPG Key details from the Private Registry.",
+		Example: `
+tfx admin gpg show --namespace myorg --id 37AD5AEF6A5D6D5C`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return gpgShow(
-				getTfxClientContext(),
-				*viperString("namespace"),
-				*viperString("id"))
+			cmdConfig, err := flags.ParseAdminGPGShowFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return gpgShow(cmdConfig)
 		},
 	}
 
+	// `tfx admin gpg delete` command
 	gpgDeleteCmd = &cobra.Command{
 		Use:   "delete",
 		Short: "Delete GPG Key",
-		Long:  "Delete GPG Key for a TFx Organization.",
+		Long:  "Delete GPG Key from the Private Registry.",
+		Example: `
+tfx admin gpg delete --namespace myorg --id 37AD5AEF6A5D6D5C`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return gpgDelete(
-				getTfxClientContext(),
-				*viperString("namespace"),
-				*viperString("id"))
+			cmdConfig, err := flags.ParseAdminGPGDeleteFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return gpgDelete(cmdConfig)
 		},
 	}
 )
 
 func init() {
-	// `tfx gpg list`
+	// `tfx admin gpg list` flags
+	gpgListCmd.Flags().StringP("namespace", "n", "", "Namespace (typically the organization name)")
+	gpgListCmd.Flags().StringP("registry-name", "r", "private", "Registry name (default: private)")
 
-	// `tfx gpg create`
+	// `tfx admin gpg create` flags
 	gpgCreateCmd.Flags().StringP("namespace", "n", "", "Namespace (typically the organization name)")
 	gpgCreateCmd.Flags().StringP("public-key", "k", "", "File path to the public GPG key")
-	gpgCreateCmd.Flags().StringP("registry-name", "r", "private", "Registry name")
+	gpgCreateCmd.Flags().StringP("registry-name", "r", "private", "Registry name (default: private)")
 	gpgCreateCmd.MarkFlagRequired("namespace")
 	gpgCreateCmd.MarkFlagRequired("public-key")
 
-	// `tfx gpg show`
+	// `tfx admin gpg show` flags
 	gpgShowCmd.Flags().StringP("namespace", "n", "", "Namespace (typically the organization name)")
-	gpgShowCmd.Flags().StringP("id", "i", "", "GPG key Id")
-	gpgShowCmd.Flags().StringP("registry-name", "r", "private", "Registry name")
+	gpgShowCmd.Flags().StringP("id", "i", "", "GPG key ID")
+	gpgShowCmd.Flags().StringP("registry-name", "r", "private", "Registry name (default: private)")
 	gpgShowCmd.MarkFlagRequired("namespace")
 	gpgShowCmd.MarkFlagRequired("id")
 
-	// `tfx gpg delete`
+	// `tfx admin gpg delete` flags
 	gpgDeleteCmd.Flags().StringP("namespace", "n", "", "Namespace (typically the organization name)")
-	gpgDeleteCmd.Flags().StringP("id", "i", "", "GPG key Id")
-	gpgDeleteCmd.Flags().StringP("registry-name", "r", "private", "Registry name")
+	gpgDeleteCmd.Flags().StringP("id", "i", "", "GPG key ID")
+	gpgDeleteCmd.Flags().StringP("registry-name", "r", "private", "Registry name (default: private)")
 	gpgDeleteCmd.MarkFlagRequired("namespace")
 	gpgDeleteCmd.MarkFlagRequired("id")
 
@@ -121,80 +131,110 @@ func init() {
 	gpgCmd.AddCommand(gpgDeleteCmd)
 }
 
-func gpgList(c TfxClientContext) error {
-	o.AddMessageUserProvided("List GPG Keys for Organization:", c.OrganizationName)
-	gpg, err := ListGPGKeys(c)
+func gpgList(cmdConfig *flags.AdminGPGListFlags) error {
+	// Create view for rendering
+	v := view.NewAdminGPGListView()
+
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "unable to list gpg keys")
+		return v.RenderError(err)
 	}
 
-	o.AddTableHeader("Key Id", "Namespace", "Updated At", "Created At")
-	for _, i := range gpg.Keys {
-		o.AddTableRows(i.Attributes.KeyID, i.Attributes.Namespace, FormatDateTime(i.Attributes.UpdatedAt), FormatDateTime(i.Attributes.CreatedAt))
+	// Use namespace from flags, fallback to organization if not provided
+	namespace := cmdConfig.Namespace
+	if namespace == "" {
+		namespace = c.OrganizationName
 	}
 
-	return nil
+	// Print command header
+	v.PrintCommandHeader("Listing GPG keys for namespace '%s'", namespace)
+
+	// Fetch GPG keys
+	keys, err := data.FetchGPGKeys(c, namespace)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to list GPG keys"))
+	}
+
+	return v.Render(keys)
 }
 
-func gpgCreate(c TfxClientContext, namespace string, publicKey string, registryName string) error {
-	o.AddMessageUserProvided("Create GPG Key for Organization:", c.OrganizationName)
-	b, err := ioutil.ReadFile(publicKey)
-	if err != nil {
-		return errors.Wrap(err, "failed to read publicKey file")
-	}
-	publicKeyContents := string(b)
+func gpgCreate(cmdConfig *flags.AdminGPGCreateFlags) error {
+	// Create view for rendering
+	v := view.NewAdminGPGCreateView()
 
-	g, err := c.Client.GPGKeys.Create(c.Context, tfe.RegistryName(registryName), tfe.GPGKeyCreateOptions{
-		Namespace:  namespace,
-		AsciiArmor: publicKeyContents,
-	})
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "failed to create gpg key")
+		return v.RenderError(err)
 	}
 
-	o.AddMessageUserProvided("GPG Key Created", "")
-	o.AddDeferredMessageRead("KeyID", g.KeyID)
-	o.AddDeferredMessageRead("Created", FormatDateTime(g.CreatedAt))
-	o.AddDeferredMessageRead("Updated", FormatDateTime(g.UpdatedAt))
-	o.AddDeferredMessageRead("AsciiArmor", "\n"+g.AsciiArmor)
+	// Validate public key file exists
+	if _, err := os.Stat(cmdConfig.PublicKey); err != nil {
+		if os.IsNotExist(err) {
+			return v.RenderError(errors.New("public key file does not exist"))
+		}
+		return v.RenderError(errors.Wrap(err, "failed to access public key file"))
+	}
 
-	return nil
+	// Parse registry name
+	registryName := tfe.RegistryName(cmdConfig.RegistryName)
+
+	// Print command header
+	v.PrintCommandHeader("Creating GPG key for namespace '%s' in registry '%s'", cmdConfig.Namespace, cmdConfig.RegistryName)
+
+	// Create GPG key
+	key, err := data.CreateGPGKey(c, registryName, cmdConfig.Namespace, cmdConfig.PublicKey)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to create GPG key"))
+	}
+
+	return v.Render(key)
 }
 
-func gpgShow(c TfxClientContext, namespace string, keyId string) error {
-	o.AddMessageUserProvided("Show a GPG Key for Organization:", c.OrganizationName)
-	g, err := c.Client.GPGKeys.Read(c.Context, tfe.GPGKeyID{
-		Namespace:    namespace,
-		RegistryName: tfe.PrivateRegistry,
-		KeyID:        keyId,
-	})
+func gpgShow(cmdConfig *flags.AdminGPGShowFlags) error {
+	// Create view for rendering
+	v := view.NewAdminGPGShowView()
+
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "failed to read gpg key")
+		return v.RenderError(err)
 	}
 
-	o.AddMessageUserProvided("GPG Key Found", "")
-	o.AddDeferredMessageRead("KeyID", g.KeyID)
-	o.AddDeferredMessageRead("Created", FormatDateTime(g.CreatedAt))
-	o.AddDeferredMessageRead("Updated", FormatDateTime(g.UpdatedAt))
-	o.AddDeferredMessageRead("AsciiArmor", "\n"+g.AsciiArmor)
+	// Parse registry name
+	registryName := tfe.RegistryName(cmdConfig.RegistryName)
 
-	return nil
+	// Print command header
+	v.PrintCommandHeader("Showing GPG key '%s' for namespace '%s'", cmdConfig.ID, cmdConfig.Namespace)
+
+	// Fetch GPG key
+	key, err := data.FetchGPGKey(c, cmdConfig.Namespace, registryName, cmdConfig.ID)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to read GPG key"))
+	}
+
+	return v.Render(key)
 }
 
-func gpgDelete(c TfxClientContext, namespace string, keyId string) error {
-	o.AddMessageUserProvided("Delete GPG Key for Organization:", c.OrganizationName)
+func gpgDelete(cmdConfig *flags.AdminGPGDeleteFlags) error {
+	// Create view for rendering
+	v := view.NewAdminGPGDeleteView()
+
+	c, err := client.NewFromViper()
+	if err != nil {
+		return v.RenderError(err)
+	}
+
+	// Parse registry name
+	registryName := tfe.RegistryName(cmdConfig.RegistryName)
+
+	// Print command header
+	v.PrintCommandHeader("Deleting GPG key '%s' for namespace '%s'", cmdConfig.ID, cmdConfig.Namespace)
 	// TODO: verify GPG key is not in use before deleting
 
-	err := c.Client.GPGKeys.Delete(c.Context, tfe.GPGKeyID{
-		Namespace:    namespace,
-		RegistryName: tfe.PrivateRegistry,
-		KeyID:        keyId,
-	})
+	// Delete GPG key
+	err = data.DeleteGPGKey(c, cmdConfig.Namespace, registryName, cmdConfig.ID)
 	if err != nil {
-		return errors.Wrap(err, "failed to delete gpg key")
+		return v.RenderError(errors.Wrap(err, "failed to delete GPG key"))
 	}
-	o.AddMessageUserProvided("GPG Key Deleted", "")
-	o.AddDeferredMessageRead("Status", "Success")
 
-	return nil
+	return v.Render()
 }

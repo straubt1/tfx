@@ -1,188 +1,211 @@
-//go:build ignore
-
-// Copyright © 2021 Tom Straub <github.com/straubt1>
-
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
+// SPDX-License-Identifier: MIT
+// Copyright © 2025 Tom Straub <github.com/straubt1>
 
 package cmd
 
 import (
-	"fmt"
-	"io"
-	"net/http"
-	"strconv"
-	"strings"
-
-	tfe "github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/straubt1/tfx/client"
+	"github.com/straubt1/tfx/cmd/flags"
+	view "github.com/straubt1/tfx/cmd/views"
+	"github.com/straubt1/tfx/data"
 )
 
 var (
-	//  `tfx admin terraform-version ` commands
+	// `tfx admin terraform-version` commands
 	tfvCmd = &cobra.Command{
 		Use:     "terraform-version",
 		Aliases: []string{"tfv"},
 		Short:   "Terraform Version Commands",
-		Long:    "Work with Terraform Versions of a TFE Installation.",
+		Long:    "Work with Terraform Versions in a TFE Installation",
+		Example: `
+List all Terraform versions:
+tfx admin terraform-version list
+
+Search for a specific version:
+tfx admin terraform-version list --search 1.5
+
+Create a custom Terraform version:
+tfx admin terraform-version create --version 1.5.7 --url https://... --sha abc123...
+
+Create an official Terraform version:
+tfx admin terraform-version create official --version 1.5.7
+
+Show a Terraform version:
+tfx admin terraform-version show --version 1.5.7
+
+Delete a Terraform version:
+tfx admin terraform-version delete --version 1.5.7
+
+Enable specific versions:
+tfx admin terraform-version enable --versions 1.5.0,1.5.1
+
+Disable specific versions:
+tfx admin terraform-version disable --versions 1.4.0,1.4.1`,
 	}
 
-	// `tfx admin terraform-version list`
+	// `tfx admin terraform-version list` command
 	tfvListCmd = &cobra.Command{
 		Use:   "list",
 		Short: "List Terraform Versions",
-		Long:  "List Terraform Versions of a TFE Installation.",
+		Long:  "List Terraform Versions in a TFE Installation.",
+		Example: `
+tfx admin terraform-version list
+
+tfx admin terraform-version list --search 1.5`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return tfvList(
-				getTfxClientContext(),
-				*viperString("search"))
+			cmdConfig, err := flags.ParseAdminTerraformVersionListFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return tfvList(cmdConfig)
 		},
 	}
 
+	// `tfx admin terraform-version create` command
 	tfvCreateCmd = &cobra.Command{
 		Use:   "create",
 		Short: "Create Terraform Version",
-		Long:  "Create Terraform Version for a TFE Installation.",
+		Long:  "Create a custom Terraform Version for a TFE Installation.",
+		Example: `
+tfx admin terraform-version create --version 1.5.7 --url https://example.com/terraform.zip --sha abc123...`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_, err := viperSemanticVersionString("version")
+			cmdConfig, err := flags.ParseAdminTerraformVersionCreateFlags(cmd)
 			if err != nil {
-				return errors.New("failed to parse semantic version")
+				return err
 			}
-			_, err = viperShaString("sha")
-			if err != nil {
-				return errors.New("failed to parse semantic version")
-			}
-
-			return tfvCreate(
-				getTfxClientContext(),
-				*viperString("version"),
-				*viperString("url"),
-				*viperString("sha"),
-				*viperBool("official"),
-				!*viperBool("disable"),
-				*viperBool("beta"))
+			return tfvCreate(cmdConfig)
 		},
 	}
 
+	// `tfx admin terraform-version create official` command
 	tfvCreateOfficialCmd = &cobra.Command{
 		Use:   "official",
-		Short: "Create Terraform Version Official",
-		Long:  "Create Terraform Version Official for a TFE Installation.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			_, err := viperSemanticVersionString("version")
-			if err != nil {
-				return errors.New("failed to parse semantic version")
-			}
+		Short: "Create Official Terraform Version",
+		Long:  "Create a Terraform Version from official HashiCorp releases.",
+		Example: `
+tfx admin terraform-version create official --version 1.5.7
 
-			return tfvCreateOfficial(
-				getTfxClientContext(),
-				*viperString("version"),
-				!*viperBool("disable"),
-				*viperBool("beta"))
+tfx admin terraform-version create official --version 1.6.0 --beta`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmdConfig, err := flags.ParseAdminTerraformVersionCreateOfficialFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return tfvCreateOfficial(cmdConfig)
 		},
 	}
 
+	// `tfx admin terraform-version show` command
 	tfvShowCmd = &cobra.Command{
 		Use:   "show",
 		Short: "Show Terraform Version",
 		Long:  "Show Terraform Version details for a TFE Installation.",
+		Example: `
+tfx admin terraform-version show --version 1.5.7`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_, err := viperSemanticVersionString("version")
+			cmdConfig, err := flags.ParseAdminTerraformVersionShowFlags(cmd)
 			if err != nil {
-				return errors.New("failed to parse semantic version")
+				return err
 			}
-
-			return tfvShow(
-				getTfxClientContext(),
-				*viperString("version"))
+			return tfvShow(cmdConfig)
 		},
 	}
 
+	// `tfx admin terraform-version delete` command
 	tfvDeleteCmd = &cobra.Command{
 		Use:   "delete",
 		Short: "Delete Terraform Version",
-		Long:  "Delete Terraform Version for a TFE Installation.",
+		Long:  "Delete a Terraform Version from a TFE Installation.",
+		Example: `
+tfx admin terraform-version delete --version 1.5.7`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return tfvDelete(
-				getTfxClientContext(),
-				*viperString("version"))
+			cmdConfig, err := flags.ParseAdminTerraformVersionDeleteFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return tfvDelete(cmdConfig)
 		},
 	}
 
+	// `tfx admin terraform-version disable` command
 	tfvDisableCmd = &cobra.Command{
 		Use:   "disable",
-		Short: "Disable Terraform Version",
-		Long:  "Disable Terraform Version for a TFE Installation.",
+		Short: "Disable Terraform Versions",
+		Long:  "Disable one or more Terraform Versions in a TFE Installation.",
+		Example: `
+tfx admin terraform-version disable --versions 1.4.0,1.4.1`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return tfvDisable(
-				getTfxClientContext(),
-				viperStringSlice("versions"))
+			cmdConfig, err := flags.ParseAdminTerraformVersionEnableDisableFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return tfvDisable(cmdConfig)
 		},
 	}
 
+	// `tfx admin terraform-version disable all` command
 	tfvDisableAllCmd = &cobra.Command{
 		Use:   "all",
 		Short: "Disable All Terraform Versions",
-		Long:  "Disable All Terraform Versions for a TFE Installation.",
+		Long:  "Disable All Terraform Versions in a TFE Installation.",
+		Example: `
+tfx admin terraform-version disable all`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return tfvDisableAll(
-				getTfxClientContext())
+			cmdConfig, err := flags.ParseAdminTerraformVersionEnableDisableFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return tfvDisableAll(cmdConfig)
 		},
 	}
 
+	// `tfx admin terraform-version enable` command
 	tfvEnableCmd = &cobra.Command{
 		Use:   "enable",
-		Short: "Enable Terraform Version",
-		Long:  "Enable Terraform Version for a TFE Installation.",
+		Short: "Enable Terraform Versions",
+		Long:  "Enable one or more Terraform Versions in a TFE Installation.",
+		Example: `
+tfx admin terraform-version enable --versions 1.5.0,1.5.1`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return tfvEnable(
-				getTfxClientContext(),
-				viperStringSlice("versions"))
+			cmdConfig, err := flags.ParseAdminTerraformVersionEnableDisableFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return tfvEnable(cmdConfig)
 		},
 	}
 
+	// `tfx admin terraform-version enable all` command
 	tfvEnableAllCmd = &cobra.Command{
 		Use:   "all",
-		Short: "Disable All Terraform Versions",
-		Long:  "Disable All Terraform Versions for a TFE Installation.",
+		Short: "Enable All Terraform Versions",
+		Long:  "Enable All Terraform Versions in a TFE Installation.",
+		Example: `
+tfx admin terraform-version enable all`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return tfvEnableAll(
-				getTfxClientContext())
+			cmdConfig, err := flags.ParseAdminTerraformVersionEnableDisableFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return tfvEnableAll(cmdConfig)
 		},
 	}
 )
 
 func init() {
 	// `tfx admin terraform-version list` flags
-	tfvListCmd.Flags().StringP("search", "s", "", "Search string for partial version string (optional).")
-	// tfvListCmd.Flags().StringP("enabled", "e", "", "Filter on enabled Terraform Versions, if set must be ['true', 'false']")
-	// tfvListCmd.Flags().StringP("official", "o", "", "Filter on official Terraform Versions, if set must be ['true', 'false']")
-	// tfvListCmd.Flags().StringP("beta", "b", "", "Filter on beta Terraform Versions, if set must be ['true', 'false']")
+	tfvListCmd.Flags().StringP("search", "s", "", "Search string for partial version string (optional)")
 
-	// `tfx tfv show`
-	tfvShowCmd.Flags().StringP("version", "v", "", "Terraform Version (i.e. 0.15.0)")
+	// `tfx admin terraform-version show` flags
+	tfvShowCmd.Flags().StringP("version", "v", "", "Terraform Version (e.g., 1.5.0)")
 	tfvShowCmd.MarkFlagRequired("version")
 
-	// `tfx tfv create`
-	tfvCreateCmd.Flags().StringP("version", "v", "", "Version of Terraform (i.e. 0.15.0)")
-	tfvCreateCmd.Flags().StringP("url", "u", "", "Url of a hosted file containing Terraform (i.e. https://terraform.io...)")
-	tfvCreateCmd.Flags().StringP("sha", "s", "", "Sha checksum of the file at the url, must be 64 characters long")
+	// `tfx admin terraform-version create` flags
+	tfvCreateCmd.Flags().StringP("version", "v", "", "Version of Terraform (e.g., 1.5.0)")
+	tfvCreateCmd.Flags().StringP("url", "u", "", "URL of a hosted file containing Terraform (e.g., https://terraform.io...)")
+	tfvCreateCmd.Flags().StringP("sha", "s", "", "SHA-256 checksum of the file at the url (must be 64 characters long)")
 	tfvCreateCmd.Flags().BoolP("official", "", false, "Terraform Version is official (optional)")
 	tfvCreateCmd.Flags().BoolP("disable", "", false, "Created Terraform Version will be disabled (optional)")
 	tfvCreateCmd.Flags().BoolP("beta", "", false, "Terraform Version is beta (optional)")
@@ -190,21 +213,22 @@ func init() {
 	tfvCreateCmd.MarkFlagRequired("url")
 	tfvCreateCmd.MarkFlagRequired("sha")
 
-	// `tfx tfv create official`
-	tfvCreateOfficialCmd.Flags().StringP("version", "v", "", "Version of Terraform (i.e. 0.15.0)")
+	// `tfx admin terraform-version create official` flags
+	tfvCreateOfficialCmd.Flags().StringP("version", "v", "", "Version of Terraform (e.g., 1.5.0)")
 	tfvCreateOfficialCmd.Flags().BoolP("disable", "", false, "Created Terraform Version will be disabled (optional)")
 	tfvCreateOfficialCmd.Flags().BoolP("beta", "", false, "Terraform Version is beta (optional)")
 	tfvCreateOfficialCmd.MarkFlagRequired("version")
 
-	// `tfx tfv delete`
-	tfvDeleteCmd.Flags().StringP("version", "v", "", "Terraform Version (i.e. 0.15.0)")
+	// `tfx admin terraform-version delete` flags
+	tfvDeleteCmd.Flags().StringP("version", "v", "", "Terraform Version (e.g., 1.5.0)")
+	tfvDeleteCmd.MarkFlagRequired("version")
 
-	// `tfx tfv disable`
-	tfvDisableCmd.Flags().StringSliceP("versions", "v", []string{}, "Versions to disable, can be comma separated (i.e. 0.11.0,0.11.1)")
+	// `tfx admin terraform-version disable` flags
+	tfvDisableCmd.Flags().StringSliceP("versions", "v", []string{}, "Versions to disable, can be comma separated (e.g., 1.4.0,1.4.1)")
 	tfvDisableCmd.MarkFlagRequired("versions")
 
-	// `tfx tfv enable`
-	tfvEnableCmd.Flags().StringSliceP("versions", "v", []string{}, "Versions to enable, can be comma separated (i.e. 0.11.0,0.11.1)")
+	// `tfx admin terraform-version enable` flags
+	tfvEnableCmd.Flags().StringSliceP("versions", "v", []string{}, "Versions to enable, can be comma separated (e.g., 1.5.0,1.5.1)")
 	tfvEnableCmd.MarkFlagRequired("versions")
 
 	adminCmd.AddCommand(tfvCmd)
@@ -219,244 +243,220 @@ func init() {
 	tfvEnableCmd.AddCommand(tfvEnableAllCmd)
 }
 
-func adminTFVListAll(c TfxClientContext, filter string, search string) ([]*tfe.AdminTerraformVersion, error) {
-	allItems := []*tfe.AdminTerraformVersion{}
-	opts := tfe.AdminTerraformVersionsListOptions{
-		ListOptions: tfe.ListOptions{PageNumber: 1, PageSize: 100},
-		Filter:      filter,
-		Search:      search,
-	}
-	for {
-		items, err := c.Client.Admin.TerraformVersions.List(c.Context, &opts)
-		if err != nil {
-			return nil, err
-		}
+func tfvList(cmdConfig *flags.AdminTerraformVersionListFlags) error {
+	// Create view for rendering
+	v := view.NewAdminTerraformVersionListView()
 
-		allItems = append(allItems, items.Items...)
-		if items.CurrentPage >= items.TotalPages {
-			break
-		}
-		opts.PageNumber = items.NextPage
+	c, err := client.NewFromViper()
+	if err != nil {
+		return v.RenderError(err)
 	}
 
-	return allItems, nil
+	// Print command header
+	if cmdConfig.Search != "" {
+		v.PrintCommandHeader("Listing Terraform versions matching '%s'", cmdConfig.Search)
+	} else {
+		v.PrintCommandHeader("Listing all Terraform versions")
+	}
+
+	// Fetch Terraform versions
+	versions, err := data.FetchTerraformVersions(c, "", cmdConfig.Search)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to list terraform versions"))
+	}
+
+	return v.Render(versions)
 }
 
-func adminTFVGetVersion(c TfxClientContext, version string) (*tfe.AdminTerraformVersion, error) {
-	// Use the list all function, filter will return based on an exact version match
-	items, err := adminTFVListAll(c, version, "")
+func tfvShow(cmdConfig *flags.AdminTerraformVersionShowFlags) error {
+	// Create view for rendering
+	v := view.NewAdminTerraformVersionShowView()
+
+	c, err := client.NewFromViper()
 	if err != nil {
-		return nil, err
+		return v.RenderError(err)
 	}
 
-	if len(items) == 0 {
-		return nil, errors.New("terraform version not found")
-	} else if len(items) > 1 {
-		// unlikely to ever hit this, but just in case
-		return nil, errors.New("too many terraform versions found")
+	// Print command header
+	v.PrintCommandHeader("Showing Terraform version '%s'", cmdConfig.Version)
+
+	// Fetch Terraform version
+	tfv, err := data.FetchTerraformVersion(c, cmdConfig.Version)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to find terraform version"))
 	}
 
-	return items[0], nil
+	return v.Render(tfv)
 }
 
-func tfvList(c TfxClientContext, search string) error {
-	o.AddMessageUserProvided("List Terraform Versions for TFE", "")
-	items, err := adminTFVListAll(c, "", search)
+func tfvCreate(cmdConfig *flags.AdminTerraformVersionCreateFlags) error {
+	// Create view for rendering
+	v := view.NewAdminTerraformVersionCreateView()
+
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "failed to list terraform versions")
+		return v.RenderError(err)
 	}
 
-	o.AddTableHeader("Version", "Id", "Enabled", "Official", "Usage", "Deprecated")
-	for _, i := range items {
-		o.AddTableRows(i.Version, i.ID, i.Enabled, i.Official, i.Usage, i.Deprecated)
+	// Print command header
+	v.PrintCommandHeader("Creating Terraform version '%s'", cmdConfig.Version)
+
+	// Create Terraform version
+	tfv, err := data.CreateTerraformVersion(c, cmdConfig.Version, cmdConfig.URL, cmdConfig.SHA, cmdConfig.Official, cmdConfig.Enabled, cmdConfig.Beta)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "unable to create terraform version"))
 	}
 
-	return nil
+	return v.Render(tfv)
 }
 
-func tfvCreate(c TfxClientContext, version string, url string,
-	sha string, isOfficial bool, isEnabled bool, isBeta bool) error {
-	o.AddMessageUserProvided("Create Terraform Version:", version)
-	tfv, err := c.Client.Admin.TerraformVersions.Create(c.Context, tfe.AdminTerraformVersionCreateOptions{
-		Version:  tfe.String(version),
-		URL:      tfe.String(url),
-		Sha:      tfe.String(sha),
-		Official: tfe.Bool(isOfficial),
-		Enabled:  tfe.Bool(isEnabled),
-		Beta:     tfe.Bool(isBeta),
-	})
+func tfvCreateOfficial(cmdConfig *flags.AdminTerraformVersionCreateOfficialFlags) error {
+	// Create view for rendering
+	v := view.NewAdminTerraformVersionCreateView()
+
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "unable to create terraform version")
+		return v.RenderError(err)
 	}
 
-	o.AddDeferredMessageRead("Version", tfv.Version)
-	o.AddDeferredMessageRead("ID", tfv.ID)
-	o.AddDeferredMessageRead("URL", tfv.URL)
-	o.AddDeferredMessageRead("Sha", tfv.Sha)
-	o.AddDeferredMessageRead("Enabled", tfv.Enabled)
-	o.AddDeferredMessageRead("Beta", tfv.Beta)
+	// Print command header
+	v.PrintCommandHeader("Creating official Terraform version '%s'", cmdConfig.Version)
+	v.PrintCommandHeader("Searching for official Terraform version in HashiCorp releases...")
 
-	return nil
+	// Create official Terraform version
+	tfv, err := data.CreateOfficialTerraformVersion(c, cmdConfig.Version, cmdConfig.Enabled, cmdConfig.Beta)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "unable to create terraform version"))
+	}
+
+	return v.Render(tfv)
 }
 
-func tfvCreateOfficial(c TfxClientContext, version string, isEnabled bool, isBeta bool) error {
-	url := fmt.Sprintf(
-		"https://releases.hashicorp.com/terraform/%s/terraform_%s_linux_amd64.zip",
-		version,
-		version,
-	)
-	urlSha := fmt.Sprintf(
-		"https://releases.hashicorp.com/terraform/%s/terraform_%s_SHA256SUMS",
-		version,
-		version,
-	)
+func tfvDelete(cmdConfig *flags.AdminTerraformVersionDeleteFlags) error {
+	// Create view for rendering
+	v := view.NewAdminTerraformVersionDeleteView()
 
-	o.AddMessageUserProvided("Searching for official Terraform Version:", version)
-	clientChecksum := &http.Client{}
-	req, err := http.NewRequest("GET", urlSha, nil)
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "failed find official terraform version")
-	}
-	resp, err := clientChecksum.Do(req)
-	if err != nil || resp.StatusCode != 200 {
-		// if this fails, assume the version does not exist
-		return errors.New("failed find official terraform version")
-	}
-	defer resp.Body.Close()
-
-	b, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return errors.Wrap(err, "failed to read checksum")
-	}
-	// split by new line
-	var sha string
-	lines := strings.Split(string(b), "\n")
-	for _, l := range lines {
-		// looks for linux version
-		if strings.Contains(l, "linux_amd64") {
-			// only grab the checksum
-			innerLines := strings.Split(l, " ")
-			sha = innerLines[0]
-			break
-		}
-	}
-	o.AddMessageUserProvided("Terraform Version SHASUM:", sha)
-	err = tfvCreate(c, version, url, sha, true, isEnabled, isBeta)
-	if err != nil {
-		return errors.Wrap(err, "unable to create terraform version")
+		return v.RenderError(err)
 	}
 
-	return nil
+	// Print command header
+	v.PrintCommandHeader("Deleting Terraform version '%s'", cmdConfig.Version)
+
+	// Delete Terraform version
+	err = data.DeleteTerraformVersion(c, cmdConfig.Version)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to delete version"))
+	}
+
+	return v.Render()
 }
 
-func tfvShow(c TfxClientContext, version string) error {
-	o.AddMessageUserProvided("Show Terraform Version:", version)
-	tfv, err := adminTFVGetVersion(c, version)
+func tfvDisable(cmdConfig *flags.AdminTerraformVersionEnableDisableFlags) error {
+	// Create view for rendering
+	v := view.NewAdminTerraformVersionUpdateView()
+
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "failed to find terraform version")
+		return v.RenderError(err)
 	}
 
-	o.AddDeferredMessageRead("Version", tfv.Version)
-	o.AddDeferredMessageRead("ID", tfv.ID)
-	o.AddDeferredMessageRead("URL", tfv.URL)
-	o.AddDeferredMessageRead("Sha", tfv.Sha)
-	o.AddDeferredMessageRead("Enabled", tfv.Enabled)
-	o.AddDeferredMessageRead("Beta", tfv.Beta)
+	// Print command header
+	v.PrintCommandHeader("Disabling Terraform versions: %v", cmdConfig.Versions)
 
-	return nil
-}
-
-func tfvDelete(c TfxClientContext, version string) error {
-	o.AddMessageUserProvided("Delete Terraform Version:", version)
-	tfv, err := adminTFVGetVersion(c, version)
+	// Disable versions
+	results, err := data.UpdateTerraformVersions(c, cmdConfig.Versions, false)
 	if err != nil {
-		return errors.Wrap(err, "failed to find terraform version")
+		return v.RenderError(err)
 	}
 
-	// TODO: Need to verify an update wont bring these back
-	if tfv.Official {
-		o.AddMessageUserProvided("Forcing Terraform Version to be unofficial", "")
-		tfv, err = c.Client.Admin.TerraformVersions.Update(c.Context, tfv.ID, tfe.AdminTerraformVersionUpdateOptions{
-			Official: tfe.Bool(false),
-		})
-		if err != nil {
-			return errors.Wrap(err, "failed to set version to official to false")
-		}
-	}
+	return v.Render(results)
+}
 
-	// Delete Terraform Version
-	err = c.Client.Admin.TerraformVersions.Delete(c.Context, tfv.ID)
+func tfvDisableAll(cmdConfig *flags.AdminTerraformVersionEnableDisableFlags) error {
+	// Create view for rendering
+	v := view.NewAdminTerraformVersionUpdateView()
+
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "failed to delete version")
+		return v.RenderError(err)
 	}
 
-	o.AddMessageUserProvided("Variable Deleted:", version)
-	o.AddDeferredMessageRead("Status", "Success")
+	// Print command header
+	v.PrintCommandHeader("Disabling all Terraform versions")
 
-	return nil
-}
-
-func tfvDisable(c TfxClientContext, versions []string) error {
-	o.AddMessageUserProvided("Disable Terraform Versions:", versions)
-	return tfvUpdateVersions(c, versions, false)
-}
-
-func tfvDisableAll(c TfxClientContext) error {
-	o.AddMessageUserProvided("Disable All Terraform Versions", "")
-	items, err := adminTFVListAll(c, "", "")
+	// Fetch all versions
+	items, err := data.FetchTerraformVersions(c, "", "")
 	if err != nil {
-		return errors.Wrap(err, "failed to list terraform versions")
-	}
-	versions := []string{}
-	for _, v := range items {
-		versions = append(versions, v.Version)
+		return v.RenderError(errors.Wrap(err, "failed to list terraform versions"))
 	}
 
-	return tfvUpdateVersions(c, versions, false)
-}
+	// Extract version strings
+	versions := make([]string, len(items))
+	for i, v := range items {
+		versions[i] = v.Version
+	}
 
-func tfvEnable(c TfxClientContext, versions []string) error {
-	o.AddMessageUserProvided("Enable Terraform Versions:", versions)
-	return tfvUpdateVersions(c, versions, true)
-}
-
-func tfvEnableAll(c TfxClientContext) error {
-	o.AddMessageUserProvided("Enable All Terraform Versions", "")
-	items, err := adminTFVListAll(c, "", "")
+	// Disable all versions
+	results, err := data.UpdateTerraformVersions(c, versions, false)
 	if err != nil {
-		return errors.Wrap(err, "failed to list terraform versions")
-	}
-	versions := []string{}
-	for _, v := range items {
-		versions = append(versions, v.Version)
+		return v.RenderError(err)
 	}
 
-	return tfvUpdateVersions(c, versions, true)
+	return v.Render(results)
 }
 
-func tfvUpdateVersions(c TfxClientContext, versions []string, enabled bool) error {
-	opts := tfe.AdminTerraformVersionUpdateOptions{
-		Enabled: tfe.Bool(enabled),
+func tfvEnable(cmdConfig *flags.AdminTerraformVersionEnableDisableFlags) error {
+	// Create view for rendering
+	v := view.NewAdminTerraformVersionUpdateView()
+
+	c, err := client.NewFromViper()
+	if err != nil {
+		return v.RenderError(err)
 	}
 
-	for _, v := range versions {
-		tfv, err := adminTFVGetVersion(c, v)
-		if err != nil {
-			o.AddDeferredMessageRead(v, "failed to find terraform version")
-			continue
-		}
-		if !enabled && tfv.Usage > 0 { //can not disable a version with usage
-			o.AddDeferredMessageRead(v, "unable to disable a terraform version in use")
-			continue
-		}
+	// Print command header
+	v.PrintCommandHeader("Enabling Terraform versions: %v", cmdConfig.Versions)
 
-		tfv, err = c.Client.Admin.TerraformVersions.Update(c.Context, tfv.ID, opts)
-		if err == nil {
-			o.AddDeferredMessageRead(v, strconv.FormatBool(tfv.Enabled))
-		} else {
-			return errors.Wrap(err, "failed to update terraform version")
-		}
+	// Enable versions
+	results, err := data.UpdateTerraformVersions(c, cmdConfig.Versions, true)
+	if err != nil {
+		return v.RenderError(err)
 	}
 
-	return nil
+	return v.Render(results)
+}
+
+func tfvEnableAll(cmdConfig *flags.AdminTerraformVersionEnableDisableFlags) error {
+	// Create view for rendering
+	v := view.NewAdminTerraformVersionUpdateView()
+
+	c, err := client.NewFromViper()
+	if err != nil {
+		return v.RenderError(err)
+	}
+
+	// Print command header
+	v.PrintCommandHeader("Enabling all Terraform versions")
+
+	// Fetch all versions
+	items, err := data.FetchTerraformVersions(c, "", "")
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to list terraform versions"))
+	}
+
+	// Extract version strings
+	versions := make([]string, len(items))
+	for i, v := range items {
+		versions[i] = v.Version
+	}
+
+	// Enable all versions
+	results, err := data.UpdateTerraformVersions(c, versions, true)
+	if err != nil {
+		return v.RenderError(err)
+	}
+
+	return v.Render(results)
 }
