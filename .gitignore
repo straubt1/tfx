@@ -19,7 +19,7 @@ secrets.md
 .env*
 .DS_Store
 act.secret.env
-pkg/
+# pkg/
 debug/
 *notes.md
 demo.md

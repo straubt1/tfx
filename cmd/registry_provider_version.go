@@ -12,6 +12,7 @@ import (
 	"github.com/straubt1/tfx/cmd/flags"
 	view "github.com/straubt1/tfx/cmd/views"
 	"github.com/straubt1/tfx/data"
+	pkgfile "github.com/straubt1/tfx/pkg/file"
 )
 
 var (
@@ -49,10 +50,10 @@ var (
 			if _, err := viperSemanticVersionString("version"); err != nil {
 				return errors.New("invalid semantic version")
 			}
-			if !isFile(cmdConfig.Shasums) {
+			if !pkgfile.IsFile(cmdConfig.Shasums) {
 				return errors.New("shasums file does not exist")
 			}
-			if !isFile(cmdConfig.ShasumsSig) {
+			if !pkgfile.IsFile(cmdConfig.ShasumsSig) {
 				return errors.New("shasumssig file does not exist")
 			}
 			return registryProviderVersionCreate(cmdConfig)

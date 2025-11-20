@@ -11,6 +11,7 @@ import (
 	"github.com/straubt1/tfx/cmd/flags"
 	view "github.com/straubt1/tfx/cmd/views"
 	"github.com/straubt1/tfx/data"
+	pkgfile "github.com/straubt1/tfx/pkg/file"
 )
 
 var (
@@ -48,7 +49,7 @@ var (
 			if _, err := viperSemanticVersionString("version"); err != nil {
 				return errors.New("failed to parse semantic version")
 			}
-			if !isDirectory(cmdConfig.Directory) {
+			if !pkgfile.IsDirectory(cmdConfig.Directory) {
 				return errors.New("directory file does not exist")
 			}
 
@@ -87,7 +88,7 @@ var (
 			if err != nil {
 				return errors.New("failed to parse semantic version")
 			}
-			directory, err := getDirectory(cmdConfig.Directory, cmdConfig.Name, cmdConfig.Provider, cmdConfig.Version)
+			directory, err := pkgfile.GetDirectory(cmdConfig.Directory, cmdConfig.Name, cmdConfig.Provider, cmdConfig.Version)
 			if err != nil {
 				return err
 			}

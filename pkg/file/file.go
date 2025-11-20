@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright © 2025 Tom Straub <github.com/straubt1>
 
-package cmd
+package file
 
 import (
 	"errors"
@@ -12,7 +12,8 @@ import (
 	"github.com/straubt1/tfx/output"
 )
 
-func isFile(filename string) bool {
+// IsFile returns true if the given path is a file
+func IsFile(filename string) bool {
 	f, err := os.Stat(filename)
 	if err != nil || f == nil {
 		return false
@@ -25,7 +26,8 @@ func isFile(filename string) bool {
 	return true
 }
 
-func isDirectory(filename string) bool {
+// IsDirectory returns true if the given path is a directory
+func IsDirectory(filename string) bool {
 	f, err := os.Stat(filename)
 	if errors.Is(err, os.ErrNotExist) {
 		return false
@@ -36,7 +38,8 @@ func isDirectory(filename string) bool {
 	return true
 }
 
-func readFile(filename string) (string, error) {
+// ReadFile reads the contents of a file and returns it as a string
+func ReadFile(filename string) (string, error) {
 	b, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return "", nil
@@ -45,13 +48,14 @@ func readFile(filename string) (string, error) {
 	return string(b), nil
 }
 
-// Given a directory, validate it is a real directory
-// If no directory, create a temp directory
-// (optional) append a new folder structure depth
-// Return absolute path
-func getDirectory(directory string, additional ...string) (string, error) {
+// GetDirectory validates or creates a directory, optionally appending additional path segments.
+// Given a directory, validate it is a real directory.
+// If no directory, create a temp directory.
+// (optional) append a new folder structure depth.
+// Return absolute path.
+func GetDirectory(directory string, additional ...string) (string, error) {
 	if directory != "" {
-		if !isDirectory(directory) {
+		if !IsDirectory(directory) {
 			return "", errors.New("directory is not valid")
 		}
 	} else {

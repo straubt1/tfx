@@ -16,6 +16,7 @@ import (
 	"github.com/straubt1/tfx/cmd/flags"
 	view "github.com/straubt1/tfx/cmd/views"
 	"github.com/straubt1/tfx/data"
+	pkgfile "github.com/straubt1/tfx/pkg/file"
 )
 
 var (
@@ -56,7 +57,7 @@ var (
 			if _, err := viperSemanticVersionString("version"); err != nil {
 				return errors.Wrap(err, "Failed to Parse Semantic Version")
 			}
-			if !isFile(cmdConfig.Filename) {
+			if !pkgfile.IsFile(cmdConfig.Filename) {
 				return errors.New("filename does not exist")
 			}
 			return registryProviderVersionPlatformCreate(cmdConfig)

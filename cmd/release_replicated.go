@@ -13,6 +13,7 @@ import (
 	"github.com/mmcdole/gofeed"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	pkgfile "github.com/straubt1/tfx/pkg/file"
 )
 
 var (
@@ -49,7 +50,7 @@ var (
 			if err != nil {
 				return errors.New("failed to parse semantic version")
 			}
-			if !isDirectory(*viperString("directory")) {
+			if !pkgfile.IsDirectory(*viperString("directory")) {
 				return errors.New("directory file does not exist")
 			}
 

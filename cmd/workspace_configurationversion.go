@@ -13,6 +13,7 @@ import (
 	"github.com/straubt1/tfx/cmd/flags"
 	view "github.com/straubt1/tfx/cmd/views"
 	"github.com/straubt1/tfx/data"
+	pkgfile "github.com/straubt1/tfx/pkg/file"
 )
 
 var (
@@ -137,7 +138,7 @@ func cvCreate(cmdConfig *flags.CVCreateFlags) error {
 		return v.RenderError(err)
 	}
 
-	if !isDirectory(cmdConfig.Directory) {
+	if !pkgfile.IsDirectory(cmdConfig.Directory) {
 		return v.RenderError(errors.New("directory file does not exist"))
 	}
 
@@ -179,7 +180,7 @@ func cvDownload(cmdConfig *flags.CVDownloadFlags) error {
 
 	v.PrintCommandHeader("Downloading configuration version '%s'", cmdConfig.ID)
 
-	directory, err := getDirectory(cmdConfig.Directory, cmdConfig.ID)
+	directory, err := pkgfile.GetDirectory(cmdConfig.Directory, cmdConfig.ID)
 	if err != nil {
 		return v.RenderError(err)
 	}

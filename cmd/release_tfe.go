@@ -13,6 +13,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	pkgfile "github.com/straubt1/tfx/pkg/file"
 	"golang.org/x/exp/slices"
 )
 
@@ -61,7 +62,7 @@ var (
 		Short: "Download TFE release binary",
 		Long:  "Download a Terraform Enterprise release binary.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !isDirectory(*viperString("directory")) {
+			if !pkgfile.IsDirectory(*viperString("directory")) {
 				return errors.New("directory file does not exist")
 			}
 

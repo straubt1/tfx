@@ -12,6 +12,7 @@ import (
 	"github.com/straubt1/tfx/cmd/flags"
 	view "github.com/straubt1/tfx/cmd/views"
 	"github.com/straubt1/tfx/data"
+	pkgfile "github.com/straubt1/tfx/pkg/file"
 )
 
 var (
@@ -174,7 +175,7 @@ func stateDownload(cmdConfig *flags.StateDownloadFlags) error {
 	v.PrintCommandHeader("Downloading state version '%s'", cmdConfig.StateID)
 
 	// Determine filename to save
-	directory, err := getDirectory(cmdConfig.Directory, cmdConfig.StateID)
+	directory, err := pkgfile.GetDirectory(cmdConfig.Directory, cmdConfig.StateID)
 	if err != nil {
 		return v.RenderError(err)
 	}

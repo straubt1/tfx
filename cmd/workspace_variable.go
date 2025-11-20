@@ -11,6 +11,7 @@ import (
 	"github.com/straubt1/tfx/cmd/flags"
 	view "github.com/straubt1/tfx/cmd/views"
 	"github.com/straubt1/tfx/data"
+	pkgfile "github.com/straubt1/tfx/pkg/file"
 )
 
 var (
@@ -191,11 +192,11 @@ func variableCreate(cmdConfig *flags.VariableCreateFlags) error {
 	// Handle value from file if specified
 	value := cmdConfig.Value
 	if cmdConfig.ValueFile != "" {
-		if !isFile(cmdConfig.ValueFile) {
+		if !pkgfile.IsFile(cmdConfig.ValueFile) {
 			return v.RenderError(errors.New("valueFile does not exist"))
 		}
 		v.PrintCommandFilter("Variable filename contents will be used: %s", cmdConfig.ValueFile)
-		value, err = readFile(cmdConfig.ValueFile)
+		value, err = pkgfile.ReadFile(cmdConfig.ValueFile)
 		if err != nil {
 			return v.RenderError(errors.Wrap(err, "unable to read the file passed"))
 		}
@@ -249,11 +250,11 @@ func variableUpdate(cmdConfig *flags.VariableUpdateFlags) error {
 	// Handle value from file if specified
 	value := cmdConfig.Value
 	if cmdConfig.ValueFile != "" {
-		if !isFile(cmdConfig.ValueFile) {
+		if !pkgfile.IsFile(cmdConfig.ValueFile) {
 			return v.RenderError(errors.New("valueFile does not exist"))
 		}
 		v.PrintCommandFilter("Variable filename contents will be used: %s", cmdConfig.ValueFile)
-		value, err = readFile(cmdConfig.ValueFile)
+		value, err = pkgfile.ReadFile(cmdConfig.ValueFile)
 		if err != nil {
 			return v.RenderError(errors.Wrap(err, "unable to read the file passed"))
 		}
