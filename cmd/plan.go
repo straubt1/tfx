@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/go-slug"
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/spf13/cobra"
+	"github.com/straubt1/tfx/client"
 )
 
 var (
@@ -62,8 +63,6 @@ func init() {
 
 func runPlan() error {
 	// Validate flags
-	hostname := *viperString("tfeHostname")
-	orgName := *viperString("tfeOrganization")
 	wsName := *viperString("workspace-name")
 	dir := *viperString("directory")
 	configID := *viperString("configuration-id")
@@ -72,10 +71,13 @@ func runPlan() error {
 	isDestroy := *viperBool("destroy")
 	envs, err := viperStringSliceMap("env")
 	if err != nil {
-		logError(err, "failed to parse provided environment variables")
+		return err
 	}
 	// message := "Plan created by TFx"
-	client, ctx := getClientContext()
+	c, err := client.NewFromViper()
+	if err != nil {
+		return err
+	}
 
 	fmt.Println("Remote Terraform Plan, speculative plan:", color.GreenString(strconv.FormatBool(isSpeculative)),
 		" destroy plan:", color.GreenString(strconv.FormatBool(isDestroy)))
@@ -83,27 +85,27 @@ func runPlan() error {
 
 	// Read workspace
 	fmt.Print("Reading Workspace ", color.GreenString(wsName), " for ID...")
-	w, err := client.Workspaces.Read(ctx, orgName, wsName)
+	w, err := c.Client.Workspaces.Read(c.Context, c.OrganizationName, wsName)
 	if err != nil {
-		logError(err, "failed to read workspace id")
+		return err
 	}
 	fmt.Println(" Found:", color.BlueString(w.ID))
 
 	// Update environment variables
-	err = createOrUpdateEnvVariables(ctx, client, w.ID, envs)
+	err = createOrUpdateEnvVariables(c.Context, c.Client, w.ID, envs)
 	if err != nil {
-		logError(err, "failed to write environment variables to workspace")
+		return err
 	}
 
 	// Create config version
-	cv, err := createOrReadConfigurationVersion(ctx, client, w.ID, configID, dir, isSpeculative)
+	cv, err := createOrReadConfigurationVersion(c.Context, c.Client, w.ID, configID, dir, isSpeculative)
 	if err != nil {
-		logError(err, "failed to create configuration version")
+		return err
 	}
 
 	// Create run
 	var r *tfe.Run
-	r, err = client.Runs.Create(ctx, tfe.RunCreateOptions{
+	r, err = c.Client.Runs.Create(c.Context, tfe.RunCreateOptions{
 		IsDestroy:            tfe.Bool(isDestroy),
 		Message:              tfe.String(message),
 		ConfigurationVersion: cv,
@@ -111,28 +113,28 @@ func runPlan() error {
 		// TargetAddrs:          []string{"random_pet.two"},
 	})
 	if err != nil {
-		logError(err, "failed to create run")
+		return err
 	}
 	fmt.Println("Workspace Run Created, Run Id:", color.BlueString(r.ID), "Config Version:", color.BlueString(r.ConfigurationVersion.ID))
-	fmt.Println("Navigate:", "https://"+hostname+"/app/"+orgName+"/workspaces/"+wsName+"/runs/"+r.ID)
+	fmt.Println("Navigate:", "https://"+c.Hostname+"/app/"+c.OrganizationName+"/workspaces/"+wsName+"/runs/"+r.ID)
 	fmt.Println()
 
 	// Get Run Logs
-	err = getRunLogs(ctx, client, r.Plan.ID)
+	err = getRunLogs(c.Context, c.Client, r.Plan.ID)
 	if err != nil {
-		logError(err, "failed to read run logs")
+		return err
 	}
 
 	// Get Cost Estimation Logs (if any)
-	err = getCostEstimationLogs(ctx, client, r)
+	err = getCostEstimationLogs(c.Context, c.Client, r)
 	if err != nil {
-		logError(err, "failed to read cost estimation logs")
+		return err
 	}
 
 	// Get Policy Logs (if any)
-	err = getPolicyLogs(ctx, client, r)
+	err = getPolicyLogs(c.Context, c.Client, r)
 	if err != nil {
-		logError(err, "failed to read policy logs")
+		return err
 	}
 
 	fmt.Println("Run Complete:", r.ID)
@@ -143,24 +145,27 @@ func runPlan() error {
 func runPlanExport() error {
 	planID := *viperString("plan-id")
 	directory := *viperString("directory")
-	client, ctx := getClientContext()
+	c, err := client.NewFromViper()
+	if err != nil {
+		return err
+	}
 
 	fmt.Print("Reading Plan Export for Plan ID ", color.GreenString(planID), " ...")
-	plan, err := client.Plans.Read(ctx, planID)
+	plan, err := c.Client.Plans.Read(c.Context, planID)
 	if err != nil {
-		logError(err, "failed to read Plan ")
+		return err
 	}
 	fmt.Println(" Found")
 
 	var planExportID string
 	if plan.Exports == nil {
 		fmt.Print("Creating Plan Export ...")
-		planExport, err := client.PlanExports.Create(ctx, tfe.PlanExportCreateOptions{
+		planExport, err := c.Client.PlanExports.Create(c.Context, tfe.PlanExportCreateOptions{
 			Plan:     plan,
 			DataType: tfe.PlanExportType(tfe.PlanExportSentinelMockBundleV0),
 		})
 		if err != nil {
-			logError(err, "failed to read Plan ")
+			return err
 		}
 		planExportID = planExport.ID
 	} else {
@@ -168,9 +173,9 @@ func runPlanExport() error {
 		planExportID = plan.Exports[0].ID // Just grab the first one?
 	}
 	fmt.Println("ID ", color.BlueString(planExportID))
-	buff, err := client.PlanExports.Download(ctx, planExportID)
+	buff, err := c.Client.PlanExports.Download(c.Context, planExportID)
 	if err != nil {
-		logError(err, "failed to download plan export")
+		return err
 	}
 	reader := bytes.NewReader(buff)
 
@@ -178,19 +183,19 @@ func runPlanExport() error {
 	if directory != "" {
 		directory, err = filepath.Abs(directory)
 		if err != nil {
-			logError(err, "invalid path")
+			return err
 		}
 	} else {
 		fmt.Println("Directory not supplied, creating a temp directory")
 		dst, err := ioutil.TempDir("", "slug")
 		if err != nil {
-			logError(err, "failed to create directory")
+			return err
 		}
 		directory = dst
 	}
 
 	if err := slug.Unpack(reader, directory); err != nil {
-		logError(err, "failed to unpack")
+		return err
 	}
 
 	fmt.Println("Downloaded: ", color.BlueString(directory))

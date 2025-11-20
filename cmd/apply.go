@@ -12,6 +12,7 @@ import (
 	"github.com/fatih/color"
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/spf13/cobra"
+	"github.com/straubt1/tfx/client"
 )
 
 var (
@@ -39,46 +40,46 @@ func runApply() error {
 	// var err error
 
 	// Validate flags
-	hostname := *viperString("tfeHostname")
-	orgName := *viperString("tfeOrganization")
 	runID := *viperString("run-id")
 
-	client, ctx := getClientContext()
+	c, err := client.NewFromViper()
+	if err != nil {
+		return err
+	}
 
 	// Verify run can be applied
 	var r *tfe.Run
-	r, err := client.Runs.Read(ctx, runID)
+	r, err = c.Client.Runs.Read(c.Context, runID)
 	if err != nil {
-		logError(err, "failed to read run")
+		return err
 	}
 
 	if !runCanBeApplied(string(r.Status)) {
-		logError(errors.New("run id "+r.ID+" can not be applied. status: "+string(r.Status)),
-			"Unable to apply run")
+		return errors.New("run id " + r.ID + " can not be applied. status: " + string(r.Status))
 	}
 
 	// Create Apply
-	err = client.Runs.Apply(ctx, r.ID, tfe.RunApplyOptions{
+	err = c.Client.Runs.Apply(c.Context, r.ID, tfe.RunApplyOptions{
 		Comment: tfe.String("TFx did the apply"),
 	})
 	if err != nil {
-		logError(err, "failed to create apply")
+		return err
 	}
 
 	// Retrieve workspace name using the ID for the URL
-	workspace, err := client.Workspaces.ReadByID(ctx, r.Workspace.ID)
+	workspace, err := c.Client.Workspaces.ReadByID(c.Context, r.Workspace.ID)
 	if err != nil {
-		logError(err, "failed to read workspace")
+		return err
 	}
 	wsName := workspace.Name
 
 	fmt.Println("Workspace Apply Created, Apply Id:", color.BlueString(r.Apply.ID))
-	fmt.Println("Navigate:", "https://"+hostname+"/app/"+orgName+"/workspaces/"+wsName+"/runs/"+r.ID)
+	fmt.Println("Navigate:", "https://"+c.Hostname+"/app/"+c.OrganizationName+"/workspaces/"+wsName+"/runs/"+r.ID)
 	fmt.Println()
 
-	getApplyLogs(ctx, client, r.Apply.ID)
+	err = getApplyLogs(c.Context, c.Client, r.Apply.ID)
 	if err != nil {
-		logError(err, "failed to read apply logs")
+		return err
 	}
 
 	fmt.Println("Apply Complete:", r.Apply.ID)
