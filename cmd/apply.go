@@ -1,3 +1,5 @@
+//go:build ignore
+
 // Copyright © 2021 Tom Straub <github.com/straubt1>
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
