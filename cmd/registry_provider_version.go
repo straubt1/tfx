@@ -6,6 +6,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/coreos/go-semver/semver"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/straubt1/tfx/client"
@@ -47,7 +48,7 @@ var (
 			if err != nil {
 				return err
 			}
-			if _, err := viperSemanticVersionString("version"); err != nil {
+			if _, err := semver.NewVersion(cmdConfig.Version); err != nil {
 				return errors.New("invalid semantic version")
 			}
 			if !pkgfile.IsFile(cmdConfig.Shasums) {
@@ -70,7 +71,7 @@ var (
 			if err != nil {
 				return err
 			}
-			if _, err := viperSemanticVersionString("version"); err != nil {
+			if _, err := semver.NewVersion(cmdConfig.Version); err != nil {
 				return errors.New("invalid semantic version")
 			}
 			return registryProviderVersionShow(cmdConfig)
@@ -87,7 +88,7 @@ var (
 			if err != nil {
 				return err
 			}
-			if _, err := viperSemanticVersionString("version"); err != nil {
+			if _, err := semver.NewVersion(cmdConfig.Version); err != nil {
 				return errors.New("invalid semantic version")
 			}
 			return registryProviderVersionDelete(cmdConfig)

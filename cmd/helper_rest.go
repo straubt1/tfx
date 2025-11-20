@@ -21,17 +21,18 @@ import (
 	"github.com/fatih/color"
 	"github.com/hashicorp/go-slug"
 	"github.com/hashicorp/go-tfe"
+	"github.com/spf13/viper"
+	"github.com/straubt1/tfx/client"
 )
 
-func DownloadModule(token string, tfeHostname string, orgName string, moduleName string,
+func DownloadModule(c *client.TfxClient, moduleName string,
 	providerName string, moduleVersion string, directory string) (string, error) {
 
-	tfeClient, ctx := getClientContext()
-	pmr, err := tfeClient.RegistryModules.Read(ctx, tfe.RegistryModuleID{
-		Organization: orgName,
+	pmr, err := c.Client.RegistryModules.Read(c.Context, tfe.RegistryModuleID{
+		Organization: c.OrganizationName,
 		Name:         moduleName,
 		Provider:     providerName,
-		Namespace:    orgName,
+		Namespace:    c.OrganizationName,
 		RegistryName: tfe.PrivateRegistry,
 	})
 	if err != nil || pmr == nil {
@@ -41,14 +42,14 @@ func DownloadModule(token string, tfeHostname string, orgName string, moduleName
 	// create url
 	url := fmt.Sprintf(
 		"https://%s/api/registry/v1/modules/%s/%s/%s/%s/download",
-		tfeHostname,
-		orgName,
+		c.Hostname,
+		c.OrganizationName,
 		moduleName,
 		providerName,
 		moduleVersion,
 	)
 	// create http Client to make calls
-	client := &http.Client{}
+	httpClient := &http.Client{}
 
 	// create request
 	req, err := http.NewRequest("GET", url, nil)
@@ -57,11 +58,11 @@ func DownloadModule(token string, tfeHostname string, orgName string, moduleName
 	}
 
 	// add headers
-	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Authorization", "Bearer "+viper.GetString("tfeToken"))
 	req.Header.Set("Accept", "application/vnd.api+json")
 
 	// make request
-	resp, err := client.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -74,14 +75,14 @@ func DownloadModule(token string, tfeHostname string, orgName string, moduleName
 		return "", errors.New("did not get a download Link")
 	}
 
-	client2 := http.Client{
+	httpClient2 := http.Client{
 		CheckRedirect: func(r *http.Request, via []*http.Request) error {
 			r.URL.Opaque = downloadURL
 			return nil
 		},
 	}
 	// Put content on file
-	resp, err = client2.Get(downloadURL)
+	resp, err = httpClient2.Get(downloadURL)
 	if err != nil {
 		return "", err
 	}
@@ -130,51 +131,51 @@ type GPGList struct {
 	// } `json:"links"`
 }
 
-func ListGPGKeys(c TfxClientContext) (*GPGList, error) {
-	// TODO: No pagination, waiting on go-tfe to provide a List function since it is unlikely an org would have more than 100 keys
-	// create url "https://${HOST}/api/registry/private/v2/gpg-keys?filter%5Bnamespace%5D=${provider_namespace}"
-	url := fmt.Sprintf(
-		"https://%s/api/registry/private/v2/gpg-keys?filter[namespace]=%s",
-		c.Hostname,
-		c.OrganizationName,
-	)
-	// create http Client to make calls
-	client := &http.Client{}
+// func ListGPGKeys(c TfxClientContext) (*GPGList, error) {
+// 	// TODO: No pagination, waiting on go-tfe to provide a List function since it is unlikely an org would have more than 100 keys
+// 	// create url "https://${HOST}/api/registry/private/v2/gpg-keys?filter%5Bnamespace%5D=${provider_namespace}"
+// 	url := fmt.Sprintf(
+// 		"https://%s/api/registry/private/v2/gpg-keys?filter[namespace]=%s",
+// 		c.Hostname,
+// 		c.OrganizationName,
+// 	)
+// 	// create http Client to make calls
+// 	client := &http.Client{}
 
-	// create request
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
+// 	// create request
+// 	req, err := http.NewRequest("GET", url, nil)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	// add headers
-	req.Header.Set("Authorization", "Bearer "+c.Token)
-	req.Header.Set("Accept", "application/vnd.api+json")
+// 	// add headers
+// 	req.Header.Set("Authorization", "Bearer "+c.Token)
+// 	req.Header.Set("Accept", "application/vnd.api+json")
 
-	// make request
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
+// 	// make request
+// 	resp, err := client.Do(req)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	// wait for complete
-	defer resp.Body.Close()
+// 	// wait for complete
+// 	defer resp.Body.Close()
 
-	// read all bytes, convert to object
-	bodyBytes, _ := ioutil.ReadAll(resp.Body)
+// 	// read all bytes, convert to object
+// 	bodyBytes, _ := ioutil.ReadAll(resp.Body)
 
-	// bodyString := string(bodyBytes)
-	// fmt.Println("API Response as String:\n" + bodyString)
+// 	// bodyString := string(bodyBytes)
+// 	// fmt.Println("API Response as String:\n" + bodyString)
 
-	// Convert response body to Todo struct
-	var keys *GPGList
-	err = json.Unmarshal(bodyBytes, &keys)
-	if err != nil {
-		return nil, err
-	}
+// 	// Convert response body to Todo struct
+// 	var keys *GPGList
+// 	err = json.Unmarshal(bodyBytes, &keys)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	return keys, nil
-}
+// 	return keys, nil
+// }
 
 type TFEBinaries struct {
 	Releases []TFERelease

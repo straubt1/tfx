@@ -182,30 +182,3 @@ func workspaceShow(cmdConfig *flags.WorkspaceShowFlags) error {
 
 	return v.Render(c.OrganizationName, workspace, currentRun, teamNames, remoteStateConsumers)
 }
-
-// Legacy helper functions for backward compatibility with other workspace commands
-// These are thin wrappers around the data layer functions
-// TODO: Delete these in future major version
-
-func workspaceListAllForOrganization(c TfxClientContext, orgName string, searchString string, projectID string) ([]*tfe.Workspace, error) {
-	tfxClient := &client.TfxClient{
-		Client:           c.Client,
-		Context:          c.Context,
-		OrganizationName: c.OrganizationName,
-	}
-	// TODO: do we need the same filters as without -a
-	options := &flags.WorkspaceListFlags{
-		Search:    searchString,
-		ProjectID: projectID,
-	}
-	return data.FetchWorkspaces(tfxClient, orgName, options)
-}
-
-func organizationListAll(c TfxClientContext) ([]*tfe.Organization, error) {
-	tfxClient := &client.TfxClient{
-		Client:           c.Client,
-		Context:          c.Context,
-		OrganizationName: c.OrganizationName,
-	}
-	return data.FetchOrganizations(tfxClient, "")
-}

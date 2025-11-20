@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/coreos/go-semver/semver"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/straubt1/tfx/client"
@@ -37,7 +38,7 @@ var (
 			if err != nil {
 				return err
 			}
-			if _, err := viperSemanticVersionString("version"); err != nil {
+			if _, err := semver.NewVersion(cmdConfig.Version); err != nil {
 				return errors.Wrap(err, "Failed to Parse Semantic Version")
 			}
 			return registryProviderVersionPlatformList(cmdConfig)
@@ -54,7 +55,7 @@ var (
 			if err != nil {
 				return err
 			}
-			if _, err := viperSemanticVersionString("version"); err != nil {
+			if _, err := semver.NewVersion(cmdConfig.Version); err != nil {
 				return errors.Wrap(err, "Failed to Parse Semantic Version")
 			}
 			if !pkgfile.IsFile(cmdConfig.Filename) {
@@ -74,7 +75,7 @@ var (
 			if err != nil {
 				return err
 			}
-			if _, err := viperSemanticVersionString("version"); err != nil {
+			if _, err := semver.NewVersion(cmdConfig.Version); err != nil {
 				return errors.Wrap(err, "Failed to Parse Semantic Version")
 			}
 			return registryProviderVersionPlatformShow(cmdConfig)
@@ -91,7 +92,7 @@ var (
 			if err != nil {
 				return err
 			}
-			if _, err := viperSemanticVersionString("version"); err != nil {
+			if _, err := semver.NewVersion(cmdConfig.Version); err != nil {
 				return errors.Wrap(err, "Failed to Parse Semantic Version")
 			}
 			return registryProviderVersionPlatformDelete(cmdConfig)

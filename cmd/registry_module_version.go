@@ -4,9 +4,9 @@
 package cmd
 
 import (
+	"github.com/coreos/go-semver/semver"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"github.com/straubt1/tfx/client"
 	"github.com/straubt1/tfx/cmd/flags"
 	view "github.com/straubt1/tfx/cmd/views"
@@ -46,7 +46,7 @@ var (
 			if err != nil {
 				return err
 			}
-			if _, err := viperSemanticVersionString("version"); err != nil {
+			if _, err := semver.NewVersion(cmdConfig.Version); err != nil {
 				return errors.New("failed to parse semantic version")
 			}
 			if !pkgfile.IsDirectory(cmdConfig.Directory) {
@@ -67,7 +67,7 @@ var (
 			if err != nil {
 				return err
 			}
-			if _, err := viperSemanticVersionString("version"); err != nil {
+			if _, err := semver.NewVersion(cmdConfig.Version); err != nil {
 				return errors.New("failed to parse semantic version")
 			}
 			return registryModuleVersionDelete(cmdConfig)
@@ -84,8 +84,7 @@ var (
 			if err != nil {
 				return err
 			}
-			moduleVersion, err := viperSemanticVersionString("version")
-			if err != nil {
+			if _, err := semver.NewVersion(cmdConfig.Version); err != nil {
 				return errors.New("failed to parse semantic version")
 			}
 			directory, err := pkgfile.GetDirectory(cmdConfig.Directory, cmdConfig.Name, cmdConfig.Provider, cmdConfig.Version)
@@ -93,7 +92,6 @@ var (
 				return err
 			}
 			cmdConfig.Directory = directory
-			cmdConfig.Version = moduleVersion
 			return registryModuleVersionDownload(cmdConfig)
 		},
 	}
@@ -189,8 +187,7 @@ func registryModuleVersionDownload(cmdConfig *flags.RegistryModuleVersionDownloa
 		return v.RenderError(err)
 	}
 	v.PrintCommandHeader("Downloading Module Version: %s", cmdConfig.Name)
-	token := viper.GetString("tfeToken")
-	_, err = DownloadModule(token, c.Hostname, c.OrganizationName, cmdConfig.Name, cmdConfig.Provider, cmdConfig.Version, cmdConfig.Directory)
+	_, err = DownloadModule(c, cmdConfig.Name, cmdConfig.Provider, cmdConfig.Version, cmdConfig.Directory)
 	if err != nil {
 		return v.RenderError(errors.Wrap(err, "failed to download module"))
 	}

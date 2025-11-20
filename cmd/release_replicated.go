@@ -10,6 +10,7 @@ import (
 	"math"
 	"strings"
 
+	"github.com/coreos/go-semver/semver"
 	"github.com/mmcdole/gofeed"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -46,8 +47,8 @@ var (
 		Short: "Download a Replicated release binary",
 		Long:  "Download a Replicated release binary.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			version, err := viperSemanticVersionString("version")
-			if err != nil {
+			version := *viperString("version")
+			if _, err := semver.NewVersion(version); err != nil {
 				return errors.New("failed to parse semantic version")
 			}
 			if !pkgfile.IsDirectory(*viperString("directory")) {
