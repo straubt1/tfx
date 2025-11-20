@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright © 2025 Tom Straub <github.com/straubt1>
+
 // root_test_helpers.go
 //
 // This file is only compiled when running tests (go test) because it doesn't
