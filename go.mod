@@ -10,7 +10,7 @@ require (
 	github.com/fatih/color v1.18.0
 	github.com/go-viper/encoding/hcl v0.1.0
 	github.com/hashicorp/go-slug v0.16.8
-	github.com/hashicorp/go-tfe v1.93.0
+	github.com/hashicorp/go-tfe v1.96.0
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/jedib0t/go-pretty/v6 v6.6.8
 	github.com/logrusorgru/aurora v2.0.3+incompatible
@@ -66,5 +66,5 @@ require (
 	golang.org/x/exp v0.0.0-20251002181428-27f1f14c8bb9
 	golang.org/x/sys v0.36.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
-	golang.org/x/time v0.13.0 // indirect
+	golang.org/x/time v0.14.0 // indirect
 )
