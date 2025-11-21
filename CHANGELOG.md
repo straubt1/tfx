@@ -10,11 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **Added**
 
 * Added `tfx organization list`
-* Added `tfx organization show --id`
+* Added `tfx organization show`
 
 **Changed**
 
 * Refactor placeholder
+
+**Removed**
+
+* Removed `tfx release replicated` commnands, TFE no longer runs on Replicated, for access to these use a previous version of `tfx`.
+* Removed `tfx release tfe download` command, TFE leverages Docker Images, use `docker pull` commands for this.
 
 ## [v0.1.5] - 2025.09.06
 

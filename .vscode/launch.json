@@ -10,9 +10,15 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}/../main.go",
+      "env":{
+        "TFX_LOG": "TRACE"
+      },
       "args": [
-        "org",
-        "list"
+        "admin",
+        "gpg",
+        "create",
+        "-n=terraform-tom",
+        "-k=debug/public_key_bad_algorithm.asc"
       ]
     },
     {
