@@ -1,5 +1,9 @@
 //go:build integration
+//go:build integration
 // +build integration
+
+// SPDX-License-Identifier: MIT
+// Copyright © 2025 Tom Straub <github.com/straubt1>
 
 package data
 

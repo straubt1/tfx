@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright © 2025 Tom Straub <github.com/straubt1>
+
 package flags
 
 import (
