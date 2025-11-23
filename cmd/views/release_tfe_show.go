@@ -67,7 +67,7 @@ func (v *ReleaseTfeShowView) Render(release map[string]interface{}) error {
 		if historyList, ok := release["History"].([]v1.History); ok {
 			for _, h := range historyList {
 				history = append(history, releaseTfeHistoryOutput{
-					Created:    h.Created.Time.Format("01-02-2006 15:04:05"),
+					Created:    h.Created.Format("01-02-2006 15:04:05"),
 					CreatedBy:  h.CreatedBy,
 					Author:     h.Author,
 					Comment:    h.Comment,

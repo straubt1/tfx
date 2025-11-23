@@ -215,7 +215,7 @@ func getImageCreatedDate(tag string, ref name.Repository, auth authn.Authenticat
 
 	// Format the created time as a readable string
 	if !configFile.Created.IsZero() {
-		return configFile.Created.Time.Format("01-02-2006"), nil
+		return configFile.Created.Format("01-02-2006"), nil
 	}
 
 	return "N/A", nil
@@ -359,7 +359,7 @@ func releaseTfeShow(cmdConfig *flags.ReleaseTfeShowFlags) error {
 		"Tag":     cmdConfig.Tag,
 		"Digest":  digest.String(),
 		"Size":    totalSize,
-		"Created": configFile.Created.Time.Format("01-02-2006"),
+		"Created": configFile.Created.Format("01-02-2006"),
 		"OS":      configFile.OS,
 		"Arch":    configFile.Architecture,
 		"Layers":  layers,

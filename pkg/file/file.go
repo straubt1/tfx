@@ -5,7 +5,6 @@ package file
 
 import (
 	"errors"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -40,7 +39,7 @@ func IsDirectory(filename string) bool {
 
 // ReadFile reads the contents of a file and returns it as a string
 func ReadFile(filename string) (string, error) {
-	b, err := ioutil.ReadFile(filename)
+	b, err := os.ReadFile(filename)
 	if err != nil {
 		return "", nil
 	}

@@ -196,32 +196,6 @@ func FetchWorkspaceTeamAccess(c *client.TfxClient, workspaceID string, maxItems 
 // 	return result
 // }
 
-// hasRunStatus checks if a workspace matches the given run status filter
-// If no run status given, return true
-// Else return true only when a Current Run is available and matches
-func hasRunStatus(w tfe.Workspace, runStatus string) bool {
-	if runStatus == "" {
-		return true // Empty means any run status should be included
-	}
-	if w.CurrentRun == nil {
-		return false // Run status is not available, should not be included
-	}
-	return w.CurrentRun.Status == tfe.RunStatus(runStatus) // Status determines if it should be included
-}
-
-// hasRepoIdentifier checks if a workspace matches the given repository identifier filter
-// If no repo given, return true
-// Else return true only when a Repo identifier is available and matches
-func hasRepoIdentifier(w tfe.Workspace, repoIdentifier string) bool {
-	if repoIdentifier == "" {
-		return true
-	}
-	if w.VCSRepo == nil {
-		return false
-	}
-	return w.VCSRepo.Identifier == repoIdentifier
-}
-
 // ValidateRunStatus validates if the given run status is valid
 func ValidateRunStatus(s string) bool {
 	if s == "" {
