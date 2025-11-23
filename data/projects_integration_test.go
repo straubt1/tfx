@@ -2,6 +2,7 @@
 // Copyright © 2025 Tom Straub <github.com/straubt1>
 
 //go:build integration
+
 // Copyright © 2025 Tom Straub <github.com/straubt1>
 
 package data
