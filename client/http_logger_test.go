@@ -58,7 +58,7 @@ func TestLoggingTransportRoundTrip(t *testing.T) {
 	// Create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("test response"))
+		_, _ = w.Write([]byte("test response"))
 	}))
 	defer server.Close()
 
@@ -68,7 +68,7 @@ func TestLoggingTransportRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer logFile.Close()
+	defer func() { _ = logFile.Close() }()
 
 	// Create logging transport
 	transport := &LoggingTransport{
@@ -87,7 +87,7 @@ func TestLoggingTransportRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RoundTrip() error = %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Verify response
 	if resp.StatusCode != http.StatusOK {
@@ -95,7 +95,7 @@ func TestLoggingTransportRoundTrip(t *testing.T) {
 	}
 
 	// Verify log file was written to
-	logFile.Sync()
+	_ = logFile.Sync()
 	stat, err := logFile.Stat()
 	if err != nil {
 		t.Fatal(err)
@@ -152,7 +152,7 @@ func TestNewHTTPClientWithLogging(t *testing.T) {
 			t.Error("Expected non-nil client")
 		}
 		if closer != nil {
-			defer closer.Close()
+			defer func() { _ = closer.Close() }()
 		}
 	})
 }

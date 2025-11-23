@@ -21,7 +21,7 @@ type Spinner struct {
 // NewSpinner creates a new spinner instance
 func NewSpinner() *Spinner {
 	sp := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
-	sp.Color("cyan")
+	_ = sp.Color("cyan")
 	sp.Suffix = "  TFx is working..."
 	sp.Start()
 

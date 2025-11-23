@@ -105,6 +105,16 @@ When reviewing code changes:
    - Verify test function naming (`Test*`)
    - Check for test organization and clarity
 
+### Exceptions
+
+Cobra `MarkFlagRequired()` does return an error, but it is ok to ignore it as it only fails in extreme cases (e.g., flag does not exist). 
+
+For example, this example is ok:
+
+```go
+tfvShowCmd.MarkFlagRequired("version")
+```
+
 ## Common Issues to Flag
 
 | Issue | Severity | Action |

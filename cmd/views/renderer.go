@@ -58,7 +58,7 @@ type TerminalRenderer struct {
 func NewTerminalRenderer() *TerminalRenderer {
 	// Initialize spinner with character set type [14] and start automatically
 	sp := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
-	sp.Color("cyan")
+	_ = sp.Color("cyan")
 	sp.Suffix = "  TFx is working..."
 	// Start the spinner immediately
 	// sp.Start()

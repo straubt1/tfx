@@ -178,7 +178,7 @@ func (h *colorHandler) Handle(_ context.Context, r slog.Record) error {
 		return true
 	})
 
-	fmt.Fprintln(h.out, msg)
+	_, _ = fmt.Fprintln(h.out, msg)
 	return nil
 }
 

@@ -70,18 +70,18 @@ func (t *LoggingTransport) logRequest(req *http.Request) {
 	// Log to file if enabled
 	if t.LogFile != nil {
 		timestamp := time.Now().Format(time.RFC3339)
-		fmt.Fprintf(t.LogFile, "================================================================================\n")
-		fmt.Fprintf(t.LogFile, "REQUEST @ %s\n", timestamp)
-		fmt.Fprintf(t.LogFile, "================================================================================\n")
+		_, _ = fmt.Fprintf(t.LogFile, "================================================================================\n")
+		_, _ = fmt.Fprintf(t.LogFile, "REQUEST @ %s\n", timestamp)
+		_, _ = fmt.Fprintf(t.LogFile, "================================================================================\n")
 
 		// Dump the request with body
 		reqDump, err := httputil.DumpRequestOut(req, true)
 		if err != nil {
-			fmt.Fprintf(t.LogFile, "Error dumping request: %v\n", err)
+			_, _ = fmt.Fprintf(t.LogFile, "Error dumping request: %v\n", err)
 		} else {
 			// Redact sensitive data before writing to file
 			redactedDump := redactSensitiveData(reqDump)
-			t.LogFile.Write(redactedDump)
+			_, _ = t.LogFile.Write(redactedDump)
 		}
 	}
 
@@ -106,18 +106,18 @@ func (t *LoggingTransport) logResponse(resp *http.Response) {
 	// Log to file if enabled
 	if t.LogFile != nil {
 		timestamp := time.Now().Format(time.RFC3339)
-		fmt.Fprintf(t.LogFile, "--------------------------------------------------------------------------------\n")
-		fmt.Fprintf(t.LogFile, "RESPONSE @ %s\n", timestamp)
-		fmt.Fprintf(t.LogFile, "--------------------------------------------------------------------------------\n")
+		_, _ = fmt.Fprintf(t.LogFile, "--------------------------------------------------------------------------------\n")
+		_, _ = fmt.Fprintf(t.LogFile, "RESPONSE @ %s\n", timestamp)
+		_, _ = fmt.Fprintf(t.LogFile, "--------------------------------------------------------------------------------\n")
 
 		// Dump the response with body
 		respDump, err := httputil.DumpResponse(resp, true)
 		if err != nil {
-			fmt.Fprintf(t.LogFile, "Error dumping response: %v\n", err)
+			_, _ = fmt.Fprintf(t.LogFile, "Error dumping response: %v\n", err)
 		} else {
 			// Redact sensitive data before writing to file
 			redactedDump := redactSensitiveData(respDump)
-			t.LogFile.Write(redactedDump)
+			_, _ = t.LogFile.Write(redactedDump)
 		}
 	}
 
