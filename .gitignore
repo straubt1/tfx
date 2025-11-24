@@ -29,6 +29,7 @@ bin/
 *.airgap
 *.tgz
 *.targz
+*.tar
 sv-*
 cv-*
 *.state

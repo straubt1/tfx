@@ -4,7 +4,6 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 	"regexp"
 	"sort"
@@ -370,18 +369,22 @@ func releaseTfeShow(cmdConfig *flags.ReleaseTfeShowFlags) error {
 	return v.Render(releaseData)
 }
 
-// TODO: Fix download spinner
 func releaseTfeDownload(cmdConfig *flags.ReleaseTfeDownloadFlags) error {
+	// Create view for rendering
+	v := view.NewReleaseTfeDownloadView()
+
 	// Determine output filename
 	outputPath := cmdConfig.Output
 	if outputPath == "" {
 		outputPath = "terraform-enterprise-" + cmdConfig.Tag + ".tar"
 	}
 
+	v.PrintCommandHeader("Downloading Terraform Enterprise release: %s", cmdConfig.Tag)
+
 	// Read the license file
 	licenseData, err := os.ReadFile(cmdConfig.TfeLicensePath)
 	if err != nil {
-		return errors.Wrap(err, "failed to read TFE license file")
+		return v.RenderError(errors.Wrap(err, "failed to read TFE license file"))
 	}
 
 	// Create authentication from license file
@@ -393,37 +396,35 @@ func releaseTfeDownload(cmdConfig *flags.ReleaseTfeDownloadFlags) error {
 	// Parse the registry URL and create the full image reference
 	ref, err := name.NewRepository(cmdConfig.RegistryURL)
 	if err != nil {
-		return errors.Wrap(err, "invalid registry URL")
+		return v.RenderError(errors.Wrap(err, "invalid registry URL"))
 	}
 
 	imageRef, err := name.NewTag(ref.String() + ":" + cmdConfig.Tag)
 	if err != nil {
-		return errors.Wrap(err, "invalid tag")
+		return v.RenderError(errors.Wrap(err, "invalid tag"))
 	}
-
-	fmt.Println("Downloading image:", imageRef.String())
 
 	// Fetch the image
 	img, err := remote.Image(imageRef, remote.WithAuth(auth))
 	if err != nil {
-		return errors.Wrap(err, "failed to fetch release image")
+		return v.RenderError(errors.Wrap(err, "failed to fetch release image"))
 	}
 
 	// Create output file
 	outputFile, err := os.Create(outputPath)
 	if err != nil {
-		return errors.Wrap(err, "failed to create output file")
+		return v.RenderError(errors.Wrap(err, "failed to create output file"))
 	}
 	defer outputFile.Close()
 
-	fmt.Println("Writing to:", outputPath)
+	// Create progress writer with view (no total size, just show bytes written)
+	pw := v.NewProgressWriter(outputFile, 0)
 
-	// Write image to tar file
-	if err := tarball.Write(imageRef, img, outputFile); err != nil {
+	// Write image to tar file with progress tracking
+	if err := tarball.Write(imageRef, img, pw); err != nil {
 		os.Remove(outputPath) // Clean up on error
-		return errors.Wrap(err, "failed to write image to tar file")
+		return v.RenderError(errors.Wrap(err, "failed to write image to tar file"))
 	}
 
-	fmt.Println("Download complete:", outputPath)
-	return nil
+	return v.Render(outputPath, pw.WrittenBytes())
 }
