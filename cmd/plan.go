@@ -1,204 +1,144 @@
-//go:build ignore
-
 // SPDX-License-Identifier: MIT
 // Copyright © 2025 Tom Straub <github.com/straubt1>
 
 package cmd
 
 import (
-	"bytes"
-	"fmt"
-	"io/ioutil"
-	"path/filepath"
-	"strconv"
-
-	"github.com/fatih/color"
-	"github.com/hashicorp/go-slug"
 	tfe "github.com/hashicorp/go-tfe"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/straubt1/tfx/client"
+	"github.com/straubt1/tfx/cmd/flags"
+	view "github.com/straubt1/tfx/cmd/views"
+	"github.com/straubt1/tfx/data"
 )
 
 var (
+	// `tfx plan` commands
 	planCmd = &cobra.Command{
 		Use:   "plan",
-		Short: "Workspace Plan",
+		Short: "Plans",
 		Long:  "Work with Plans of a TFx Workspace.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runPlan()
-		},
-		PreRun: bindPFlags,
 	}
 
-	planExportCmd = &cobra.Command{
-		Use:   "export",
-		Short: "Export plan",
-		Long:  "Export plan details for a Plan.",
+	// `tfx plan show` command
+	planShowCmd = &cobra.Command{
+		Use:   "show",
+		Short: "Show Plan",
+		Long:  "Show Plan details for a TFx Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runPlanExport()
+			cmdConfig, err := flags.ParsePlanShowFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return planShow(cmdConfig)
 		},
-		PreRun: bindPFlags,
+	}
+
+	// `tfx plan logs` command
+	planLogsCmd = &cobra.Command{
+		Use:   "logs",
+		Short: "Show Plan Logs",
+		Long:  "Show Plan logs for a TFx Workspace.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmdConfig, err := flags.ParsePlanLogsFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return planLogs(cmdConfig)
+		},
+	}
+
+	// `tfx plan jsonoutput` command
+	planJSONOutputCmd = &cobra.Command{
+		Use:   "jsonoutput",
+		Short: "Show Plan JSON Output",
+		Long:  "Show Plan JSON output for a TFx Workspace.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmdConfig, err := flags.ParsePlanJSONOutputFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return planJSONOutput(cmdConfig)
+		},
 	}
 )
 
 func init() {
-	// All `tfx plan` commands
-	planCmd.Flags().StringP("workspace-name", "w", "", "Workspace name")
-	planCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (optional, defaults to current directory)")
-	planCmd.Flags().StringP("configuration-id", "i", "", "Configuration Version Id (optional, i.e. cv-*)")
-	planCmd.Flags().StringP("message", "m", "", "Run Message (optional)")
-	planCmd.Flags().Bool("speculative", false, "Perform a Speculative Plan (optional)")
-	planCmd.Flags().Bool("destroy", false, "Perform a Destroy Plan (optional)")
-	planCmd.Flags().StringSlice("env", []string{}, "Environment variables to write to the Workspace. Can be supplied multiple times. (optional, i.e. '--env='AWS_REGION=us-east1')")
-	planCmd.MarkFlagRequired("workspace-name")
+	// `tfx plan show` command
+	planShowCmd.Flags().StringP("id", "i", "", "Plan Id (i.e. plan-*)")
+	planShowCmd.MarkFlagRequired("id")
 
-	planExportCmd.Flags().StringP("plan-id", "i", "", "Plan Id (i.e. plan-*)")
-	planExportCmd.Flags().StringP("directory", "d", "", "Directory to download export to (optional, defaults to a temp directory)")
-	planExportCmd.MarkFlagRequired("plan-id")
-	planExportCmd.MarkFlagRequired("directory")
+	// `tfx plan logs` command
+	planLogsCmd.Flags().StringP("id", "i", "", "Plan Id (i.e. plan-*)")
+	planLogsCmd.MarkFlagRequired("id")
+
+	// `tfx plan jsonoutput` command
+	planJSONOutputCmd.Flags().StringP("id", "i", "", "Plan Id (i.e. plan-*)")
+	planJSONOutputCmd.MarkFlagRequired("id")
 
 	rootCmd.AddCommand(planCmd)
-	planCmd.AddCommand(planExportCmd)
+	planCmd.AddCommand(planShowCmd)
+	planCmd.AddCommand(planLogsCmd)
+	planCmd.AddCommand(planJSONOutputCmd)
 }
 
-func runPlan() error {
-	// Validate flags
-	wsName := *viperString("workspace-name")
-	dir := *viperString("directory")
-	configID := *viperString("configuration-id")
-	message := *viperString("message")
-	isSpeculative := *viperBool("speculative")
-	isDestroy := *viperBool("destroy")
-	envs, err := viperStringSliceMap("env")
-	if err != nil {
-		return err
-	}
-	// message := "Plan created by TFx"
+func planShow(cmdConfig *flags.PlanShowFlags) error {
+	v := view.NewPlanShowView()
+
 	c, err := client.NewFromViper()
 	if err != nil {
-		return err
+		return v.RenderError(err)
 	}
 
-	fmt.Println("Remote Terraform Plan, speculative plan:", color.GreenString(strconv.FormatBool(isSpeculative)),
-		" destroy plan:", color.GreenString(strconv.FormatBool(isDestroy)))
-	fmt.Println()
+	v.PrintCommandHeader("Showing plan '%s'", cmdConfig.ID)
 
-	// Read workspace
-	fmt.Print("Reading Workspace ", color.GreenString(wsName), " for ID...")
-	w, err := c.Client.Workspaces.Read(c.Context, c.OrganizationName, wsName)
+	plan, err := data.FetchPlan(c, cmdConfig.ID)
 	if err != nil {
-		return err
+		return v.RenderError(errors.Wrap(err, "failed to read plan from id"))
 	}
-	fmt.Println(" Found:", color.BlueString(w.ID))
 
-	// Update environment variables
-	err = createOrUpdateEnvVariables(c.Context, c.Client, w.ID, envs)
+	return v.Render(plan)
+}
+
+func planLogs(cmdConfig *flags.PlanLogsFlags) error {
+
+	v := view.NewPlanLogsView()
+
+	c, err := client.NewFromViper()
 	if err != nil {
-		return err
+		return v.RenderError(err)
 	}
 
-	// Create config version
-	cv, err := createOrReadConfigurationVersion(c.Context, c.Client, w.ID, configID, dir, isSpeculative)
-	if err != nil {
-		return err
-	}
-
-	// Create run
-	var r *tfe.Run
-	r, err = c.Client.Runs.Create(c.Context, tfe.RunCreateOptions{
-		IsDestroy:            tfe.Bool(isDestroy),
-		Message:              tfe.String(message),
-		ConfigurationVersion: cv,
-		Workspace:            w,
-		// TargetAddrs:          []string{"random_pet.two"},
+	planExport, err := c.Client.PlanExports.Create(c.Context, tfe.PlanExportCreateOptions{
+		Plan:     plan,
+		DataType: tfe.PlanExportType(tfe.PlanExportSentinelMockBundleV0),
 	})
-	if err != nil {
-		return err
-	}
-	fmt.Println("Workspace Run Created, Run Id:", color.BlueString(r.ID), "Config Version:", color.BlueString(r.ConfigurationVersion.ID))
-	fmt.Println("Navigate:", "https://"+c.Hostname+"/app/"+c.OrganizationName+"/workspaces/"+wsName+"/runs/"+r.ID)
-	fmt.Println()
 
-	// Get Run Logs
-	err = getRunLogs(c.Context, c.Client, r.Plan.ID)
+	v.PrintCommandHeader("Showing logs for plan '%s'", cmdConfig.ID)
+
+	logs, err := data.FetchPlanLogs(c, cmdConfig.ID)
 	if err != nil {
-		return err
+		return v.RenderError(errors.Wrap(err, "failed to read plan logs"))
 	}
 
-	// Get Cost Estimation Logs (if any)
-	err = getCostEstimationLogs(c.Context, c.Client, r)
-	if err != nil {
-		return err
-	}
-
-	// Get Policy Logs (if any)
-	err = getPolicyLogs(c.Context, c.Client, r)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("Run Complete:", r.ID)
-
-	return nil
+	return v.Render(logs)
 }
 
-func runPlanExport() error {
-	planID := *viperString("plan-id")
-	directory := *viperString("directory")
+func planJSONOutput(cmdConfig *flags.PlanJSONOutputFlags) error {
+	v := view.NewPlanJSONOutputView()
+
 	c, err := client.NewFromViper()
 	if err != nil {
-		return err
+		return v.RenderError(err)
 	}
 
-	fmt.Print("Reading Plan Export for Plan ID ", color.GreenString(planID), " ...")
-	plan, err := c.Client.Plans.Read(c.Context, planID)
+	v.PrintCommandHeader("Showing JSON output for plan '%s'", cmdConfig.ID)
+
+	jsonOutput, err := data.FetchPlanJSONOutput(c, cmdConfig.ID)
 	if err != nil {
-		return err
-	}
-	fmt.Println(" Found")
-
-	var planExportID string
-	if plan.Exports == nil {
-		fmt.Print("Creating Plan Export ...")
-		planExport, err := c.Client.PlanExports.Create(c.Context, tfe.PlanExportCreateOptions{
-			Plan:     plan,
-			DataType: tfe.PlanExportType(tfe.PlanExportSentinelMockBundleV0),
-		})
-		if err != nil {
-			return err
-		}
-		planExportID = planExport.ID
-	} else {
-		fmt.Print("Found existing Plan Export ...")
-		planExportID = plan.Exports[0].ID // Just grab the first one?
-	}
-	fmt.Println("ID ", color.BlueString(planExportID))
-	buff, err := c.Client.PlanExports.Download(c.Context, planExportID)
-	if err != nil {
-		return err
-	}
-	reader := bytes.NewReader(buff)
-
-	// Determine a directory to unpack the slug contents into.
-	if directory != "" {
-		directory, err = filepath.Abs(directory)
-		if err != nil {
-			return err
-		}
-	} else {
-		fmt.Println("Directory not supplied, creating a temp directory")
-		dst, err := ioutil.TempDir("", "slug")
-		if err != nil {
-			return err
-		}
-		directory = dst
+		return v.RenderError(errors.Wrap(err, "failed to read plan JSON output"))
 	}
 
-	if err := slug.Unpack(reader, directory); err != nil {
-		return err
-	}
-
-	fmt.Println("Downloaded: ", color.BlueString(directory))
-
-	return nil
+	return v.Render(jsonOutput)
 }
