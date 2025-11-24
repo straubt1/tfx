@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added `tfx organization list`
 * Added `tfx organization show`
+* Added `tfx workspace plan show --id` to display plan details
+* Added `tfx workspace plan logs --id` to display plan logs
+* Added `tfx workspace plan jsonoutput --id` to display plan JSON execution output
 
 **Changed**
 
