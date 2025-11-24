@@ -62,6 +62,36 @@ var (
 			return planJSONOutput(cmdConfig)
 		},
 	}
+
+	// `tfx plan create` command
+	planCreateCmd = &cobra.Command{
+		Use:   "create",
+		Short: "Create Plan",
+		Long:  "Create a new Plan for a TFx Workspace.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmdConfig, err := flags.ParsePlanCreateFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return planCreate(cmdConfig)
+		},
+	}
+
+	// `tfx plan export` command
+	planExportCmd = &cobra.Command{
+		Use:        "export",
+		Short:      "Export Plan",
+		Long:       "Export a Plan for a TFx Workspace.",
+		Deprecated: "this command is not yet implemented",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return nil
+			// cmdConfig, err := flags.ParsePlanExportFlags(cmd)
+			// if err != nil {
+			// 	return err
+			// }
+			// return planExport(cmdConfig)
+		},
+	}
 )
 
 func init() {
@@ -77,10 +107,22 @@ func init() {
 	planJSONOutputCmd.Flags().StringP("id", "i", "", "Plan Id (i.e. plan-*)")
 	planJSONOutputCmd.MarkFlagRequired("id")
 
+	// `tfx plan create` command
+	planCreateCmd.Flags().StringP("workspace-name", "w", "", "Workspace name")
+	planCreateCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (optional, defaults to current directory)")
+	planCreateCmd.Flags().StringP("configuration-id", "i", "", "Configuration Version Id (optional, i.e. cv-*)")
+	planCreateCmd.Flags().StringP("message", "m", "", "Run Message (optional)")
+	planCreateCmd.Flags().Bool("speculative", false, "Perform a Speculative Plan (optional)")
+	planCreateCmd.Flags().Bool("destroy", false, "Perform a Destroy Plan (optional)")
+	planCreateCmd.Flags().StringSlice("env", []string{}, "Environment variables to write to the Workspace. Can be supplied multiple times. (optional, i.e. '--env='AWS_REGION=us-east1')")
+	planCreateCmd.MarkFlagRequired("workspace-name")
+
 	rootCmd.AddCommand(planCmd)
 	planCmd.AddCommand(planShowCmd)
 	planCmd.AddCommand(planLogsCmd)
 	planCmd.AddCommand(planJSONOutputCmd)
+	planCmd.AddCommand(planCreateCmd)
+	planCmd.AddCommand(planExportCmd)
 }
 
 func planShow(cmdConfig *flags.PlanShowFlags) error {
@@ -102,18 +144,12 @@ func planShow(cmdConfig *flags.PlanShowFlags) error {
 }
 
 func planLogs(cmdConfig *flags.PlanLogsFlags) error {
-
 	v := view.NewPlanLogsView()
 
 	c, err := client.NewFromViper()
 	if err != nil {
 		return v.RenderError(err)
 	}
-
-	planExport, err := c.Client.PlanExports.Create(c.Context, tfe.PlanExportCreateOptions{
-		Plan:     plan,
-		DataType: tfe.PlanExportType(tfe.PlanExportSentinelMockBundleV0),
-	})
 
 	v.PrintCommandHeader("Showing logs for plan '%s'", cmdConfig.ID)
 
@@ -141,4 +177,54 @@ func planJSONOutput(cmdConfig *flags.PlanJSONOutputFlags) error {
 	}
 
 	return v.Render(jsonOutput)
+}
+
+func planCreate(cmdConfig *flags.PlanCreateFlags) error {
+	// Create a view for output
+	v := view.NewPlanCreateView()
+
+	c, err := client.NewFromViper()
+	if err != nil {
+		return v.RenderError(err)
+	}
+
+	// Read workspace by name
+	workspace, err := c.Client.Workspaces.Read(c.Context, c.OrganizationName, cmdConfig.WorkspaceName)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to read workspace"))
+	}
+
+	v.PrintCommandHeader("Creating plan for workspace '%s' (%s)", cmdConfig.WorkspaceName, workspace.ID)
+
+	// Create a new run with plan
+	runOptions := tfe.RunCreateOptions{
+		IsDestroy: tfe.Bool(cmdConfig.Destroy),
+		Workspace: workspace,
+	}
+
+	// Add optional message if provided
+	if cmdConfig.Message != "" {
+		runOptions.Message = tfe.String(cmdConfig.Message)
+	}
+
+	// Create the run
+	v.Output().Message("Creating new Plan...")
+	run, err := c.Client.Runs.Create(c.Context, runOptions)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to create run"))
+	}
+
+	// Fetch and display the plan details
+	plan, err := data.FetchPlan(c, run.Plan.ID)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to fetch plan details"))
+	}
+
+	return v.Render(plan, &view.PlanCreateRenderOptions{
+		RunID:        run.ID,
+		PlanID:       run.Plan.ID,
+		Hostname:     c.Hostname,
+		Organization: c.OrganizationName,
+		Workspace:    cmdConfig.WorkspaceName,
+	})
 }
