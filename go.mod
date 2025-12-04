@@ -10,7 +10,7 @@ require (
 	github.com/fatih/color v1.18.0
 	github.com/go-viper/encoding/hcl v0.1.0
 	github.com/hashicorp/go-slug v0.16.8
-	github.com/hashicorp/go-tfe v1.93.0
+	github.com/hashicorp/go-tfe v1.97.0
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/jedib0t/go-pretty/v6 v6.6.8
 	github.com/logrusorgru/aurora v2.0.3+incompatible
@@ -32,7 +32,7 @@ require (
 	github.com/go-openapi/strfmt v0.24.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/hashicorp/go-version v1.7.0 // indirect
+	github.com/hashicorp/go-version v1.8.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mmcdole/goxpp v1.1.1 // indirect
@@ -43,7 +43,7 @@ require (
 	go.mongodb.org/mongo-driver v1.17.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/net v0.45.0 // indirect
-	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/sync v0.18.0 // indirect
 )
 
 require (
@@ -66,5 +66,5 @@ require (
 	golang.org/x/exp v0.0.0-20251002181428-27f1f14c8bb9
 	golang.org/x/sys v0.36.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
-	golang.org/x/time v0.13.0 // indirect
+	golang.org/x/time v0.14.0 // indirect
 )
