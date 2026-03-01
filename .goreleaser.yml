@@ -35,13 +35,11 @@ archives:
       {{- if .Arm }}v{{ .Arm }}{{ end -}}
     wrap_in_directory: true
 
-homebrew_casks:
+brews:
   - name: tfx
     ids:
       - tfx
-    binaries:
-      - tfx
-    directory: Casks
+    directory: Formula
     skip_upload: "{{ .IsSnapshot }}"
     repository:
       owner: straubt1
@@ -51,9 +49,10 @@ homebrew_casks:
     commit_author:
       name: goreleaserbot
       email: bot@goreleaser.com
-    commit_msg_template: "brew: update tfx cask to {{ .Tag }}"
+    commit_msg_template: "brew: update tfx formula to {{ .Tag }}"
     homepage: "https://tfx.rocks/"
     description: "TFx is a standalone CLI tool for HCP Terraform and Terraform Enterprise."
+    license: "MIT"
 
 nfpms:
   - id: tfx

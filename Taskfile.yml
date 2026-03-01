@@ -80,8 +80,6 @@ tasks:
         echo "  Next    : ${NEXT_TAG}"
         echo ""
         echo "  Will execute:"
-        echo "    git add CHANGELOG.md"
-        echo "    git commit -m \"chore: release ${NEXT_TAG}\""
         echo "    git tag ${NEXT_TAG}"
         echo "    git push && git push --tags"
         echo ""
@@ -99,8 +97,6 @@ tasks:
         fi
 
         # Execute
-        git add CHANGELOG.md
-        git commit -m "chore: release ${NEXT_TAG}"
         git tag "${NEXT_TAG}"
         git push && git push --tags
 

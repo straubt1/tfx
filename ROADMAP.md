@@ -15,6 +15,7 @@ New commands and capabilities for users.
 - [ ] Download workspace plan as JSON
 - [ ] Plan export command
 - [ ] Update `tfx organization` and `tfx project show` to include agent pool settings
+- [ ] Look at brew cask and Apple developer license
 
 ### Under Consideration
 
