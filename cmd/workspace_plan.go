@@ -14,14 +14,14 @@ import (
 )
 
 var (
-	// `tfx plan` commands
+	// `tfx workspace plan` commands
 	planCmd = &cobra.Command{
 		Use:   "plan",
 		Short: "Plans",
 		Long:  "Work with Plans of a TFx Workspace.",
 	}
 
-	// `tfx plan show` command
+	// `tfx workspace plan show` command
 	planShowCmd = &cobra.Command{
 		Use:   "show",
 		Short: "Show Plan",
@@ -35,7 +35,7 @@ var (
 		},
 	}
 
-	// `tfx plan logs` command
+	// `tfx workspace plan logs` command
 	planLogsCmd = &cobra.Command{
 		Use:   "logs",
 		Short: "Show Plan Logs",
@@ -49,7 +49,7 @@ var (
 		},
 	}
 
-	// `tfx plan jsonoutput` command
+	// `tfx workspace plan jsonoutput` command
 	planJSONOutputCmd = &cobra.Command{
 		Use:   "jsonoutput",
 		Short: "Show Plan JSON Output",
@@ -63,7 +63,7 @@ var (
 		},
 	}
 
-	// `tfx plan create` command
+	// `tfx workspace plan create` command
 	planCreateCmd = &cobra.Command{
 		Use:   "create",
 		Short: "Create Plan",
@@ -80,19 +80,19 @@ var (
 )
 
 func init() {
-	// `tfx plan show` command
+	// `tfx workspace plan show` command
 	planShowCmd.Flags().StringP("id", "i", "", "Plan Id (i.e. plan-*)")
 	planShowCmd.MarkFlagRequired("id")
 
-	// `tfx plan logs` command
+	// `tfx workspace plan logs` command
 	planLogsCmd.Flags().StringP("id", "i", "", "Plan Id (i.e. plan-*)")
 	planLogsCmd.MarkFlagRequired("id")
 
-	// `tfx plan jsonoutput` command
+	// `tfx workspace plan jsonoutput` command
 	planJSONOutputCmd.Flags().StringP("id", "i", "", "Plan Id (i.e. plan-*)")
 	planJSONOutputCmd.MarkFlagRequired("id")
 
-	// `tfx plan create` command
+	// `tfx workspace plan create` command
 	planCreateCmd.Flags().StringP("workspace-name", "w", "", "Workspace name")
 	planCreateCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (optional, defaults to current directory)")
 	planCreateCmd.Flags().StringP("configuration-id", "i", "", "Configuration Version Id (optional, i.e. cv-*)")
@@ -102,7 +102,7 @@ func init() {
 	planCreateCmd.Flags().StringSlice("env", []string{}, "Environment variables to write to the Workspace. Can be supplied multiple times. (optional, i.e. '--env='AWS_REGION=us-east1')")
 	planCreateCmd.MarkFlagRequired("workspace-name")
 
-	rootCmd.AddCommand(planCmd)
+	workspaceCmd.AddCommand(planCmd)
 	planCmd.AddCommand(planShowCmd)
 	planCmd.AddCommand(planLogsCmd)
 	planCmd.AddCommand(planJSONOutputCmd)

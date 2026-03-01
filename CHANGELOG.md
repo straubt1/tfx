@@ -9,20 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Added**
 
-* Added `tfx organization list`
-* Added `tfx organization show`
-* Added `tfx workspace plan show --id` to display plan details
-* Added `tfx workspace plan logs --id` to display plan logs
-* Added `tfx workspace plan jsonoutput --id` to display plan JSON execution output
+* `tfx organization list` — list all organizations the token has access to
+* `tfx organization show` — show details of an organization
+* `tfx workspace plan show` — show details of a plan by ID
+* `tfx workspace plan logs` — stream logs for a plan by ID
+* `tfx workspace plan jsonoutput` — show JSON execution output for a plan by ID
+* `tfx workspace plan create` — create a plan for a workspace
 
 **Changed**
 
-* Refactor placeholder
+* `tfx workspace run apply` now supports additional run statuses (`planned_and_saved`, `cost_estimated`, `policy_checked`)
+* Plan commands moved under `tfx workspace plan` for consistency (previously `tfx plan`)
+* Major internal refactor: layered architecture with dedicated `client/`, `data/`, `output/`, and `cmd/views/` packages
 
 **Removed**
 
-* Removed `tfx release replicated` commnands, TFE no longer runs on Replicated, for access to these use a previous version of `tfx`.
-* Removed `tfx release tfe download` command, TFE leverages Docker Images, use `docker pull` commands for this.
+* `tfx release replicated` commands — TFE no longer runs on Replicated; use a previous version of `tfx` if needed
+* `tfx release tfe download` — TFE now uses Docker images; use `docker pull` instead
 
 ## [v0.1.5] - 2025.09.06
 
