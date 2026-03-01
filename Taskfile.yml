@@ -18,7 +18,7 @@ tasks:
   go-upgrade:
     desc: Upgrade Go toolchain (via brew) and all module dependencies
     cmds:
-      - brew upgrade go
+      - brew upgrade go goreleaser
       - go mod edit -go=$(go version | awk '{print $3}' | sed 's/go//')
       - go get -u ./...
       - go mod tidy
