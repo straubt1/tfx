@@ -156,8 +156,9 @@ func DeleteTerraformVersion(c *client.TfxClient, version string) error {
 		return errors.Wrap(err, "failed to find terraform version")
 	}
 
-	// If the version is official, we need to set it to unofficial first
-	// TODO: Need to verify an update won't bring these back
+	// If the version is official, it must be set to unofficial before deletion.
+	// Note: The TFE platform may re-sync official versions on upgrade; deleted official
+	// versions could reappear. This is a known platform limitation.
 	if tfv.Official {
 		output.Get().Logger().Debug("Setting Terraform version to unofficial before deletion", "version", version)
 

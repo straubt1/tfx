@@ -19,6 +19,8 @@ brew install mkdocs
 
 **Do not commit changes unless explicitly asked.** After implementing a task, leave changes staged or unstaged for the user to review. Only run `git commit` when the user says to commit.
 
+After completing a task, compose and display the intended commit message describing what changed, but do not execute `git commit`. This lets the user copy or adjust the message when they're ready to commit.
+
 ## Build & Test Commands
 
 ```bash

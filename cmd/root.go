@@ -4,10 +4,8 @@
 package cmd
 
 import (
-	"fmt"
 	"log"
 
-	"github.com/fatih/color"
 	"github.com/go-viper/encoding/hcl"
 
 	"github.com/logrusorgru/aurora"
@@ -112,8 +110,7 @@ func initConfig() {
 	if err == nil {
 		isConfigFile = true // Capture information here to bring after all flags are loaded (namely which output type)
 	} else {
-		// TODO: Refactor
-		fmt.Println(color.YellowString("Warning: Unable to parse config file, will continue without it."))
+		output.Get().Logger().Warn("Unable to parse config file, will continue without it.")
 	}
 
 	// Some hacking here to let viper use the cobra required flags, simplifies this checking

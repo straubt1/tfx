@@ -87,7 +87,6 @@ func (v *PlanCreateView) Render(plan *tfe.Plan, opts *PlanCreateRenderOptions) e
 		}
 	}
 
-	// TODO: update this view to not show things that would never be known on create
 	// Add the run and navigation info if options provided
 	if opts != nil {
 		v.Output().Message("Run ID: %s", color.BlueString(opts.RunID))

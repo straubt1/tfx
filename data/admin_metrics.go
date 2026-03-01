@@ -42,14 +42,16 @@ func FetchWorkspaceMetrics(c *client.TfxClient, orgName string, runSinceTime tim
 			ID:   ws.ID,
 		}
 
-		// Fetch runs for the workspace
-		// Note: Using PageSize 100 as in original implementation
-		// TODO: Consider using client.FetchAll for full pagination
-		runs, err := c.Client.Runs.List(c.Context, ws.ID, &tfe.RunListOptions{
-			ListOptions: tfe.ListOptions{
-				PageSize: 100,
-			},
-			Include: []tfe.RunIncludeOpt{},
+		// Fetch all runs for the workspace across all pages
+		runItems, err := client.FetchAll(c.Context, func(pageNumber int) ([]*tfe.Run, *client.Pagination, error) {
+			res, err := c.Client.Runs.List(c.Context, ws.ID, &tfe.RunListOptions{
+				ListOptions: tfe.ListOptions{PageNumber: pageNumber, PageSize: 100},
+				Include:     []tfe.RunIncludeOpt{},
+			})
+			if err != nil {
+				return nil, nil, err
+			}
+			return res.Items, client.NewPaginationFromTFE(res.Pagination), nil
 		})
 		if err != nil {
 			output.Get().Logger().Error("Failed to fetch runs", "workspace", ws.Name, "error", err)
@@ -57,7 +59,7 @@ func FetchWorkspaceMetrics(c *client.TfxClient, orgName string, runSinceTime tim
 		}
 
 		// Process each run
-		for _, r := range runs.Items {
+		for _, r := range runItems {
 			// Skip runs outside the time frame
 			if runSinceTime.After(r.CreatedAt) {
 				continue

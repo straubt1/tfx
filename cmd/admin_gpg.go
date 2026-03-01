@@ -228,7 +228,8 @@ func gpgDelete(cmdConfig *flags.AdminGPGDeleteFlags) error {
 
 	// Print command header
 	v.PrintCommandHeader("Deleting GPG key '%s' for namespace '%s'", cmdConfig.ID, cmdConfig.Namespace)
-	// TODO: verify GPG key is not in use before deleting
+	// Note: The TFE API does not expose whether a GPG key is in use by a provider.
+	// Deleting a key that is actively referenced by a provider version will break those operations.
 
 	// Delete GPG key
 	err = data.DeleteGPGKey(c, cmdConfig.Namespace, registryName, cmdConfig.ID)
