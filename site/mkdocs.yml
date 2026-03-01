@@ -80,6 +80,8 @@ nav:
       - General: commands/organization.md
     - Project:
       - General: commands/project.md
+    - Variable Sets:
+      - General: commands/variable_set.md
     - Workspace: 
       - General: commands/workspace.md
       - Plans: commands/workspace_plan.md
