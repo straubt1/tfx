@@ -168,6 +168,45 @@ c, err := client.NewFromViper()  // reads Viper config/flags
 - `github.com/fatih/color` — Colored terminal output
 - `github.com/pkg/errors` — Error wrapping
 
+## Release Process
+
+Releases are automated via goreleaser and GitHub Actions. The release workflow triggers on a new git tag and publishes binaries, a Docker image (GHCR), Linux packages (apk/deb/rpm), and a Homebrew cask update to `straubt1/homebrew-tap`.
+
+### Prerequisites (one-time setup)
+
+- `HOMEBREW_TAP_TOKEN` — classic GitHub PAT with `repo` scope on `straubt1/homebrew-tap`, stored as a GitHub Actions secret in this repo.
+
+### Cutting a Release
+
+Use one of these tasks — they auto-detect the current tag, compute the next semver, show a preview, check that CHANGELOG.md has an entry, then commit/tag/push:
+
+```bash
+task release:patch   # x.y.Z+1  — bugfixes
+task release:minor   # x.Y+1.0  — new features
+task release:major   # X+1.0.0  — breaking changes
+```
+
+Before confirming, update `CHANGELOG.md` with release notes for the new version.
+
+### Testing the Release Pipeline Locally
+
+```bash
+task release-dry-run
+```
+
+Runs `goreleaser release --snapshot --clean --skip=announce,validate` — builds all artifacts without requiring a tag. The Homebrew cask is generated and written to `dist/` (not pushed to the tap) because `skip_upload: "{{ .IsSnapshot }}"` is set in `.goreleaser.yml`. Goreleaser v2 may emit 2 informational `dockers_v2` warnings; these are a known goreleaser quirk and can be ignored.
+
+### Version Numbering
+
+`version/version.go` defaults to `"dev"`. Goreleaser injects the actual version at build time via ldflags from the git tag — `version.go` never needs manual editing for releases.
+
+Local dev builds (`task go-build`) embed the short git hash, UTC date, and `BuiltBy=local`.
+
+### GitHub Actions
+
+- **`main.yml`** — runs on every push; builds a snapshot with goreleaser to verify the build.
+- **`release.yml`** — runs when a `v*` tag is pushed; performs the full goreleaser release.
+
 ## File Headers
 
 All source files use SPDX license headers:

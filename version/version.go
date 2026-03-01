@@ -4,7 +4,7 @@
 package version
 
 var (
-	Version    = "0.1.5"
+	Version    = "dev" // overridden at build time via ldflags (goreleaser uses git tag)
 	Prerelease = ""
 	Build      = ""
 	Date       = ""
@@ -17,12 +17,16 @@ func String() string {
 		v += "-" + Prerelease
 	}
 	if Build != "" {
-		v += "\nBuild: " + Build
+		v += "\nBuild:    " + Build
 	}
 	if Date != "" {
-		v += "\nDate: " + Date
+		v += "\nDate:     " + Date
 	}
-	v += "\nBuilt By: " + BuiltBy
+	builtBy := BuiltBy
+	if builtBy == "" {
+		builtBy = "local (no build metadata)"
+	}
+	v += "\nBuilt By: " + builtBy
 
 	return v
 }

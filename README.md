@@ -40,10 +40,5 @@ Check out our docs site [tfx.rocks](https://tfx.rocks)
 
 ## Roadmap
 
-Future implementation items:
-
-- [ ] Support Variable Sets
-- [ ] Support Sentinel Publishing
-- [ ] Support Cloud Agents
-
-Priority may change, please submit an issue to voice changes you would like to see.
+See [ROADMAP.md](ROADMAP.md) for planned features and improvements.
+Priority may change — [open an issue](https://github.com/straubt1/tfx/issues) to voice your priorities.
