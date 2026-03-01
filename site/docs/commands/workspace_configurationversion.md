@@ -17,7 +17,7 @@ List all Configuration Versions for a supplied Workspace.
 **Example**
 
 ```sh
-$ tfx workspace configuration-version list --workspace-name tfx-test
+$ tfx workspace configuration-version list --name tfx-test
 Using config file: /Users/tstraub/.tfx.hcl
 List Configuration Versions for Workspace: tfx-test
 ╭─────────────────────┬─────────────┬──────────┬──────┬────────┬────────┬─────────╮
@@ -43,7 +43,7 @@ Create a Configuration Version for a supplied Workspace.
 **Example**
 
 ```sh
-$ tfx workspace configuration-version create --workspace-name tt-workspace --directory ./tt-workspace-code/
+$ tfx workspace configuration-version create --name tt-workspace --directory ./tt-workspace-code/
 Using config file: /Users/tstraub/.tfx.hcl
 Create Configuration Version for Workspace: tt-workspace
 Code Directory: ./tt-workspace-code/

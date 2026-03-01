@@ -1,0 +1,211 @@
+// SPDX-License-Identifier: MIT
+// Copyright © 2025 Tom Straub <github.com/straubt1>
+
+package client
+
+import (
+	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httputil"
+	"os"
+	"path/filepath"
+	"regexp"
+	"time"
+
+	"github.com/straubt1/tfx/output"
+)
+
+// Regex patterns to redact sensitive information from HTTP dumps
+var (
+	// Matches Authorization header with any token/credentials
+	authHeaderRegex = regexp.MustCompile(`(?i)(Authorization:\s+)([^\r\n]+)`)
+	// Matches other potential sensitive headers
+	cookieHeaderRegex = regexp.MustCompile(`(?i)(Cookie:\s+)([^\r\n]+)`)
+	apiKeyHeaderRegex = regexp.MustCompile(`(?i)(X-Api-Key:\s+)([^\r\n]+)`)
+)
+
+// redactSensitiveData replaces sensitive information in HTTP dumps with [REDACTED]
+func redactSensitiveData(dump []byte) []byte {
+	result := dump
+
+	// Redact Authorization header
+	result = authHeaderRegex.ReplaceAll(result, []byte("${1}[REDACTED]"))
+
+	// Redact Cookie header
+	result = cookieHeaderRegex.ReplaceAll(result, []byte("${1}[REDACTED]"))
+
+	// Redact API Key header
+	result = apiKeyHeaderRegex.ReplaceAll(result, []byte("${1}[REDACTED]"))
+
+	return result
+}
+
+// LoggingTransport wraps an http.RoundTripper to log requests and responses to a file
+type LoggingTransport struct {
+	Transport http.RoundTripper
+	LogFile   *os.File
+}
+
+// RoundTrip implements the http.RoundTripper interface with logging
+func (t *LoggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Log request
+	t.logRequest(req)
+
+	// Perform the actual request
+	resp, err := t.Transport.RoundTrip(req)
+	if err != nil {
+		t.logError(err)
+		return nil, err
+	}
+
+	// Log response
+	t.logResponse(resp)
+
+	return resp, nil
+}
+
+func (t *LoggingTransport) logRequest(req *http.Request) {
+	// Log to file if enabled
+	if t.LogFile != nil {
+		timestamp := time.Now().Format(time.RFC3339)
+		_, _ = fmt.Fprintf(t.LogFile, "================================================================================\n")
+		_, _ = fmt.Fprintf(t.LogFile, "REQUEST @ %s\n", timestamp)
+		_, _ = fmt.Fprintf(t.LogFile, "================================================================================\n")
+
+		// Dump the request with body
+		reqDump, err := httputil.DumpRequestOut(req, true)
+		if err != nil {
+			_, _ = fmt.Fprintf(t.LogFile, "Error dumping request: %v\n", err)
+		} else {
+			// Redact sensitive data before writing to file
+			redactedDump := redactSensitiveData(reqDump)
+			_, _ = t.LogFile.Write(redactedDump)
+		}
+	}
+
+	// Log to logger based on log level
+	if output.Get().Logger().IsEnabled(output.LevelTrace) {
+		// At TRACE level, log the full request dump
+		reqDump, err := httputil.DumpRequestOut(req, true)
+		if err != nil {
+			output.Get().Logger().Error("Failed to dump HTTP request", "error", err)
+		} else {
+			// Redact sensitive data before logging
+			redactedDump := redactSensitiveData(reqDump)
+			output.Get().Logger().Trace("HTTP Request (full dump)", "request", string(redactedDump))
+		}
+	} else if output.Get().Logger().IsEnabled(slog.LevelDebug) {
+		// At DEBUG level, log request summary
+		output.Get().Logger().Debug("HTTP Request", "method", req.Method, "url", req.URL.String())
+	}
+}
+
+func (t *LoggingTransport) logResponse(resp *http.Response) {
+	// Log to file if enabled
+	if t.LogFile != nil {
+		timestamp := time.Now().Format(time.RFC3339)
+		_, _ = fmt.Fprintf(t.LogFile, "--------------------------------------------------------------------------------\n")
+		_, _ = fmt.Fprintf(t.LogFile, "RESPONSE @ %s\n", timestamp)
+		_, _ = fmt.Fprintf(t.LogFile, "--------------------------------------------------------------------------------\n")
+
+		// Dump the response with body
+		respDump, err := httputil.DumpResponse(resp, true)
+		if err != nil {
+			_, _ = fmt.Fprintf(t.LogFile, "Error dumping response: %v\n", err)
+		} else {
+			// Redact sensitive data before writing to file
+			redactedDump := redactSensitiveData(respDump)
+			_, _ = t.LogFile.Write(redactedDump)
+		}
+	}
+
+	// Log to logger based on log level
+	if output.Get().Logger().IsEnabled(output.LevelTrace) {
+		// At TRACE level, log the full response dump
+		respDump, err := httputil.DumpResponse(resp, true)
+		if err != nil {
+			output.Get().Logger().Error("Failed to dump HTTP response", "error", err)
+		} else {
+			// Redact sensitive data before logging
+			redactedDump := redactSensitiveData(respDump)
+			output.Get().Logger().Trace("HTTP Response (full dump)", "response", string(redactedDump))
+		}
+	} else if output.Get().Logger().IsEnabled(slog.LevelDebug) {
+		// At DEBUG level, log response summary
+		output.Get().Logger().Debug("HTTP Response",
+			"method", resp.Request.Method,
+			"url", resp.Request.URL.String(),
+			"status", resp.Status,
+			"statusCode", resp.StatusCode)
+	}
+}
+
+func (t *LoggingTransport) logError(err error) {
+	// Log to file if enabled
+	if t.LogFile != nil {
+		timestamp := time.Now().Format(time.RFC3339)
+		fmt.Fprintf(t.LogFile, "\n*** ERROR @ %s ***\n", timestamp)
+		fmt.Fprintf(t.LogFile, "%v\n", err)
+	}
+
+	// Log to logger
+	output.Get().Logger().Error("HTTP transport error", "error", err)
+}
+
+// Close closes the log file
+func (t *LoggingTransport) Close() error {
+	if t.LogFile != nil {
+		return t.LogFile.Close()
+	}
+	return nil
+}
+
+func IsTFXLogEnabled() bool {
+	// Enabled when either TFX_LOG (terminal logging) or TFX_LOG_PATH (file logging) is set.
+	return output.Get().Logger().IsEnabled(slog.LevelInfo) || output.Get().Logger().GetLogPath() != ""
+}
+
+// NewHTTPClientWithLogging creates an HTTP client that logs all requests and responses to a file
+// if TFX_LOG_PATH is set, and/or to the terminal if TFX_LOG is set.
+func NewHTTPClientWithLogging() (*http.Client, io.Closer, error) {
+	var logFile *os.File
+	var err error
+
+	logPath := output.Get().Logger().GetLogPath()
+	if logPath != "" {
+		// Ensure directory exists
+		if err = os.MkdirAll(logPath, 0755); err != nil {
+			return nil, nil, fmt.Errorf("failed to create log directory: %w", err)
+		}
+
+		// Create a timestamped log file
+		filename := fmt.Sprintf("tfx_http_%s_%d.log", time.Now().Format("20060102_150405"), os.Getpid())
+		logFilePath := filepath.Join(logPath, filename)
+
+		logFile, err = os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to open log file: %w", err)
+		}
+
+		// Write header to log file
+		timestamp := time.Now().Format(time.RFC3339)
+		fmt.Fprintf(logFile, "################################################################################\n")
+		fmt.Fprintf(logFile, "# TFX HTTP LOG - Started at %s\n", timestamp)
+		fmt.Fprintf(logFile, "################################################################################\n")
+
+		output.Get().Logger().Info("HTTP logging to file enabled", "path", logFilePath)
+	}
+
+	transport := &LoggingTransport{
+		Transport: http.DefaultTransport,
+		LogFile:   logFile,
+	}
+
+	client := &http.Client{
+		Transport: transport,
+	}
+
+	return client, transport, nil
+}

@@ -76,15 +76,18 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Commands:
-    - Project: 
+    - Organization:
+      - General: commands/organization.md
+    - Project:
       - General: commands/project.md
     - Workspace: 
       - General: commands/workspace.md
-      - Variables: commands/workspace_variable.md
+      - Plans: commands/workspace_plan.md
       - Runs: commands/workspace_run.md
-      - Lock: commands/workspace_lock.md
-      - Team: commands/workspace_team.md
+      - Variables: commands/workspace_variable.md
       - Configuration Versions: commands/workspace_configurationversion.md
+      - Team: commands/workspace_team.md
+      - Lock: commands/workspace_lock.md
       - State Versions: commands/workspace_stateversion.md
     - Private Registry:
       - Modules: commands/registry_module.md

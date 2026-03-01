@@ -16,9 +16,10 @@
 secrets.md
 *.tfx.*
 *.tar.gz
+.env*
 .DS_Store
 act.secret.env
-pkg/
+# pkg/
 debug/
 *notes.md
 demo.md
@@ -28,8 +29,10 @@ bin/
 *.airgap
 *.tgz
 *.targz
+*.tar
 sv-*
 cv-*
 *.state
 site/cinder_del
 dist/
+logs/

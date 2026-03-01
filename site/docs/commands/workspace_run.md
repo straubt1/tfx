@@ -11,7 +11,7 @@ List all Runs for a supplied Workspace.
 **Example**
 
 ```sh
-$ tfx workspace run list --workspace-name tt-workspace
+$ tfx workspace run list --name tt-workspace
 Using config file: /Users/tstraub/.tfx.hcl
 List Runs for Workspace: tt-workspace
 ╭──────────────────────┬───────────────────────┬──────────────────────┬───────────┬───────────────────┬───────────────────────┬──────────────────────────────────────────────────╮
@@ -35,7 +35,7 @@ Create a Run for a supplied Workspace.
 **Latest Configuration Version Example**
 
 ```sh
-$ tfx workspace run create --workspace-name tt-workspace          
+$ tfx workspace run create --name tt-workspace          
 Using config file: /Users/tstraub/.tfx.hcl
 Create Run for Workspace: tt-workspace
 The run will be created using the workspace's latest configuration version 
@@ -52,7 +52,7 @@ Link:                  https://tfe.rocks/app/firefly/workspaces/tt-workspace/run
   Executing this command with a specific Configuration Version will result in that Configuration Version to be the **latest**
 
 ```sh
-$  tfx workspace run create --workspace-name tfx-test --id cv-q9yhRwv73u6UFJdq
+$  tfx workspace run create --name tfx-test --id cv-q9yhRwv73u6UFJdq
 Using config file: /Users/tstraub/.tfx.hcl
 Create Run for Workspace: tfx-test
 Configuration Version Provided: cv-q9yhRwv73u6UFJdq
@@ -66,7 +66,7 @@ Link:                  https://tfe.rocks/app/firefly/workspaces/tfx-test/runs/ru
 **Message Example**
 
 ```sh
-$ tfx workspace run create --workspace-name tfx-test --message "Run created from the TFx CLI"
+$ tfx workspace run create --name tfx-test --message "Run created from the TFx CLI"
 Using config file: /Users/tstraub/.tfx.hcl
 Create Run for Workspace: tfx-test
 The run will be created using the workspace's latest configuration version 
@@ -115,7 +115,7 @@ Cancel the latest run for a workspace.
 **Example**
 
 ```sh
-$ tfx workspace run cancel -w tt-workspace
+$ tfx workspace run cancel --name tt-workspace
 Using config file: /Users/tstraub/.tfx.hcl
 Cancel latest run for Workspace: tt-workspace
 Found latest Run: run-v3jHAYot4AYb4myn

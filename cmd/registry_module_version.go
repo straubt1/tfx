@@ -1,29 +1,17 @@
-// Copyright © 2021 Tom Straub <github.com/straubt1>
-
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
+// SPDX-License-Identifier: MIT
+// Copyright © 2025 Tom Straub <github.com/straubt1>
 
 package cmd
 
 import (
-	tfe "github.com/hashicorp/go-tfe"
+	"github.com/coreos/go-semver/semver"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/straubt1/tfx/client"
+	"github.com/straubt1/tfx/cmd/flags"
+	view "github.com/straubt1/tfx/cmd/views"
+	"github.com/straubt1/tfx/data"
+	pkgfile "github.com/straubt1/tfx/pkg/file"
 )
 
 var (
@@ -40,10 +28,11 @@ var (
 		Short: "List Module Versions",
 		Long:  "List Modules Versions of a module in the Private Module Registry for a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return registryModuleVersionList(
-				getTfxClientContext(),
-				*viperString("name"),
-				*viperString("provider"))
+			cmdConfig, err := flags.ParseRegistryModuleVersionListFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return registryModuleVersionList(cmdConfig)
 		},
 	}
 
@@ -53,20 +42,18 @@ var (
 		Short: "Create a Module Version",
 		Long:  "Create a Module Version of a module in the Private Module Registry for a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			moduleVersion, err := viperSemanticVersionString("version")
+			cmdConfig, err := flags.ParseRegistryModuleVersionCreateFlags(cmd)
 			if err != nil {
+				return err
+			}
+			if _, err := semver.NewVersion(cmdConfig.Version); err != nil {
 				return errors.New("failed to parse semantic version")
 			}
-			if !isDirectory(*viperString("directory")) {
+			if !pkgfile.IsDirectory(cmdConfig.Directory) {
 				return errors.New("directory file does not exist")
 			}
 
-			return registryModuleVersionCreate(
-				getTfxClientContext(),
-				*viperString("name"),
-				*viperString("provider"),
-				moduleVersion,
-				*viperString("directory"))
+			return registryModuleVersionCreate(cmdConfig)
 		},
 	}
 
@@ -76,16 +63,14 @@ var (
 		Short: "Delete a Module Version",
 		Long:  "Delete a Module Version of a module in the Private Module Registry for a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			moduleVersion, err := viperSemanticVersionString("version")
+			cmdConfig, err := flags.ParseRegistryModuleVersionDeleteFlags(cmd)
 			if err != nil {
+				return err
+			}
+			if _, err := semver.NewVersion(cmdConfig.Version); err != nil {
 				return errors.New("failed to parse semantic version")
 			}
-
-			return registryModuleVersionDelete(
-				getTfxClientContext(),
-				*viperString("name"),
-				*viperString("provider"),
-				moduleVersion)
+			return registryModuleVersionDelete(cmdConfig)
 		},
 	}
 
@@ -95,22 +80,19 @@ var (
 		Short: "Download a Module Version",
 		Long:  "Download the Terraform code of Module Version in the Private Module Registry for a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			moduleVersion, err := viperSemanticVersionString("version")
-			if err != nil {
-				return errors.New("failed to parse semantic version")
-			}
-			directory, err := getDirectory(*viperString("directory"),
-				*viperString("name"), *viperString("provider"), *viperString("version"))
+			cmdConfig, err := flags.ParseRegistryModuleVersionDownloadFlags(cmd)
 			if err != nil {
 				return err
 			}
-
-			return registryModuleVersionDownload(
-				getTfxClientContext(),
-				*viperString("name"),
-				*viperString("provider"),
-				moduleVersion,
-				directory)
+			if _, err := semver.NewVersion(cmdConfig.Version); err != nil {
+				return errors.New("failed to parse semantic version")
+			}
+			directory, err := pkgfile.GetDirectory(cmdConfig.Directory, cmdConfig.Name, cmdConfig.Provider, cmdConfig.Version)
+			if err != nil {
+				return err
+			}
+			cmdConfig.Directory = directory
+			return registryModuleVersionDownload(cmdConfig)
 		},
 	}
 )
@@ -155,88 +137,58 @@ func init() {
 	registryModuleVersionCmd.AddCommand(registryModuleVersionDownloadCmd)
 }
 
-func registryModuleVersionList(c TfxClientContext, moduleName string, providerName string) error {
-	o.AddMessageUserProvided("List Module Versions for Organization:", c.OrganizationName)
-	module, err := c.Client.RegistryModules.Read(c.Context, tfe.RegistryModuleID{
-		Organization: c.OrganizationName,
-		Name:         moduleName,
-		Provider:     providerName,
-		Namespace:    c.OrganizationName,
-		RegistryName: tfe.PrivateRegistry,
-	})
+func registryModuleVersionList(cmdConfig *flags.RegistryModuleVersionListFlags) error {
+	v := view.NewRegistryModuleVersionListView()
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "failed to list module versions")
+		return v.RenderError(err)
 	}
-
-	o.AddTableHeader("Version", "Status")
-	for _, i := range module.VersionStatuses {
-		o.AddTableRows(i.Version, i.Status)
+	v.PrintCommandHeader("List Module Versions for Organization: %s", c.OrganizationName)
+	module, err := data.ListRegistryModuleVersions(c, c.OrganizationName, cmdConfig.Name, cmdConfig.Provider)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to list module versions"))
 	}
-
-	return nil
+	return v.Render(module)
 }
 
-func registryModuleVersionCreate(c TfxClientContext, moduleName string, providerName string,
-	moduleVersion string, directory string) error {
-	o.AddMessageUserProvided("Create Module Version for Organization:", c.OrganizationName)
-	module, err := c.Client.RegistryModules.CreateVersion(c.Context, tfe.RegistryModuleID{
-		Organization: c.OrganizationName,
-		Name:         moduleName,
-		Provider:     providerName,
-		Namespace:    c.OrganizationName,
-		RegistryName: tfe.PrivateRegistry,
-	}, tfe.RegistryModuleCreateVersionOptions{
-		Version: &moduleVersion,
-	})
+func registryModuleVersionCreate(cmdConfig *flags.RegistryModuleVersionCreateFlags) error {
+	v := view.NewRegistryModuleVersionCreateView()
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "failed to create module version")
+		return v.RenderError(err)
 	}
-
-	o.AddMessageUserProvided("Module Version Created, Uploading...", "")
-	err = c.Client.RegistryModules.Upload(c.Context, *module, directory)
+	v.PrintCommandHeader("Create Module Version for Organization: %s", c.OrganizationName)
+	module, err := data.CreateRegistryModuleVersion(c, c.OrganizationName, cmdConfig.Name, cmdConfig.Provider, cmdConfig.Version, cmdConfig.Directory)
 	if err != nil {
-		errors.Wrap(err, "failed to upload module version")
+		return v.RenderError(errors.Wrap(err, "failed to create module version"))
 	}
-
-	o.AddMessageUserProvided("Module Created:", module.RegistryModule.Name)
-	o.AddDeferredMessageRead("ID", module.RegistryModule.ID)
-	o.AddDeferredMessageRead("Created", module.CreatedAt)
-
-	return nil
+	return v.Render(module)
 }
 
-func registryModuleVersionDelete(c TfxClientContext, moduleName string, providerName string,
-	moduleVersion string) error {
-	o.AddMessageUserProvided("Delete Module Version for Organization:", c.OrganizationName)
-	err := c.Client.RegistryModules.DeleteVersion(c.Context, tfe.RegistryModuleID{
-		Organization: c.OrganizationName,
-		Name:         moduleName,
-		Provider:     providerName,
-		Namespace:    c.OrganizationName,
-		RegistryName: tfe.PrivateRegistry,
-	}, moduleVersion)
+func registryModuleVersionDelete(cmdConfig *flags.RegistryModuleVersionDeleteFlags) error {
+	v := view.NewRegistryModuleVersionDeleteView()
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "failed to delete module version")
+		return v.RenderError(err)
 	}
-
-	o.AddMessageUserProvided("Module Version Deleted:", moduleName)
-	o.AddDeferredMessageRead("Status", "Success")
-
-	return nil
+	v.PrintCommandHeader("Delete Module Version for Organization: %s", c.OrganizationName)
+	err = data.DeleteRegistryModuleVersion(c, c.OrganizationName, cmdConfig.Name, cmdConfig.Provider, cmdConfig.Version)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to delete module version"))
+	}
+	return v.Render(cmdConfig.Name)
 }
 
-func registryModuleVersionDownload(c TfxClientContext, moduleName string, providerName string,
-	moduleVersion string, directory string) error {
-	o.AddMessageUserProvided("Downloading Module Version:", moduleName)
-
-	o.AddMessageUserProvided("Module Version Found, download started...", "")
-	_, err := DownloadModule(c.Token, c.Hostname, c.OrganizationName, moduleName, providerName, moduleVersion, directory)
+func registryModuleVersionDownload(cmdConfig *flags.RegistryModuleVersionDownloadFlags) error {
+	v := view.NewBaseView()
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "failed to download module")
+		return v.RenderError(err)
 	}
-
-	o.AddDeferredMessageRead("Status", "Success")
-	o.AddDeferredMessageRead("Directory", directory)
-
-	return nil
+	v.PrintCommandHeader("Downloading Module Version: %s", cmdConfig.Name)
+	_, err = data.DownloadRegistryModuleVersion(c, c.OrganizationName, cmdConfig.Name, cmdConfig.Provider, cmdConfig.Version, cmdConfig.Directory)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to download module"))
+	}
+	return v.Renderer().RenderProperties([]view.PropertyPair{{Key: "Status", Value: "Success"}, {Key: "Directory", Value: cmdConfig.Directory}})
 }

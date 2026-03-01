@@ -70,8 +70,8 @@ Command and Flag naming will adhere to the following standards:
         - "tfx workspace configuration-version show --id cv-e83GeSpjVKXuUGmU"
 - When a name or id is required as an input for a resource that is indirectly associated with the command, "{resource}-name" or "{resource}-id" will be used.
     - Examples:
-        - "tfx workspace run list --workspace-name tt-workspace"
-        - "tfx workspace run create --workspace-name tt-workspace --configuration-version-id cv-e83GeSpjVKXuUGmU"
+        - "tfx workspace run list --name tt-workspace"
+        - "tfx workspace run create --name tt-workspace --configuration-version-id cv-e83GeSpjVKXuUGmU"
 
 ## List Commands
 

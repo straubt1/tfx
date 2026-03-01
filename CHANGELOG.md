@@ -5,7 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.1.5] - 2025.09.06
+## [v0.2.0] - 2026-03-01
+
+**Added**
+
+* `tfx organization list` — list all organizations the token has access to
+* `tfx organization show` — show details of an organization
+* `tfx workspace plan show` — show details of a plan by ID
+* `tfx workspace plan logs` — stream logs for a plan by ID
+* `tfx workspace plan jsonoutput` — show JSON execution output for a plan by ID
+* `tfx workspace plan create` — create a plan for a workspace
+
+**Changed**
+
+* `tfx workspace run apply` now supports additional run statuses (`planned_and_saved`, `cost_estimated`, `policy_checked`)
+* Plan commands moved under `tfx workspace plan` for consistency (previously `tfx plan`)
+* Major internal refactor: layered architecture with dedicated `client/`, `data/`, `output/`, and `cmd/views/` packages
+
+**Removed**
+
+* `tfx plan` and `tfx apply` commands - These may be added back in the future.
+* `tfx release replicated` commands — TFE no longer runs on Replicated; use a previous version of `tfx` if needed
+* `tfx release tfe download` — TFE now uses Docker images; use `docker pull` instead
+
+## [v0.1.5] - 2025-09-06
 
 **Added**
 
@@ -19,7 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Better Config File error handling (and update to maintain .hcl configuration files)
 * Updated references to "HCP Terraform"
 
-## [v0.1.4] - 2024.10.29
+## [v0.1.4] - 2024-10-29
 
 **Added**
 
@@ -31,7 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Updated documentation example errors
 * Fixed BuiltBy build tag for releases
 
-## [v0.1.3] - 2024.09.20
+## [v0.1.3] - 2024-09-20
 
 **Added**
 
@@ -42,7 +65,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fixed Workspace Variable Create when the value passed in would error in the `isFile()` function.
 * Bumped Docker to alpine:3.20.3
 
-## [v0.1.2] - 2023.10.13
+**Removed**
+
+* `tfx workspace list --repository` flag has been removed.
+
+## [v0.1.2] - 2023-10-13
 
 **Added**
 
@@ -54,7 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Updated all go packages to latest
 * `tfx admin gpg create` and `tfx admin gpg show` commands will now output "KeyID" instead of "ID" to match the API response.
 
-## [v0.1.1] - 2022.09.11
+## [v0.1.1] - 2022-09-11
 
 **Added**
 
@@ -68,7 +95,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Removed**
 
-## [v0.1.0] - 2022.08.21
+## [v0.1.0] - 2022-08-21
 
 First official release!
 
@@ -127,7 +154,7 @@ First official release!
 **Removed**
 
 
-## [0.0.4-dev] - 2022.07.17
+## [0.0.4-dev] - 2022-07-17
 
 **Added**
 
@@ -171,7 +198,7 @@ New Commands:
 
 **Removed**
 
-## [0.0.3-dev] - 2021.06.22
+## [0.0.3-dev] - 2021-06-22
 
 **Added**
 
@@ -186,7 +213,7 @@ New Commands:
 
 **Removed**
 
-## [0.0.2-dev] - 2021.06.20
+## [0.0.2-dev] - 2021-06-20
 
 **Added**
 
@@ -220,7 +247,7 @@ New Commands:
 
 **Removed**
 
-## [0.0.1-dev] - 2021.05.23
+## [0.0.1-dev] - 2021-05-23
 
 **Added**
 
@@ -248,7 +275,7 @@ New Commands:
 
 **Removed**
 
-## [0.0.0-dev] - 2021.05.16
+## [0.0.0-dev] - 2021-05-16
 
 **Added**
 

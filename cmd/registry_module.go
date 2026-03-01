@@ -1,31 +1,17 @@
-// Copyright © 2021 Tom Straub <github.com/straubt1>
-
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
+// SPDX-License-Identifier: MIT
+// Copyright © 2025 Tom Straub <github.com/straubt1>
 
 package cmd
 
 import (
 	"math"
 
-	tfe "github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/straubt1/tfx/client"
+	"github.com/straubt1/tfx/cmd/flags"
+	view "github.com/straubt1/tfx/cmd/views"
+	"github.com/straubt1/tfx/data"
 )
 
 var (
@@ -42,14 +28,14 @@ var (
 		Short: "List modules",
 		Long:  "List modules in the Private Module Registry of a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := *viperInt("max-items")
-			if *viperBool("all") {
-				m = math.MaxInt
+			cmdConfig, err := flags.ParseRegistryModuleListFlags(cmd)
+			if err != nil {
+				return err
 			}
-
-			return registryModuleList(
-				getTfxClientContext(),
-				m)
+			if cmdConfig.All {
+				cmdConfig.MaxItems = math.MaxInt
+			}
+			return registryModuleList(cmdConfig)
 		},
 	}
 
@@ -59,10 +45,11 @@ var (
 		Short: "Create a module",
 		Long:  "Create a module in the Private Module Registry for a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return registryModuleCreate(
-				getTfxClientContext(),
-				*viperString("name"),
-				*viperString("provider"))
+			cmdConfig, err := flags.ParseRegistryModuleCreateFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return registryModuleCreate(cmdConfig)
 		},
 	}
 
@@ -72,10 +59,11 @@ var (
 		Short: "Show a module",
 		Long:  "Show a module details of a module in the Private Module Registry for a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return registryModuleShow(
-				getTfxClientContext(),
-				*viperString("name"),
-				*viperString("provider"))
+			cmdConfig, err := flags.ParseRegistryModuleShowFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return registryModuleShow(cmdConfig)
 		},
 	}
 
@@ -85,10 +73,11 @@ var (
 		Short: "Delete a module",
 		Long:  "Delete a module in the Private Module Registry for a TFx Organization.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return registryModuleDelete(
-				getTfxClientContext(),
-				*viperString("name"),
-				*viperString("provider"))
+			cmdConfig, err := flags.ParseRegistryModuleDeleteFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return registryModuleDelete(cmdConfig)
 		},
 	}
 )
@@ -123,111 +112,58 @@ func init() {
 	registryModuleCmd.AddCommand(registryModuleDeleteCmd)
 }
 
-func registryModuleListAll(c TfxClientContext, orgName string, maxItems int) ([]*tfe.RegistryModule, error) {
-	pageSize := 100
-	if maxItems < 100 {
-		pageSize = maxItems // Only get what we need in one page
+func registryModuleList(cmdConfig *flags.RegistryModuleListFlags) error {
+	v := view.NewRegistryModuleListView()
+	c, err := client.NewFromViper()
+	if err != nil {
+		return v.RenderError(err)
 	}
-
-	allItems := []*tfe.RegistryModule{}
-	opts := tfe.RegistryModuleListOptions{
-		ListOptions: tfe.ListOptions{PageNumber: 1, PageSize: pageSize},
+	v.PrintCommandHeader("List Modules for Organization: %s", c.OrganizationName)
+	items, err := data.ListRegistryModules(c, c.OrganizationName, cmdConfig.MaxItems)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to list modules"))
 	}
-
-	for {
-		items, err := c.Client.RegistryModules.List(c.Context, orgName, &opts)
-		if err != nil {
-			return nil, err
-		}
-
-		allItems = append(allItems, items.Items...)
-		if len(allItems) >= maxItems {
-			break // Hit the max, break. For maxItems > 100 it is possible to return more than max in this approach
-		}
-
-		if items.CurrentPage >= items.TotalPages {
-			break
-		}
-		opts.PageNumber = items.NextPage
-	}
-
-	return allItems, nil
+	return v.Render(items)
 }
 
-func registryModuleList(c TfxClientContext, maxItems int) error {
-	o.AddMessageUserProvided("List Modules for Organization:", c.OrganizationName)
-	items, err := registryModuleListAll(c, c.OrganizationName, maxItems)
+func registryModuleCreate(cmdConfig *flags.RegistryModuleCreateFlags) error {
+	v := view.NewRegistryModuleCreateView()
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "failed to list modules")
+		return v.RenderError(err)
 	}
-
-	o.AddTableHeader("Name", "Provider", "ID", "Status", "Published", "Versions")
-	for _, i := range items {
-		o.AddTableRows(i.Name, i.Provider, i.ID, i.Status, i.UpdatedAt, len(i.VersionStatuses))
+	v.PrintCommandHeader("Create Module for Organization: %s", c.OrganizationName)
+	module, err := data.CreateRegistryModule(c, c.OrganizationName, cmdConfig.Name, cmdConfig.Provider)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to create module"))
 	}
-
-	return nil
+	return v.Render(module)
 }
 
-func registryModuleCreate(c TfxClientContext, moduleName string, providerName string) error {
-	o.AddMessageUserProvided("Create Module for Organization:", c.OrganizationName)
-	module, err := c.Client.RegistryModules.Create(c.Context, c.OrganizationName, tfe.RegistryModuleCreateOptions{
-		Name:     &moduleName,
-		Provider: &providerName,
-	})
+func registryModuleShow(cmdConfig *flags.RegistryModuleShowFlags) error {
+	v := view.NewRegistryModuleShowView()
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "failed to create module")
+		return v.RenderError(err)
 	}
-
-	o.AddMessageUserProvided("Module Created:", module.Name)
-	o.AddDeferredMessageRead("ID", module.ID)
-	o.AddDeferredMessageRead("Namespace", module.Namespace)
-	o.AddDeferredMessageRead("Created", module.CreatedAt)
-	o.AddDeferredMessageRead("Updated", module.CreatedAt)
-
-	return nil
+	v.PrintCommandHeader("Show Module for Organization: %s", c.OrganizationName)
+	module, err := data.ReadRegistryModule(c, c.OrganizationName, cmdConfig.Name, cmdConfig.Provider)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to show module"))
+	}
+	return v.Render(module)
 }
 
-func registryModuleShow(c TfxClientContext, moduleName string, providerName string) error {
-	o.AddMessageUserProvided("Show Module for Organization:", c.OrganizationName)
-	module, err := c.Client.RegistryModules.Read(c.Context, tfe.RegistryModuleID{
-		Organization: c.OrganizationName,
-		Name:         moduleName,
-		Provider:     providerName,
-		Namespace:    c.OrganizationName,
-		RegistryName: tfe.PrivateRegistry,
-	})
+func registryModuleDelete(cmdConfig *flags.RegistryModuleDeleteFlags) error {
+	v := view.NewRegistryModuleDeleteView()
+	c, err := client.NewFromViper()
 	if err != nil {
-		logError(err, "failed to show module")
+		return v.RenderError(err)
 	}
-
-	o.AddDeferredMessageRead("ID", module.ID)
-	o.AddDeferredMessageRead("Status", module.Status)
-	o.AddDeferredMessageRead("Created", module.CreatedAt)
-	o.AddDeferredMessageRead("Updated", module.UpdatedAt)
-	o.AddDeferredMessageRead("Versions", len(module.VersionStatuses))
-	if len(module.VersionStatuses) > 0 {
-		o.AddDeferredMessageRead("Latest Version", module.VersionStatuses[0].Version)
-	}
-
-	return nil
-}
-
-func registryModuleDelete(c TfxClientContext, moduleName string, providerName string) error {
-	o.AddMessageUserProvided("Delete Module for Organization:", c.OrganizationName)
-	// RegistryModules.DeleteProvider requires the provider as well (if just the name is used, multiple modules could be deleted)
-	err := c.Client.RegistryModules.DeleteProvider(c.Context, tfe.RegistryModuleID{
-		Organization: c.OrganizationName,
-		Name:         moduleName,
-		Provider:     providerName,
-		RegistryName: tfe.PrivateRegistry,
-	})
+	v.PrintCommandHeader("Delete Module for Organization: %s", c.OrganizationName)
+	err = data.DeleteRegistryModule(c, c.OrganizationName, cmdConfig.Name, cmdConfig.Provider)
 	if err != nil {
-		logError(err, "failed to delete module")
+		return v.RenderError(errors.Wrap(err, "failed to delete module"))
 	}
-
-	o.AddMessageUserProvided("Module Deleted:", moduleName)
-	o.AddDeferredMessageRead("Status", "Success")
-
-	return nil
+	return v.Render(cmdConfig.Name)
 }

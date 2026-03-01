@@ -1,33 +1,19 @@
-// Copyright © 2021 Tom Straub <github.com/straubt1>
-
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
+// SPDX-License-Identifier: MIT
+// Copyright © 2025 Tom Straub <github.com/straubt1>
 
 package cmd
 
 import (
 	"bytes"
-	"math"
 
 	"github.com/hashicorp/go-slug"
-	tfe "github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/straubt1/tfx/client"
+	"github.com/straubt1/tfx/cmd/flags"
+	view "github.com/straubt1/tfx/cmd/views"
+	"github.com/straubt1/tfx/data"
+	pkgfile "github.com/straubt1/tfx/pkg/file"
 )
 
 var (
@@ -45,15 +31,11 @@ var (
 		Short: "List Configuration Versions",
 		Long:  "List Configuration Versions of a TFx Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := *viperInt("max-items")
-			if *viperBool("all") {
-				m = math.MaxInt
+			cmdConfig, err := flags.ParseCVListFlags(cmd)
+			if err != nil {
+				return err
 			}
-
-			return cvList(
-				getTfxClientContext(),
-				*viperString("workspace-name"),
-				m)
+			return cvList(cmdConfig)
 		},
 	}
 
@@ -63,15 +45,11 @@ var (
 		Short: "Create Configuration Version",
 		Long:  "Create Configuration Version for a TFx Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !isDirectory(*viperString("directory")) {
-				return errors.New("directory file does not exist")
+			cmdConfig, err := flags.ParseCVCreateFlags(cmd)
+			if err != nil {
+				return err
 			}
-
-			return cvCreate(
-				getTfxClientContext(),
-				*viperString("workspace-name"),
-				*viperString("directory"),
-				*viperBool("speculative"))
+			return cvCreate(cmdConfig)
 		},
 	}
 
@@ -81,9 +59,11 @@ var (
 		Short: "Show Configuration Version",
 		Long:  "Show Configuration Version details for a TFx Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cvShow(
-				getTfxClientContext(),
-				*viperString("id"))
+			cmdConfig, err := flags.ParseCVShowFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return cvShow(cmdConfig)
 		},
 	}
 
@@ -93,15 +73,11 @@ var (
 		Short: "Download the Configuration Version",
 		Long:  "Download the Configuration Version code for a TFx Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			directory, err := getDirectory(*viperString("directory"), *viperString("id"))
+			cmdConfig, err := flags.ParseCVDownloadFlags(cmd)
 			if err != nil {
 				return err
 			}
-
-			return cvDownload(
-				getTfxClientContext(),
-				*viperString("id"),
-				directory)
+			return cvDownload(cmdConfig)
 		},
 	}
 )
@@ -110,16 +86,15 @@ func init() {
 	// `tfx workspace configuration-version` commands
 
 	// `tfx workspace configuration-version list` command
-	cvListCmd.Flags().StringP("workspace-name", "w", "", "Workspace name")
+	cvListCmd.Flags().StringP("name", "n", "", "Workspace name")
 	cvListCmd.Flags().IntP("max-items", "m", 10, "Max number of results (optional)")
-	cvListCmd.Flags().BoolP("all", "a", false, "Retrieve all results regardless of maxItems flag (optional)")
-	cvListCmd.MarkFlagRequired("workspace-name")
+	cvListCmd.MarkFlagRequired("name")
 
 	// `tfx cv create`
-	cvCreateCmd.Flags().StringP("workspace-name", "w", "", "Workspace name")
+	cvCreateCmd.Flags().StringP("name", "n", "", "Workspace name")
 	cvCreateCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (optional, defaults to current directory)")
 	cvCreateCmd.Flags().BoolP("speculative", "s", false, "Perform a Speculative Plan (optional, defaults to false)")
-	cvCreateCmd.MarkFlagRequired("workspace-name")
+	cvCreateCmd.MarkFlagRequired("name")
 
 	// `tfx cv show`
 	cvShowCmd.Flags().StringP("id", "i", "", "Configuration Version Id (i.e. cv-*)")
@@ -137,138 +112,89 @@ func init() {
 	cvCmd.AddCommand(cvDownloadCmd)
 }
 
-func cvListAll(c TfxClientContext, workspaceId string, maxItems int) ([]*tfe.ConfigurationVersion, error) {
-	pageSize := 100
-	if maxItems < 100 {
-		pageSize = maxItems // Only get what we need in one page
+func cvList(cmdConfig *flags.CVListFlags) error {
+	v := view.NewConfigVersionListView()
+
+	c, err := client.NewFromViper()
+	if err != nil {
+		return v.RenderError(err)
 	}
 
-	allItems := []*tfe.ConfigurationVersion{}
-	opts := tfe.ConfigurationVersionListOptions{
-		ListOptions: tfe.ListOptions{PageNumber: 1, PageSize: pageSize},
-		Include:     []tfe.ConfigVerIncludeOpt{"ingress_attributes"},
-	}
-	for {
-		items, err := c.Client.ConfigurationVersions.List(c.Context, workspaceId, &opts)
-		if err != nil {
-			return nil, err
-		}
+	v.PrintCommandHeader("Listing configuration versions for workspace '%s'", cmdConfig.WorkspaceName)
 
-		allItems = append(allItems, items.Items...)
-		if len(allItems) >= maxItems {
-			break // Hit the max, break. For maxItems > 100 it is possible to return more than max in this approach
-		}
-
-		if items.CurrentPage >= items.TotalPages {
-			break
-		}
-		opts.PageNumber = items.NextPage
+	items, err := data.FetchConfigurationVersions(c, c.OrganizationName, cmdConfig.WorkspaceName, cmdConfig.MaxItems)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to list configuration versions"))
 	}
 
-	return allItems, nil
+	return v.Render(items)
 }
 
-func cvList(c TfxClientContext, workspaceName string, maxItems int) error {
-	o.AddMessageUserProvided("List Configuration Versions for Workspace:", workspaceName)
-	workspaceId, err := getWorkspaceId(c, workspaceName)
+func cvCreate(cmdConfig *flags.CVCreateFlags) error {
+	v := view.NewConfigVersionCreateView()
+
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "unable to read workspace id")
+		return v.RenderError(err)
 	}
 
-	items, err := cvListAll(c, workspaceId, maxItems)
+	if !pkgfile.IsDirectory(cmdConfig.Directory) {
+		return v.RenderError(errors.New("directory file does not exist"))
+	}
+
+	v.PrintCommandHeader("Creating configuration version for workspace '%s'", cmdConfig.WorkspaceName)
+
+	cv, err := data.CreateConfigurationVersion(c, c.OrganizationName, cmdConfig.WorkspaceName, cmdConfig.Directory, cmdConfig.Speculative)
 	if err != nil {
-		return errors.Wrap(err, "failed to list configuration versions")
+		return v.RenderError(errors.Wrap(err, "failed to create configuration version"))
 	}
 
-	o.AddTableHeader("Id", "Speculative", "Status", "Repo", "Branch", "Commit", "Message")
-	for _, i := range items {
-		identifier, branch, commit, message := "", "", "", ""
-		if i.IngressAttributes != nil { // only valid for VCS-driven workflow
-			identifier = i.IngressAttributes.Identifier
-			branch = i.IngressAttributes.Branch
-			commit = i.IngressAttributes.CommitSHA
-			if len(commit) > 7 {
-				commit = commit[0:7] // shrink hash, nice to have
-			}
-			message = i.IngressAttributes.CommitMessage
-		}
-		o.AddTableRows(i.ID, i.Speculative, i.Status, identifier, branch, commit, message)
-	}
-
-	return nil
+	return v.Render(cv)
 }
 
-func cvCreate(c TfxClientContext, workspaceName string, directory string, isSpeculative bool) error {
-	o.AddMessageUserProvided("Create Configuration Version for Workspace:", workspaceName)
-	o.AddMessageUserProvided("Code Directory:", directory)
-	workspaceId, err := getWorkspaceId(c, workspaceName)
+func cvShow(cmdConfig *flags.CVShowFlags) error {
+	v := view.NewConfigVersionShowView()
+
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "unable to read workspace id")
+		return v.RenderError(err)
 	}
 
-	cv, err := c.Client.ConfigurationVersions.Create(c.Context, workspaceId, tfe.ConfigurationVersionCreateOptions{
-		AutoQueueRuns: tfe.Bool(false),
-		Speculative:   tfe.Bool(isSpeculative),
-	})
+	v.PrintCommandHeader("Showing configuration version '%s'", cmdConfig.ID)
+
+	cv, err := data.FetchConfigurationVersion(c, cmdConfig.ID)
 	if err != nil {
-		return errors.Wrap(err, "failed to create configuration version")
+		return v.RenderError(errors.Wrap(err, "failed to read configuration version from provided id"))
 	}
 
-	o.AddMessageUserProvided("Upload code to Configuration Version...", "")
-	err = c.Client.ConfigurationVersions.Upload(c.Context, cv.UploadURL, directory)
-	if err != nil {
-		return errors.Wrap(err, "failed to upload code to the configuration version")
-	}
-
-	o.AddMessageUserProvided("Configuration Version Created", "")
-	o.AddDeferredMessageRead("ID", cv.ID)
-	o.AddDeferredMessageRead("Speculative", cv.Speculative)
-
-	return nil
+	return v.Render(cv)
 }
 
-func cvShow(c TfxClientContext, configurationId string) error {
-	o.AddMessageUserProvided("Show Configuration Version for Workspace from Id:", configurationId)
-	cv, err := c.Client.ConfigurationVersions.ReadWithOptions(c.Context, configurationId, &tfe.ConfigurationVersionReadOptions{
-		Include: []tfe.ConfigVerIncludeOpt{"ingress_attributes"},
-	})
+func cvDownload(cmdConfig *flags.CVDownloadFlags) error {
+	v := view.NewConfigVersionDownloadView()
+
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "failed to read configuration version from provided id")
+		return v.RenderError(err)
 	}
 
-	o.AddDeferredMessageRead("ID", cv.ID)
-	o.AddDeferredMessageRead("Status", cv.Status)
-	o.AddDeferredMessageRead("Speculative", cv.Speculative)
-	if cv.ErrorMessage != "" {
-		o.AddDeferredMessageRead("Error Message", cv.ErrorMessage)
-	}
-	if cv.IngressAttributes != nil { // only valid for VCS-driven workflow
-		o.AddDeferredMessageRead("Repo", cv.IngressAttributes.Identifier)
-		o.AddDeferredMessageRead("Branch", cv.IngressAttributes.Branch)
-		o.AddDeferredMessageRead("Commit", cv.IngressAttributes.CommitSHA)
-		o.AddDeferredMessageRead("Message", cv.IngressAttributes.CommitMessage)
-		o.AddDeferredMessageRead("Link", cv.IngressAttributes.CommitURL)
-	}
+	v.PrintCommandHeader("Downloading configuration version '%s'", cmdConfig.ID)
 
-	return nil
-}
-
-func cvDownload(c TfxClientContext, configurationId string, directory string) error {
-	o.AddMessageUserProvided("Downloading Configuration Version from Id:", configurationId)
-	cv, err := c.Client.ConfigurationVersions.Download(c.Context, configurationId)
+	directory, err := pkgfile.GetDirectory(cmdConfig.Directory, cmdConfig.ID)
 	if err != nil {
-		return errors.Wrap(err, "failed to download configuration version")
+		return v.RenderError(err)
 	}
 
-	o.AddMessageUserProvided("Configuration Version Found, download started...", "")
-	// convert byte slice to io.Reader
-	reader := bytes.NewReader(cv)
+	buff, err := data.DownloadConfigurationVersion(c, cmdConfig.ID)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to download configuration version"))
+	}
+
+	// Unpack slug to directory
+	reader := bytes.NewReader(buff)
 	if err := slug.Unpack(reader, directory); err != nil {
-		return errors.Wrap(err, "failed to unpack configuration version slug")
+		return v.RenderError(errors.Wrap(err, "failed to unpack configuration version slug"))
 	}
 
-	o.AddDeferredMessageRead("Status", "Success")
-	o.AddDeferredMessageRead("Directory", directory)
-
-	return nil
+	return v.Render(directory)
 }

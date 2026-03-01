@@ -35,6 +35,26 @@ archives:
       {{- if .Arm }}v{{ .Arm }}{{ end -}}
     wrap_in_directory: true
 
+homebrew_casks:
+  - name: tfx
+    ids:
+      - tfx
+    binaries:
+      - tfx
+    directory: Casks
+    skip_upload: "{{ .IsSnapshot }}"
+    repository:
+      owner: straubt1
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+      branch: main
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    commit_msg_template: "brew: update tfx cask to {{ .Tag }}"
+    homepage: "https://tfx.rocks/"
+    description: "TFx is a standalone CLI tool for HCP Terraform and Terraform Enterprise."
+
 nfpms:
   - id: tfx
     vendor: straubt1
@@ -48,55 +68,28 @@ nfpms:
       - rpm
     bindir: /usr/bin
 
-dockers:
-  - id: tfx-amd64
-    image_templates:
-      - 'ghcr.io/straubt1/{{.ProjectName}}:{{ .Tag }}-amd64'
-      - 'ghcr.io/straubt1/{{.ProjectName}}:latest-amd64'
-    dockerfile: Dockerfile
-    use: buildx
-    build_flag_templates:
+dockers_v2:
+  - dockerfile: Dockerfile
+    images:
+      - 'ghcr.io/straubt1/{{.ProjectName}}'
+    tags:
+      - '{{ .Tag }}'
+      - 'latest'
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    flags:
       - "--pull"
-      - "--label=io.artifacthub.package.readme-url=https://raw.githubusercontent.com/straubt1/tfx/main/README.md"
-      - "--label=io.artifacthub.package.maintainers=[{\"name\":\"Tom Straub\",\"email\":\"tstraub@hashicorp.com\"}]"
-      - "--label=io.artifacthub.package.license=MIT"
-      - "--label=org.opencontainers.image.description=TFx is a standalone CLI for HCP Terraform and Terraform Enterprise"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.source={{.GitURL}}"
-      - "--platform=linux/amd64"
-    goarch: amd64
-  - id: tfx-arm64
-    image_templates:
-      - 'ghcr.io/straubt1/{{.ProjectName}}:{{ .Tag }}-arm64'
-      - 'ghcr.io/straubt1/{{.ProjectName}}:latest-arm64'
-    dockerfile: Dockerfile
-    use: buildx
-    build_flag_templates:
-      - "--pull"
-      - "--label=io.artifacthub.package.readme-url=https://raw.githubusercontent.com/straubt1/tfx/main/README.md"
-      - "--label=io.artifacthub.package.maintainers=[{\"name\":\"Tom Straub\",\"email\":\"tstraub@hashicorp.com\"}]"
-      - "--label=io.artifacthub.package.license=MIT"
-      - "--label=org.opencontainers.image.description=TFx is a standalone CLI for HCP Terraform and Terraform Enterprise"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.source={{.GitURL}}"
-      - "--platform=linux/arm64"
-    goarch: arm64
-
-docker_manifests:
-  - name_template: 'ghcr.io/straubt1/{{.ProjectName}}:{{ .Tag }}'
-    image_templates:
-      - 'ghcr.io/straubt1/{{.ProjectName}}:{{ .Tag }}-amd64'
-      - 'ghcr.io/straubt1/{{.ProjectName}}:{{ .Tag }}-arm64'
-  - name_template: 'ghcr.io/straubt1/{{.ProjectName}}:latest'
-    image_templates:
-      - 'ghcr.io/straubt1/{{.ProjectName}}:latest-amd64'
-      - 'ghcr.io/straubt1/{{.ProjectName}}:latest-arm64'
+    labels:
+      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/straubt1/tfx/main/README.md"
+      "io.artifacthub.package.maintainers": "[{\"name\":\"Tom Straub\",\"email\":\"tstraub@hashicorp.com\"}]"
+      "io.artifacthub.package.license": "MIT"
+      "org.opencontainers.image.description": "TFx is a standalone CLI for HCP Terraform and Terraform Enterprise"
+      "org.opencontainers.image.created": "{{.Date}}"
+      "org.opencontainers.image.name": "{{.ProjectName}}"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.version": "{{.Version}}"
+      "org.opencontainers.image.source": "{{.GitURL}}"
 
 checksum:
   name_template: "checksums.txt"

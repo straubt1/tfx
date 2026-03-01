@@ -1,24 +1,128 @@
 version: '3'
 
-dotenv: ['.env', 'secrets/.env']
-
 tasks:
   go-build:
-    desc: Build Go binary
-    cmds:
-      - go build .
-  go-build-all:
-    desc: Build all Go binaries
+    desc: Build Go binary (development build with git metadata)
     cmds:
       - |
-          BUILD_SHA="local" BUILD_DATE=$(date) BUILT_BY="me" \
-          goreleaser release --snapshot --clean
-  go-upgrade:
-    desc: Upgrade Go dependencies
+        go build \
+          -ldflags="-X github.com/straubt1/tfx/version.Build=$(git rev-parse --short HEAD) \
+            -X 'github.com/straubt1/tfx/version.Date=$(date -u +%Y-%m-%dT%H:%M:%SZ)' \
+            -X github.com/straubt1/tfx/version.BuiltBy=local" \
+          -o tfx .
+
+  go-build-all:
+    desc: Cross-platform snapshot build via goreleaser (same as release-dry-run)
     cmds:
+      - goreleaser release --snapshot --clean
+  go-upgrade:
+    desc: Upgrade Go toolchain (via brew) and all module dependencies
+    cmds:
+      - brew upgrade go
       - go get -u ./...
       - go mod tidy
+  test:
+    desc: Run unit tests
+    cmds:
+      - go test -v ./...
+  test-integration-data:
+    dotenv: ['secrets/.env-int']
+    desc: Run integration tests (requires TFE_HOSTNAME, TFE_TOKEN, TFE_ORGANIZATION env vars)
+    cmds:
+      - go test -tags=integration -v -count=1 ./data...
+  test-integration-cmd:
+    dotenv: ['secrets/.env-int']
+    desc: Run integration tests for commands only
+    cmds:
+      - go test -tags=integration -v -count=1 ./integration/...
+  test-all:
+    desc: Run all tests (unit + integration)
+    cmds:
+      - task: test
+      - task: test-integration
   serve-docs:
     desc: Serve documentation site
     cmds:
       - mkdocs serve -f site/mkdocs.yml
+
+  release-dry-run:
+    desc: Simulate the full release pipeline locally (no publish, no tag required); cask written to dist/
+    cmds:
+      - goreleaser release --snapshot --clean --skip=announce,validate
+
+  # ── Internal shared release logic ────────────────────────────────────────
+  _release-bump:
+    internal: true
+    silent: true
+    vars:
+      BUMP_TYPE: '{{default "patch" .BUMP_TYPE}}'
+    cmds:
+      - |
+        # Determine current version from latest git tag
+        CURRENT_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+        CURRENT_VERSION="${CURRENT_TAG#v}"
+        IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+
+        # Calculate next semver
+        case "{{.BUMP_TYPE}}" in
+          major) NEXT_VERSION="$((MAJOR+1)).0.0" ;;
+          minor) NEXT_VERSION="${MAJOR}.$((MINOR+1)).0" ;;
+          patch) NEXT_VERSION="${MAJOR}.${MINOR}.$((PATCH+1))" ;;
+          *)     echo "Invalid bump type: {{.BUMP_TYPE}}"; exit 1 ;;
+        esac
+        NEXT_TAG="v${NEXT_VERSION}"
+
+        # Show plan
+        echo ""
+        echo "  TFx Release — {{.BUMP_TYPE}} bump"
+        echo "  ─────────────────────────────────"
+        echo "  Current : ${CURRENT_TAG}"
+        echo "  Next    : ${NEXT_TAG}"
+        echo ""
+        echo "  Will execute:"
+        echo "    git add CHANGELOG.md"
+        echo "    git commit -m \"chore: release ${NEXT_TAG}\""
+        echo "    git tag ${NEXT_TAG}"
+        echo "    git push && git push --tags"
+        echo ""
+
+        # Warn if CHANGELOG.md is missing an entry for the new version
+        if ! grep -q "\[v${NEXT_VERSION}\]" CHANGELOG.md 2>/dev/null; then
+          echo "  ⚠️  CHANGELOG.md has no entry for ${NEXT_TAG}."
+          echo "     Update it with release notes before confirming."
+          echo ""
+        fi
+
+        read -p "  Proceed with ${NEXT_TAG}? [y/N] " CONFIRM
+        if [ "$CONFIRM" != "y" ] && [ "$CONFIRM" != "Y" ]; then
+          echo "  Release cancelled."; exit 0
+        fi
+
+        # Execute
+        git add CHANGELOG.md
+        git commit -m "chore: release ${NEXT_TAG}"
+        git tag "${NEXT_TAG}"
+        git push && git push --tags
+
+        echo ""
+        echo "  ✅ ${NEXT_TAG} released — GitHub Actions will build and publish."
+        echo "     https://github.com/straubt1/tfx/actions"
+
+  # ── Public release tasks ──────────────────────────────────────────────────
+  release:patch:
+    desc: "Cut a patch release (x.y.Z+1) — for bugfixes"
+    cmds:
+      - task: _release-bump
+        vars: {BUMP_TYPE: patch}
+
+  release:minor:
+    desc: "Cut a minor release (x.Y+1.0) — for new features"
+    cmds:
+      - task: _release-bump
+        vars: {BUMP_TYPE: minor}
+
+  release:major:
+    desc: "Cut a major release (X+1.0.0) — for breaking changes"
+    cmds:
+      - task: _release-bump
+        vars: {BUMP_TYPE: major}

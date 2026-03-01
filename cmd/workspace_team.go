@@ -1,30 +1,15 @@
-// Copyright © 2021 Tom Straub <github.com/straubt1>
+// SPDX-License-Identifier: MIT
+// Copyright © 2025 Tom Straub <github.com/straubt1>
 
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
 package cmd
 
 import (
-	"math"
-
-	tfe "github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/straubt1/tfx/client"
+	"github.com/straubt1/tfx/cmd/flags"
+	view "github.com/straubt1/tfx/cmd/views"
+	"github.com/straubt1/tfx/data"
 )
 
 var (
@@ -41,94 +26,61 @@ var (
 		Short: "List Teams",
 		Long:  "List Teams in a Workspace.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := *viperInt("max-items")
-			if *viperBool("all") {
-				m = math.MaxInt
+			cmdConfig, err := flags.ParseTeamListFlags(cmd)
+			if err != nil {
+				return err
 			}
-
-			return workspaceTeamList(
-				getTfxClientContext(),
-				*viperString("workspace-name"),
-				m)
+			return workspaceTeamList(cmdConfig)
 		},
 	}
 )
 
 func init() {
-	// `tfx variable list` command
-	workspaceTeamListCmd.Flags().StringP("workspace-name", "w", "", "Name of the Workspace")
-	workspaceTeamListCmd.Flags().IntP("max-items", "m", 100, "Max number of results (optional)")
-	workspaceTeamListCmd.Flags().BoolP("all", "a", false, "Retrieve all results regardless of maxItems flag (optional)")
-	workspaceTeamListCmd.MarkFlagRequired("workspace-name")
+	// `tfx workspace team list` command flags
+	workspaceTeamListCmd.Flags().StringP("name", "n", "", "Name of the Workspace")
+	workspaceTeamListCmd.MarkFlagRequired("name")
 
 	workspaceCmd.AddCommand(workspaceTeamCmd)
 	workspaceTeamCmd.AddCommand(workspaceTeamListCmd)
 }
 
-func workspaceListAllTeams(c TfxClientContext, workspaceId string, maxItems int) ([]*tfe.TeamAccess, error) {
-	pageSize := 100
-	if maxItems < 100 {
-		pageSize = maxItems // Only get what we need in one page
-	}
+func workspaceTeamList(cmdConfig *flags.TeamListFlags) error {
+	// Create view for rendering
+	v := view.NewTeamListView()
 
-	allItems := []*tfe.TeamAccess{}
-	opts := tfe.TeamAccessListOptions{
-		ListOptions: tfe.ListOptions{PageNumber: 1, PageSize: pageSize},
-		WorkspaceID: workspaceId,
-	}
-	for {
-		items, err := c.Client.TeamAccess.List(c.Context, &opts)
-		if err != nil {
-			return nil, err
-		}
-
-		allItems = append(allItems, items.Items...)
-		if len(allItems) >= maxItems {
-			break // Hit the max, break. For maxItems > 100 it is possible to return more than max in this approach
-		}
-
-		if items.CurrentPage >= items.TotalPages {
-			break
-		}
-		opts.PageNumber = items.NextPage
-	}
-
-	return allItems, nil
-}
-
-func workspaceTeamList(c TfxClientContext, workspaceName string, maxItems int) error {
-	o.AddMessageUserProvided("List Variables for Workspace:", workspaceName)
-	workspaceId, err := getWorkspaceId(c, workspaceName)
+	c, err := client.NewFromViper()
 	if err != nil {
-		return errors.Wrap(err, "unable to read workspace id")
+		return v.RenderError(err)
 	}
 
-	items, err := workspaceListAllTeams(c, workspaceId, maxItems)
+	v.PrintCommandHeader("Listing teams for workspace '%s'", cmdConfig.WorkspaceName)
+
+	workspaceID, err := data.GetWorkspaceID(c, c.OrganizationName, cmdConfig.WorkspaceName)
 	if err != nil {
-		return errors.Wrap(err, "failed to list teams")
+		return v.RenderError(errors.Wrap(err, "unable to read workspace id"))
 	}
 
-	o.AddTableHeader("Name", "Team Id", "Team Access Id", "Access Type", "Runs", "Workspace Locking", "Sentinel Mocks", "Run Tasks", "Variables", "State Versions")
-	for _, i := range items {
-		t, err := c.Client.Teams.Read(c.Context, i.Team.ID)
-		if err != nil {
-			return errors.Wrap(err, "failed to find team name")
+	// Fetch all items (no max limit)
+	teamAccess, err := data.FetchWorkspaceTeamAccess(c, workspaceID, 0)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to list teams"))
+	}
+
+	// Resolve team names
+	namesIface, err := data.GetTeamAccessNames(c, teamAccess)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to find team name"))
+	}
+
+	// Convert []interface{} to []string
+	names := make([]string, len(namesIface))
+	for i, n := range namesIface {
+		if s, ok := n.(string); ok {
+			names[i] = s
+		} else {
+			names[i] = ""
 		}
-		o.AddTableRows(t.Name, i.Team.ID, i.ID, i.Access, i.Runs, i.WorkspaceLocking, i.SentinelMocks, i.RunTasks, i.Variables, i.StateVersions)
 	}
 
-	return nil
-}
-
-func getTeamAccessNames(c TfxClientContext, ta []*tfe.TeamAccess) ([]interface{}, error) {
-	var teamNames []interface{}
-	for _, i := range ta {
-		t, err := c.Client.Teams.Read(c.Context, i.Team.ID)
-		if err != nil {
-			return nil, err
-		}
-		teamNames = append(teamNames, t.Name)
-	}
-
-	return teamNames, nil
+	return v.Render(teamAccess, names)
 }

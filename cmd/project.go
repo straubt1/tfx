@@ -1,30 +1,16 @@
-/*
-Copyright © 2021 Tom Straub <github.com/straubt1>
+// SPDX-License-Identifier: MIT
+// Copyright © 2025 Tom Straub <github.com/straubt1>
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-*/
 package cmd
 
 import (
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/straubt1/tfx/client"
+	"github.com/straubt1/tfx/cmd/flags"
+	view "github.com/straubt1/tfx/cmd/views"
+	"github.com/straubt1/tfx/data"
 )
 
 // projectCmd represents the project command
@@ -36,17 +22,17 @@ var (
 		Short:   "Project Commands",
 		Long:    "Work with TFx Projects",
 		Example: `
-		List all Projects in all Organizations:
-		tfx project list --all
-		
-		List all Projects in all Organizations with a search string:
-		tfx project list --all --search "my-project"
+List all Projects in all Organizations:
+tfx project list --all
 
-		List all projects specified in tfeOrganization:
-		tfx project list
+List all Projects in all Organizations with a search string:
+tfx project list --all --search "my-project"
 
-		List projects specified in tfeOrganization with a search string:
-		tfx project list --search "my-project"`,
+List all projects specified in tfeOrganization:
+tfx project list
+
+List projects specified in tfeOrganization with a search string:
+tfx project list --search "my-project"`,
 	}
 
 	// `tfx project list` command
@@ -56,16 +42,12 @@ var (
 		Long:    "List Projects in a TFx Organization.",
 		Example: `tfx project list --search "my-project"`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-
-			if *viperBool("all") {
-				return projectListAll(
-					getTfxClientContext(),
-					*viperString("search"))
-			} else {
-				return projectList(
-					getTfxClientContext(),
-					*viperString("search"))
+			cmdConfig, err := flags.ParseProjectListFlags(cmd)
+			if err != nil {
+				return err
 			}
+
+			return projectList(cmdConfig)
 		},
 	}
 
@@ -74,10 +56,15 @@ var (
 		Use:   "show",
 		Short: "Show project details",
 		Long:  "Show Project in a TFx Organization.",
+		Example: `
+tfx project show --id prj-abc123
+tfx project show --name myprojectname`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return projectShow(
-				getTfxClientContext(),
-				*viperString("id"))
+			cmdConfig, err := flags.ParseProjectShowFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return projectShow(cmdConfig)
 		},
 	}
 )
@@ -89,127 +76,74 @@ func init() {
 
 	// `tfx project show`
 	projectShowCmd.Flags().StringP("id", "i", "", "ID of the project.")
-	projectShowCmd.MarkFlagRequired("id")
+	projectShowCmd.Flags().StringP("name", "n", "", "Name of the project.")
+	projectShowCmd.MarkFlagsMutuallyExclusive("id", "name")
+	projectShowCmd.MarkFlagsOneRequired("id", "name")
 
 	rootCmd.AddCommand(projectCmd)
 	projectCmd.AddCommand(projectListCmd)
 	projectCmd.AddCommand(projectShowCmd)
-
 }
 
-func projectListAll(c TfxClientContext, searchString string) error {
-	o.AddMessageUserProvided("List Projects for all available Organizations", "")
-	orgs, err := organizationPrjListAll(c, searchString)
+func projectList(cmdConfig *flags.ProjectListFlags) error {
+	// Create view for rendering
+	v := view.NewProjectListView()
+
+	c, err := client.NewFromViper()
 	if err != nil {
-		logError(err, "failed to list organizations")
+		return v.RenderError(err)
 	}
 
-	var allProjectList []*tfe.Project
-	for _, v := range orgs {
-		projectList, err := projectListAllForOrganization(c, v.Name, searchString)
-		if err != nil {
-			logError(err, "failed to list projects for organization")
+	// Print command header before API call
+	if cmdConfig.All {
+		if cmdConfig.Search != "" {
+			v.PrintCommandHeader("Listing projects across all organizations matching '%s'", cmdConfig.Search)
+		} else {
+			v.PrintCommandHeader("Listing all projects across all organizations")
 		}
-
-		allProjectList = append(allProjectList, projectList...)
-	}
-
-	o.AddTableHeader("Organization", "Name", "Id", "Description")
-	for _, i := range allProjectList {
-		o.AddTableRows(i.Organization.Name, i.Name, i.ID, i.Description)
-	}
-
-	return nil
-}
-
-func projectListAllForOrganization(c TfxClientContext, orgName string, searchString string) ([]*tfe.Project, error) {
-	allItems := []*tfe.Project{}
-	opts := tfe.ProjectListOptions{
-		ListOptions: tfe.ListOptions{PageNumber: 1, PageSize: 100},
-		Query:       searchString,
-	}
-	for {
-		items, err := c.Client.Projects.List(c.Context, orgName, &opts)
-		if err != nil {
-			return nil, err
+	} else {
+		if cmdConfig.Search != "" {
+			v.PrintCommandHeader("Listing projects in organization '%s' matching '%s'", c.OrganizationName, cmdConfig.Search)
+		} else {
+			v.PrintCommandHeader("Listing projects in organization '%s'", c.OrganizationName)
 		}
-
-		allItems = append(allItems, items.Items...)
-		if items.CurrentPage >= items.TotalPages {
-			break
-		}
-		opts.PageNumber = items.NextPage
 	}
 
-	return allItems, nil
-}
-
-func organizationPrjListAll(c TfxClientContext, searchString string) ([]*tfe.Organization, error) {
-	allItems := []*tfe.Organization{}
-	opts := tfe.OrganizationListOptions{
-		ListOptions: tfe.ListOptions{
-			PageNumber: 1,
-			PageSize:   100}}
-	for {
-		items, err := c.Client.Organizations.List(c.Context, &opts)
-		if err != nil {
-			return nil, err
-		}
-
-		allItems = append(allItems, items.Items...)
-		if items.CurrentPage >= items.TotalPages {
-			break
-		}
-		opts.PageNumber = items.NextPage
+	// Fetch projects with appropriate scope
+	options := &data.ProjectListOptions{
+		Search: cmdConfig.Search,
+		All:    cmdConfig.All,
 	}
-
-	return allItems, nil
-}
-
-func projectList(c TfxClientContext, searchString string) error {
-	o.AddMessageUserProvided("List Projects for Organization:", c.OrganizationName)
-	items, err := projectListAllForOrganization(c, c.OrganizationName, searchString)
+	projects, err := data.FetchProjectsWithOrgScope(c, c.OrganizationName, options)
 	if err != nil {
-		return errors.Wrap(err, "failed to list projects")
+		return v.RenderError(errors.Wrap(err, "failed to list projects"))
 	}
 
-	o.AddTableHeader("Name", "Id", "Description")
-	for _, i := range items {
-		o.AddTableRows(i.Name, i.ID, i.Description)
-	}
-
-	return nil
+	// Render with organization column if listing across all orgs
+	return v.Render(projects, cmdConfig.All)
 }
 
-func projectShow(c TfxClientContext, projectId string) error {
-	o.AddMessageUserProvided("Show Project:", projectId)
-	p, err := c.Client.Projects.ReadWithOptions(c.Context, projectId, tfe.ProjectReadOptions{
-		Include: []tfe.ProjectIncludeOpt{
-			tfe.ProjectEffectiveTagBindings,
-		},
-	})
+func projectShow(cmdConfig *flags.ProjectShowFlags) error {
+	// Create view for rendering
+	v := view.NewProjectShowView()
+
+	c, err := client.NewFromViper()
+	if err != nil {
+		return v.RenderError(err)
+	}
+
+	var p *tfe.Project
+	if cmdConfig.ID != "" {
+		v.PrintCommandHeader("Showing project '%s' in organization '%s'", cmdConfig.ID, c.OrganizationName)
+		p, err = data.FetchProject(c, cmdConfig.ID)
+	} else {
+		v.PrintCommandHeader("Showing project '%s' in organization '%s'", cmdConfig.Name, c.OrganizationName)
+		p, err = data.FetchProjectByName(c, c.OrganizationName, cmdConfig.Name)
+	}
 
 	if err != nil {
-		logError(err, "failed to read project")
+		return v.RenderError(err)
 	}
 
-	o.AddDeferredMessageRead("Name", p.Name)
-	o.AddDeferredMessageRead("ID", p.ID)
-	o.AddDeferredMessageRead("Description", p.Description)
-	o.AddDeferredMessageRead("DefaultExecutionMode", p.DefaultExecutionMode)
-
-	var duration string
-	if p.AutoDestroyActivityDuration.IsSpecified() {
-		if duration, err = p.AutoDestroyActivityDuration.Get(); err == nil {
-		}
-	}
-	o.AddDeferredMessageRead("Auto Destroy Activity Duration", duration)
-
-	tags := make(map[string]interface{})
-	for _, i := range p.EffectiveTagBindings {
-		tags[i.Key] = i.Value
-	}
-	o.AddDeferredMapMessageRead("Tags", tags)
-
-	return nil
+	return v.Render(c.OrganizationName, p)
 }
