@@ -48,7 +48,7 @@ func ParsePlanJSONOutputFlags(cmd *cobra.Command) (*PlanJSONOutputFlags, error) 
 
 func ParsePlanCreateFlags(cmd *cobra.Command) (*PlanCreateFlags, error) {
 	return &PlanCreateFlags{
-		WorkspaceName:   viper.GetString("workspace-name"),
+		WorkspaceName:   viper.GetString("name"),
 		Directory:       viper.GetString("directory"),
 		ConfigurationID: viper.GetString("configuration-id"),
 		Message:         viper.GetString("message"),

@@ -23,7 +23,7 @@ func TestParseVariableListFlags(t *testing.T) {
 		{
 			name: "workspace-name set",
 			setup: func() {
-				viper.Set("workspace-name", "my-workspace")
+				viper.Set("name", "my-workspace")
 			},
 			want: VariableListFlags{WorkspaceName: "my-workspace"},
 		},
@@ -59,7 +59,7 @@ func TestParseVariableShowFlags(t *testing.T) {
 		{
 			name: "all fields set",
 			setup: func() {
-				viper.Set("workspace-name", "my-workspace")
+				viper.Set("name", "my-workspace")
 				viper.Set("key", "MY_VAR")
 			},
 			want: VariableShowFlags{WorkspaceName: "my-workspace", Key: "MY_VAR"},
@@ -96,7 +96,7 @@ func TestParseVariableCreateFlags(t *testing.T) {
 		{
 			name: "all fields set",
 			setup: func() {
-				viper.Set("workspace-name", "my-workspace")
+				viper.Set("name", "my-workspace")
 				viper.Set("key", "MY_VAR")
 				viper.Set("value", "my-value")
 				viper.Set("value-file", "/tmp/val.txt")
@@ -119,7 +119,7 @@ func TestParseVariableCreateFlags(t *testing.T) {
 		{
 			name: "sensitive env variable",
 			setup: func() {
-				viper.Set("workspace-name", "ws1")
+				viper.Set("name", "ws1")
 				viper.Set("key", "SECRET")
 				viper.Set("value", "topsecret")
 				viper.Set("env", true)
@@ -165,7 +165,7 @@ func TestParseVariableUpdateFlags(t *testing.T) {
 		{
 			name: "all fields set",
 			setup: func() {
-				viper.Set("workspace-name", "my-workspace")
+				viper.Set("name", "my-workspace")
 				viper.Set("key", "MY_VAR")
 				viper.Set("value", "new-value")
 				viper.Set("value-file", "")
@@ -214,7 +214,7 @@ func TestParseVariableDeleteFlags(t *testing.T) {
 		{
 			name: "all fields set",
 			setup: func() {
-				viper.Set("workspace-name", "my-workspace")
+				viper.Set("name", "my-workspace")
 				viper.Set("key", "MY_VAR")
 			},
 			want: VariableDeleteFlags{WorkspaceName: "my-workspace", Key: "MY_VAR"},

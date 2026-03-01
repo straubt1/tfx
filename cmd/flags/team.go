@@ -16,6 +16,6 @@ type TeamListFlags struct {
 // ParseTeamListFlags creates a TeamListFlags from the current command context
 func ParseTeamListFlags(cmd *cobra.Command) (*TeamListFlags, error) {
 	return &TeamListFlags{
-		WorkspaceName: viper.GetString("workspace-name"),
+		WorkspaceName: viper.GetString("name"),
 	}, nil
 }

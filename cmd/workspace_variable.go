@@ -98,11 +98,11 @@ var (
 
 func init() {
 	// `tfx variable list` command
-	variableListCmd.Flags().StringP("workspace-name", "w", "", "Name of the Workspace")
-	variableListCmd.MarkFlagRequired("workspace-name")
+	variableListCmd.Flags().StringP("name", "n", "", "Name of the Workspace")
+	variableListCmd.MarkFlagRequired("name")
 
 	// `tfx variable create` command
-	variableCreateCmd.Flags().StringP("workspace-name", "w", "", "Name of the Workspace")
+	variableCreateCmd.Flags().StringP("name", "n", "", "Name of the Workspace")
 	variableCreateCmd.Flags().StringP("key", "k", "", "Key of the Variable")
 	variableCreateCmd.Flags().StringP("value", "v", "", "Value of the Variable (value or valueFile must be set)")
 	variableCreateCmd.Flags().StringP("value-file", "f", "", "Path to a variable text file, the contents of the file will be used (value or valueFile must be set)")
@@ -110,13 +110,13 @@ func init() {
 	variableCreateCmd.Flags().BoolP("env", "e", false, "Variable is an Environment Variable (optional, defaults to false)")
 	variableCreateCmd.Flags().BoolP("hcl", "", false, "Value of Variable is HCL (optional, defaults to false)")
 	variableCreateCmd.Flags().BoolP("sensitive", "s", false, "Variable is Sensitive (optional, defaults to false)")
-	variableCreateCmd.MarkFlagRequired("workspace-name")
+	variableCreateCmd.MarkFlagRequired("name")
 	variableCreateCmd.MarkFlagRequired("key")
 	variableCreateCmd.MarkFlagsMutuallyExclusive("value", "value-file")
 	variableCreateCmd.MarkFlagsOneRequired("value", "value-file")
 
 	// `tfx variable update` command
-	variableUpdateCmd.Flags().StringP("workspace-name", "w", "", "Name of the Workspace")
+	variableUpdateCmd.Flags().StringP("name", "n", "", "Name of the Workspace")
 	variableUpdateCmd.Flags().StringP("key", "k", "", "Key of the Variable")
 	variableUpdateCmd.Flags().StringP("value", "v", "", "Value of the Variable (value or valueFile must be set)")
 	variableUpdateCmd.Flags().StringP("value-file", "f", "", "Path to a variable text file, the contents of the file will be used (value or valueFile must be set)")
@@ -124,21 +124,21 @@ func init() {
 	variableUpdateCmd.Flags().BoolP("env", "e", false, "Variable is an Environment Variable (optional, defaults to false)")
 	variableUpdateCmd.Flags().BoolP("hcl", "", false, "Value of Variable is HCL (optional, defaults to false)")
 	variableUpdateCmd.Flags().BoolP("sensitive", "s", false, "Variable is Sensitive (optional, defaults to false)")
-	variableUpdateCmd.MarkFlagRequired("workspace-name")
+	variableUpdateCmd.MarkFlagRequired("name")
 	variableUpdateCmd.MarkFlagRequired("key")
 	variableUpdateCmd.MarkFlagsMutuallyExclusive("value", "value-file")
 	variableUpdateCmd.MarkFlagsOneRequired("value", "value-file")
 
 	// `tfx variable show` command
-	variableShowCmd.Flags().StringP("workspace-name", "w", "", "Name of the Workspace")
+	variableShowCmd.Flags().StringP("name", "n", "", "Name of the Workspace")
 	variableShowCmd.Flags().StringP("key", "k", "", "Key of the Variable")
-	variableShowCmd.MarkFlagRequired("workspace-name")
+	variableShowCmd.MarkFlagRequired("name")
 	variableShowCmd.MarkFlagRequired("key")
 
 	// `tfx variable delete` command
-	variableDeleteCmd.Flags().StringP("workspace-name", "w", "", "Name of the Workspace")
+	variableDeleteCmd.Flags().StringP("name", "n", "", "Name of the Workspace")
 	variableDeleteCmd.Flags().StringP("key", "k", "", "Key of the Variable")
-	variableDeleteCmd.MarkFlagRequired("workspace-name")
+	variableDeleteCmd.MarkFlagRequired("name")
 	variableDeleteCmd.MarkFlagRequired("key")
 
 	workspaceCmd.AddCommand(variableCmd)

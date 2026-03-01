@@ -17,7 +17,7 @@ List all State Versions for a supplied Workspace.
 **Example**
 
 ```sh
-$ tfx workspace state-version list --workspace-name tt-workspace
+$ tfx workspace state-version list --name tt-workspace
 Using config file: /Users/tstraub/.tfx.hcl
 List State Versions for Workspace: tt-workspace
 ╭─────────────────────┬───────────────────┬────────┬──────────────────────┬───────────────────────╮
@@ -96,7 +96,7 @@ This command aims to assist in this process by performing the following actions 
 **Example**
 
 ```sh
-$ tfx workspace state-version create --workspace-name tt-workspace --filename sv-eoYznk6PbJY1o9XY.state 
+$ tfx workspace state-version create --name tt-workspace --filename sv-eoYznk6PbJY1o9XY.state 
 Using config file: /Users/tstraub/.tfx.hcl
 Create State Version for Workspace: tt-workspace
 Read state file and Parse: sv-eoYznk6PbJY1o9XY.state

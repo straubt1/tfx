@@ -30,14 +30,14 @@ type StateDownloadFlags struct {
 
 func ParseStateListFlags(cmd *cobra.Command) (*StateListFlags, error) {
 	return &StateListFlags{
-		WorkspaceName: viper.GetString("workspace-name"),
+		WorkspaceName: viper.GetString("name"),
 		MaxItems:      viper.GetInt("max-items"),
 	}, nil
 }
 
 func ParseStateCreateFlags(cmd *cobra.Command) (*StateCreateFlags, error) {
 	return &StateCreateFlags{
-		WorkspaceName: viper.GetString("workspace-name"),
+		WorkspaceName: viper.GetString("name"),
 		Filename:      viper.GetString("filename"),
 	}, nil
 }

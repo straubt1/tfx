@@ -86,15 +86,15 @@ func init() {
 	// `tfx workspace configuration-version` commands
 
 	// `tfx workspace configuration-version list` command
-	cvListCmd.Flags().StringP("workspace-name", "w", "", "Workspace name")
+	cvListCmd.Flags().StringP("name", "n", "", "Workspace name")
 	cvListCmd.Flags().IntP("max-items", "m", 10, "Max number of results (optional)")
-	cvListCmd.MarkFlagRequired("workspace-name")
+	cvListCmd.MarkFlagRequired("name")
 
 	// `tfx cv create`
-	cvCreateCmd.Flags().StringP("workspace-name", "w", "", "Workspace name")
+	cvCreateCmd.Flags().StringP("name", "n", "", "Workspace name")
 	cvCreateCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (optional, defaults to current directory)")
 	cvCreateCmd.Flags().BoolP("speculative", "s", false, "Perform a Speculative Plan (optional, defaults to false)")
-	cvCreateCmd.MarkFlagRequired("workspace-name")
+	cvCreateCmd.MarkFlagRequired("name")
 
 	// `tfx cv show`
 	cvShowCmd.Flags().StringP("id", "i", "", "Configuration Version Id (i.e. cv-*)")

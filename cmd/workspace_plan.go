@@ -93,14 +93,14 @@ func init() {
 	planJSONOutputCmd.MarkFlagRequired("id")
 
 	// `tfx workspace plan create` command
-	planCreateCmd.Flags().StringP("workspace-name", "w", "", "Workspace name")
+	planCreateCmd.Flags().StringP("name", "n", "", "Workspace name")
 	planCreateCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (optional, defaults to current directory)")
 	planCreateCmd.Flags().StringP("configuration-id", "i", "", "Configuration Version Id (optional, i.e. cv-*)")
 	planCreateCmd.Flags().StringP("message", "m", "", "Run Message (optional)")
 	planCreateCmd.Flags().Bool("speculative", false, "Perform a Speculative Plan (optional)")
 	planCreateCmd.Flags().Bool("destroy", false, "Perform a Destroy Plan (optional)")
 	planCreateCmd.Flags().StringSlice("env", []string{}, "Environment variables to write to the Workspace. Can be supplied multiple times. (optional, i.e. '--env='AWS_REGION=us-east1')")
-	planCreateCmd.MarkFlagRequired("workspace-name")
+	planCreateCmd.MarkFlagRequired("name")
 
 	workspaceCmd.AddCommand(planCmd)
 	planCmd.AddCommand(planShowCmd)

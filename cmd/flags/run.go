@@ -38,14 +38,14 @@ type RunCancelFlags struct {
 
 func ParseRunListFlags(cmd *cobra.Command) (*RunListFlags, error) {
 	return &RunListFlags{
-		WorkspaceName: viper.GetString("workspace-name"),
+		WorkspaceName: viper.GetString("name"),
 		MaxItems:      viper.GetInt("max-items"),
 	}, nil
 }
 
 func ParseRunCreateFlags(cmd *cobra.Command) (*RunCreateFlags, error) {
 	return &RunCreateFlags{
-		WorkspaceName:          viper.GetString("workspace-name"),
+		WorkspaceName:          viper.GetString("name"),
 		Message:                viper.GetString("message"),
 		ConfigurationVersionID: viper.GetString("configuration-version-id"),
 	}, nil
@@ -60,5 +60,5 @@ func ParseRunDiscardFlags(cmd *cobra.Command) (*RunDiscardFlags, error) {
 }
 
 func ParseRunCancelFlags(cmd *cobra.Command) (*RunCancelFlags, error) {
-	return &RunCancelFlags{WorkspaceName: viper.GetString("workspace-name")}, nil
+	return &RunCancelFlags{WorkspaceName: viper.GetString("name")}, nil
 }

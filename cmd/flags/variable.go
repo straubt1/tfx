@@ -52,14 +52,14 @@ type VariableDeleteFlags struct {
 // ParseVariableListFlags creates a VariableListFlags from the current command context
 func ParseVariableListFlags(cmd *cobra.Command) (*VariableListFlags, error) {
 	return &VariableListFlags{
-		WorkspaceName: viper.GetString("workspace-name"),
+		WorkspaceName: viper.GetString("name"),
 	}, nil
 }
 
 // ParseVariableShowFlags creates a VariableShowFlags from the current command context
 func ParseVariableShowFlags(cmd *cobra.Command) (*VariableShowFlags, error) {
 	return &VariableShowFlags{
-		WorkspaceName: viper.GetString("workspace-name"),
+		WorkspaceName: viper.GetString("name"),
 		Key:           viper.GetString("key"),
 	}, nil
 }
@@ -67,7 +67,7 @@ func ParseVariableShowFlags(cmd *cobra.Command) (*VariableShowFlags, error) {
 // ParseVariableCreateFlags creates a VariableCreateFlags from the current command context
 func ParseVariableCreateFlags(cmd *cobra.Command) (*VariableCreateFlags, error) {
 	return &VariableCreateFlags{
-		WorkspaceName: viper.GetString("workspace-name"),
+		WorkspaceName: viper.GetString("name"),
 		Key:           viper.GetString("key"),
 		Value:         viper.GetString("value"),
 		ValueFile:     viper.GetString("value-file"),
@@ -81,7 +81,7 @@ func ParseVariableCreateFlags(cmd *cobra.Command) (*VariableCreateFlags, error) 
 // ParseVariableUpdateFlags creates a VariableUpdateFlags from the current command context
 func ParseVariableUpdateFlags(cmd *cobra.Command) (*VariableUpdateFlags, error) {
 	return &VariableUpdateFlags{
-		WorkspaceName: viper.GetString("workspace-name"),
+		WorkspaceName: viper.GetString("name"),
 		Key:           viper.GetString("key"),
 		Value:         viper.GetString("value"),
 		ValueFile:     viper.GetString("value-file"),
@@ -95,7 +95,7 @@ func ParseVariableUpdateFlags(cmd *cobra.Command) (*VariableUpdateFlags, error) 
 // ParseVariableDeleteFlags creates a VariableDeleteFlags from the current command context
 func ParseVariableDeleteFlags(cmd *cobra.Command) (*VariableDeleteFlags, error) {
 	return &VariableDeleteFlags{
-		WorkspaceName: viper.GetString("workspace-name"),
+		WorkspaceName: viper.GetString("name"),
 		Key:           viper.GetString("key"),
 	}, nil
 }

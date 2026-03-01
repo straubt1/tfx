@@ -30,14 +30,14 @@ type CVDownloadFlags struct {
 
 func ParseCVListFlags(cmd *cobra.Command) (*CVListFlags, error) {
 	return &CVListFlags{
-		WorkspaceName: viper.GetString("workspace-name"),
+		WorkspaceName: viper.GetString("name"),
 		MaxItems:      viper.GetInt("max-items"),
 	}, nil
 }
 
 func ParseCVCreateFlags(cmd *cobra.Command) (*CVCreateFlags, error) {
 	return &CVCreateFlags{
-		WorkspaceName: viper.GetString("workspace-name"),
+		WorkspaceName: viper.GetString("name"),
 		Directory:     viper.GetString("directory"),
 		Speculative:   viper.GetBool("speculative"),
 	}, nil

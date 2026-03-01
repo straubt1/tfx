@@ -97,16 +97,16 @@ func init() {
 	// `tfx workspace run` commands
 
 	// `tfx workspace run list` command
-	runListCmd.Flags().StringP("workspace-name", "w", "", "Workspace name")
+	runListCmd.Flags().StringP("name", "n", "", "Workspace name")
 	runListCmd.Flags().IntP("max-items", "m", 10, "Max number of results (optional)")
-	runListCmd.MarkFlagRequired("workspace-name")
+	runListCmd.MarkFlagRequired("name")
 
 	// `tfx workspace run create` command
-	runCreateCmd.Flags().StringP("workspace-name", "w", "", "Workspace name")
+	runCreateCmd.Flags().StringP("name", "n", "", "Workspace name")
 	// runCreateCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (defaults to current directory)")
 	runCreateCmd.Flags().StringP("message", "m", "", "Run Message (optional)")
 	runCreateCmd.Flags().StringP("configuration-version-id", "i", "", "Configuration Version (optional)")
-	runCreateCmd.MarkFlagRequired("workspace-name")
+	runCreateCmd.MarkFlagRequired("name")
 
 	// `tfx workspace run show` command
 	runShowCmd.Flags().StringP("id", "i", "", "Run Id (i.e. run-*)")
@@ -117,8 +117,8 @@ func init() {
 	runDiscardCmd.MarkFlagRequired("id")
 
 	// `tfx workspace run cancel` command
-	runCancelCmd.Flags().StringP("workspace-name", "w", "", "Workspace name")
-	runCancelCmd.MarkFlagRequired("w")
+	runCancelCmd.Flags().StringP("name", "n", "", "Workspace name")
+	runCancelCmd.MarkFlagRequired("name")
 
 	workspaceCmd.AddCommand(runCmd)
 	runCmd.AddCommand(runListCmd)

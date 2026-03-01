@@ -83,14 +83,14 @@ var (
 
 func init() {
 	// `tfx workspace state list` command
-	stateListCmd.Flags().StringP("workspace-name", "w", "", "Workspace name")
+	stateListCmd.Flags().StringP("name", "n", "", "Workspace name")
 	stateListCmd.Flags().IntP("max-items", "m", 10, "Max number of results (optional)")
-	stateListCmd.MarkFlagRequired("workspace-name")
+	stateListCmd.MarkFlagRequired("name")
 
 	// `tfx workspace state create` command
-	stateCreateCmd.Flags().StringP("workspace-name", "w", "", "Workspace name")
+	stateCreateCmd.Flags().StringP("name", "n", "", "Workspace name")
 	stateCreateCmd.Flags().StringP("filename", "f", "", "Filename of the state file to create")
-	stateCreateCmd.MarkFlagRequired("workspace-name")
+	stateCreateCmd.MarkFlagRequired("name")
 	stateCreateCmd.MarkFlagRequired("filename")
 
 	// `tfx workspace state show` command

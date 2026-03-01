@@ -37,8 +37,8 @@ var (
 
 func init() {
 	// `tfx workspace team list` command flags
-	workspaceTeamListCmd.Flags().StringP("workspace-name", "w", "", "Name of the Workspace")
-	workspaceTeamListCmd.MarkFlagRequired("workspace-name")
+	workspaceTeamListCmd.Flags().StringP("name", "n", "", "Name of the Workspace")
+	workspaceTeamListCmd.MarkFlagRequired("name")
 
 	workspaceCmd.AddCommand(workspaceTeamCmd)
 	workspaceTeamCmd.AddCommand(workspaceTeamListCmd)
