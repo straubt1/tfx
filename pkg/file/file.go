@@ -78,5 +78,9 @@ func GetDirectory(directory string, additional ...string) (string, error) {
 		return "", errors.New("failed to get absolute directory")
 	}
 
+	if err := os.MkdirAll(directory, 0755); err != nil {
+		return "", errors.New("failed to create directory")
+	}
+
 	return directory, nil
 }

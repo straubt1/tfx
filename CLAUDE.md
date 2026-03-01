@@ -23,6 +23,8 @@ After completing a task, compose and display the intended commit message describ
 
 **Do not create new branches.** Make all changes directly on the currently active branch.
 
+**Do not use worktrees.** Never use `isolation: "worktree"` or any equivalent when spawning agents or sub-tasks.
+
 ## Build & Test Commands
 
 ```bash
