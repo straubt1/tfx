@@ -49,9 +49,50 @@ func (v *VariableSetListView) Render(items []*tfe.VariableSet) error {
 	return v.Output().RenderTable(headers, rows)
 }
 
+type variableSetRefOutput struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type variableSetVarOutput struct {
+	ID    string `json:"id"`
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+type variableSetShowOutput struct {
+	ID          string                 `json:"id"`
+	Name        string                 `json:"name"`
+	Description string                 `json:"description"`
+	Global      bool                   `json:"global"`
+	Priority    bool                   `json:"priority"`
+	Workspaces  []variableSetRefOutput `json:"workspaces"`
+	Projects    []variableSetRefOutput `json:"projects"`
+	Variables   []variableSetVarOutput `json:"variables"`
+}
+
 func (v *VariableSetShowView) Render(vs *tfe.VariableSet) error {
 	if v.IsJSON() {
-		return v.Output().RenderJSON(vs)
+		out := variableSetShowOutput{
+			ID:          vs.ID,
+			Name:        vs.Name,
+			Description: vs.Description,
+			Global:      vs.Global,
+			Priority:    vs.Priority,
+			Workspaces:  make([]variableSetRefOutput, len(vs.Workspaces)),
+			Projects:    make([]variableSetRefOutput, len(vs.Projects)),
+			Variables:   make([]variableSetVarOutput, len(vs.Variables)),
+		}
+		for i, ws := range vs.Workspaces {
+			out.Workspaces[i] = variableSetRefOutput{ID: ws.ID, Name: ws.Name}
+		}
+		for i, p := range vs.Projects {
+			out.Projects[i] = variableSetRefOutput{ID: p.ID, Name: p.Name}
+		}
+		for i, vv := range vs.Variables {
+			out.Variables[i] = variableSetVarOutput{ID: vv.ID, Key: vv.Key, Value: vv.Value}
+		}
+		return v.Output().RenderJSON(out)
 	}
 
 	props := []PropertyPair{
@@ -93,7 +134,7 @@ func (v *VariableSetShowView) Render(vs *tfe.VariableSet) error {
 
 func (v *VariableSetCreateView) Render(vs *tfe.VariableSet) error {
 	if v.IsJSON() {
-		return v.Output().RenderJSON(vs)
+		return v.Output().RenderJSON(variableSetListOutput{vs.ID, vs.Name, vs.Description, vs.Global, vs.Priority})
 	}
 	props := []PropertyPair{
 		{Key: "ID", Value: vs.ID},
