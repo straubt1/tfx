@@ -98,6 +98,9 @@ nav:
       - Terraform Versions: commands/admin_terraformversion.md
   - Integrations:
       - Gitlab CI: integrations/gitlab.md
+  - Debugging:
+    - TFX_LOG: debugging/log-level.md
+    - TFX_LOG_PATH: debugging/log-path.md
   - About:
     - Why TFx?: about/purpose.md
     - Release Notes: https://github.com/straubt1/tfx/blob/main/CHANGELOG.md
