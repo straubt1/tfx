@@ -76,7 +76,9 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Commands:
-    - Project: 
+    - Organization:
+      - General: commands/organization.md
+    - Project:
       - General: commands/project.md
     - Workspace: 
       - General: commands/workspace.md

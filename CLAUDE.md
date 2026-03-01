@@ -21,6 +21,8 @@ brew install mkdocs
 
 After completing a task, compose and display the intended commit message describing what changed, but do not execute `git commit`. This lets the user copy or adjust the message when they're ready to commit.
 
+**Do not create new branches.** Make all changes directly on the currently active branch.
+
 ## Build & Test Commands
 
 ```bash

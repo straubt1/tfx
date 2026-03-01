@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Removed**
 
+* `tfx plan` and `tfx apply` commands - These may be added back in the future.
 * `tfx release replicated` commands — TFE no longer runs on Replicated; use a previous version of `tfx` if needed
 * `tfx release tfe download` — TFE now uses Docker images; use `docker pull` instead
 
