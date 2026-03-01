@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **Fixed**
 
 * `tfx ws cv download` no longer fails with "no such file or directory" when no `--directory` flag is provided; the target subdirectory is now created automatically
+* Updated documentation site
+* Created a Test Plan on the website for those who want to run through the commands and test out the functionality
 
 ## [v0.2.0] - 2026-03-01
 

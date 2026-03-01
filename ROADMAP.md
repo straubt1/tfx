@@ -29,17 +29,17 @@ New commands and capabilities for users.
 Infrastructure that improves correctness and maintainability.
 
 - [ ] Integration testing (HCP Terraform and Terraform Enterprise)
-- [ ] Automated releases with updates to the [Homebrew tap](https://github.com/straubt1/homebrew-tap)
-- [ ] Automated version management (currently hardcoded in `version/version.go`)
-- [ ] Consistent Go version across `go.mod`, CI workflows, and README badge
 - [ ] Clean up and rename GitHub Actions workflows
+- [x] Automated version management (currently hardcoded in `version/version.go`)
+- [x] Consistent Go version across `go.mod`, CI workflows, and README badge
+- [x] Automated releases with updates to the [Homebrew tap](https://github.com/straubt1/homebrew-tap)
 
 ## Internal / Developer
 
 Code quality and architectural improvements.
 
 - [ ] Add usage examples to all commands (see `tfx project` as reference)
-- [ ] Spinner package (extract reusable spinner from inline usage)
 - [ ] Consistent timezone display for all timestamps
 - [ ] Workspace lock improvements: `lock list`, `lock show`, consider combining lock/unlock-all
 - [ ] Workspace variable: move get-by-key + update/delete flow into data layer
+- [x] Spinner package (extract reusable spinner from inline usage)
