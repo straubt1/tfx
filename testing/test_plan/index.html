@@ -1,0 +1,3322 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A standalone CLI for HCP Terraform and Terraform Enterprise.">
+      
+      
+        <meta name="author" content="Tom Straub">
+      
+      
+        <link rel="canonical" href="https://tfx.rocks/testing/test_plan/">
+      
+      <link rel="icon" href="../../img/favicon.ico">
+      <meta name="generator" content="mkdocs-1.3.0, mkdocs-material-8.3.8">
+    
+    
+      
+        <title>Test Plan - TFx Docs</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.1d29e8d0.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.cbb835fc.min.css">
+        
+      
+      
+    
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="" data-md-color-accent="">
+  
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&"object"==typeof palette.color)for(var key of Object.keys(palette.color))document.body.setAttribute("data-md-color-"+key,palette.color[key])</script>
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#tfx-test-plan" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="TFx Docs" class="md-header__button md-logo" aria-label="TFx Docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 19V7H4v12h16m0-16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16m-7 14v-2h5v2h-5m-3.42-4L5.57 9H8.4l3.3 3.3c.39.39.39 1.03 0 1.42L8.42 17H5.59l3.99-4Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            TFx Docs
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Test Plan
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      <form class="md-header__option" data-md-component="palette">
+        
+          
+          
+          <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="" data-md-color-accent=""  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+          
+            <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 6H7c-3.31 0-6 2.69-6 6s2.69 6 6 6h10c3.31 0 6-2.69 6-6s-2.69-6-6-6zm0 10H7c-2.21 0-4-1.79-4-4s1.79-4 4-4h10c2.21 0 4 1.79 4 4s-1.79 4-4 4zM7 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+            </label>
+          
+        
+          
+          
+          <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="" data-md-color-accent=""  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+          
+            <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_1" hidden>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h10a5 5 0 0 0 5-5 5 5 0 0 0-5-5m0 8a3 3 0 0 1-3-3 3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3Z"/></svg>
+            </label>
+          
+        
+      </form>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" aria-label="Clear" tabindex="-1">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/straubt1/tfx" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.1.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="TFx Docs" class="md-nav__button md-logo" aria-label="TFx Docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 19V7H4v12h16m0-16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16m-7 14v-2h5v2h-5m-3.42-4L5.57 9H8.4l3.3 3.3c.39.39.39 1.03 0 1.42L8.42 17H5.59l3.99-4Z"/></svg>
+
+    </a>
+    TFx Docs
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/straubt1/tfx" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.1.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        Home
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_2" type="checkbox" id="__nav_2" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_2">
+          Commands
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Commands" data-md-level="1">
+        <label class="md-nav__title" for="__nav_2">
+          <span class="md-nav__icon md-icon"></span>
+          Commands
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_2_1" type="checkbox" id="__nav_2_1" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_2_1">
+          Organization
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Organization" data-md-level="2">
+        <label class="md-nav__title" for="__nav_2_1">
+          <span class="md-nav__icon md-icon"></span>
+          Organization
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/organization/" class="md-nav__link">
+        General
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_2_2" type="checkbox" id="__nav_2_2" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_2_2">
+          Project
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Project" data-md-level="2">
+        <label class="md-nav__title" for="__nav_2_2">
+          <span class="md-nav__icon md-icon"></span>
+          Project
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/project/" class="md-nav__link">
+        General
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_2_3" type="checkbox" id="__nav_2_3" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_2_3">
+          Variable Sets
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Variable Sets" data-md-level="2">
+        <label class="md-nav__title" for="__nav_2_3">
+          <span class="md-nav__icon md-icon"></span>
+          Variable Sets
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/variable_set/" class="md-nav__link">
+        General
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_2_4" type="checkbox" id="__nav_2_4" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_2_4">
+          Workspace
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Workspace" data-md-level="2">
+        <label class="md-nav__title" for="__nav_2_4">
+          <span class="md-nav__icon md-icon"></span>
+          Workspace
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/workspace/" class="md-nav__link">
+        General
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/workspace_plan/" class="md-nav__link">
+        Plans
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/workspace_run/" class="md-nav__link">
+        Runs
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/workspace_variable/" class="md-nav__link">
+        Variables
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/workspace_configurationversion/" class="md-nav__link">
+        Configuration Versions
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/workspace_team/" class="md-nav__link">
+        Team
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/workspace_lock/" class="md-nav__link">
+        Lock
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/workspace_stateversion/" class="md-nav__link">
+        State Versions
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_2_5" type="checkbox" id="__nav_2_5" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_2_5">
+          Private Registry
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Private Registry" data-md-level="2">
+        <label class="md-nav__title" for="__nav_2_5">
+          <span class="md-nav__icon md-icon"></span>
+          Private Registry
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/registry_module/" class="md-nav__link">
+        Modules
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/registry_provider/" class="md-nav__link">
+        Providers
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/release/" class="md-nav__link">
+        Releases
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_2_7" type="checkbox" id="__nav_2_7" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_2_7">
+          Admin
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Admin" data-md-level="2">
+        <label class="md-nav__title" for="__nav_2_7">
+          <span class="md-nav__icon md-icon"></span>
+          Admin
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/admin_gpg/" class="md-nav__link">
+        GPG Keys
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/admin_terraformversion/" class="md-nav__link">
+        Terraform Versions
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_3" type="checkbox" id="__nav_3" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_3">
+          Integrations
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Integrations" data-md-level="1">
+        <label class="md-nav__title" for="__nav_3">
+          <span class="md-nav__icon md-icon"></span>
+          Integrations
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integrations/gitlab/" class="md-nav__link">
+        Gitlab CI
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_4" type="checkbox" id="__nav_4" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_4">
+          Debugging
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Debugging" data-md-level="1">
+        <label class="md-nav__title" for="__nav_4">
+          <span class="md-nav__icon md-icon"></span>
+          Debugging
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../debugging/log-level/" class="md-nav__link">
+        TFX_LOG
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../debugging/log-path/" class="md-nav__link">
+        TFX_LOG_PATH
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+    
+  
+  
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_5" type="checkbox" id="__nav_5" checked>
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_5">
+          Testing
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Testing" data-md-level="1">
+        <label class="md-nav__title" for="__nav_5">
+          <span class="md-nav__icon md-icon"></span>
+          Testing
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+    
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          Test Plan
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        Test Plan
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    Setup
+  </a>
+  
+    <nav class="md-nav" aria-label="Setup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-installation" class="md-nav__link">
+    1. Installation
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-configuration" class="md-nav__link">
+    2. Configuration
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#organization" class="md-nav__link">
+    Organization
+  </a>
+  
+    <nav class="md-nav" aria-label="Organization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#3-list-organizations" class="md-nav__link">
+    3. List Organizations
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-list-organizations-alias" class="md-nav__link">
+    4. List Organizations (alias)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-list-organizations-json-output" class="md-nav__link">
+    5. List Organizations (JSON output)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-show-organization" class="md-nav__link">
+    6. Show Organization
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#project" class="md-nav__link">
+    Project
+  </a>
+  
+    <nav class="md-nav" aria-label="Project">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#7-list-projects" class="md-nav__link">
+    7. List Projects
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-list-projects-alias-search" class="md-nav__link">
+    8. List Projects (alias + search)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-list-projects-json" class="md-nav__link">
+    9. List Projects (JSON)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#10-show-project-by-name" class="md-nav__link">
+    10. Show Project by Name
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#11-show-project-by-id" class="md-nav__link">
+    11. Show Project by ID
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workspace" class="md-nav__link">
+    Workspace
+  </a>
+  
+    <nav class="md-nav" aria-label="Workspace">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#12-list-workspaces" class="md-nav__link">
+    12. List Workspaces
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-list-workspaces-alias" class="md-nav__link">
+    13. List Workspaces (alias)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14-list-workspaces-search-filter" class="md-nav__link">
+    14. List Workspaces (search filter)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15-list-workspaces-wildcard-filter" class="md-nav__link">
+    15. List Workspaces (wildcard filter)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#16-list-workspaces-run-status-filter" class="md-nav__link">
+    16. List Workspaces (run status filter)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#17-list-workspaces-project-filter" class="md-nav__link">
+    17. List Workspaces (project filter)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#18-list-workspaces-all-organizations" class="md-nav__link">
+    18. List Workspaces (all organizations)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#19-list-workspaces-json" class="md-nav__link">
+    19. List Workspaces (JSON)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#20-show-workspace" class="md-nav__link">
+    20. Show Workspace
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workspace-lock-unlock" class="md-nav__link">
+    Workspace Lock / Unlock
+  </a>
+  
+    <nav class="md-nav" aria-label="Workspace Lock / Unlock">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-lock-a-workspace" class="md-nav__link">
+    21. Lock a Workspace
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-verify-lock" class="md-nav__link">
+    22. Verify Lock
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-unlock-a-workspace" class="md-nav__link">
+    23. Unlock a Workspace
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-verify-unlock" class="md-nav__link">
+    24. Verify Unlock
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#25-lock-all-search-scoped" class="md-nav__link">
+    25. Lock All (search scoped)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#26-unlock-all-search-scoped" class="md-nav__link">
+    26. Unlock All (search scoped)
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workspace-variables" class="md-nav__link">
+    Workspace Variables
+  </a>
+  
+    <nav class="md-nav" aria-label="Workspace Variables">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#27-list-variables" class="md-nav__link">
+    27. List Variables
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#28-list-variables-alias" class="md-nav__link">
+    28. List Variables (alias)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#29-create-a-terraform-variable" class="md-nav__link">
+    29. Create a Terraform Variable
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#30-create-an-environment-variable" class="md-nav__link">
+    30. Create an Environment Variable
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#31-create-a-sensitive-variable" class="md-nav__link">
+    31. Create a Sensitive Variable
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-create-an-hcl-variable" class="md-nav__link">
+    32. Create an HCL Variable
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-show-a-variable" class="md-nav__link">
+    33. Show a Variable
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-update-a-variable" class="md-nav__link">
+    34. Update a Variable
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#35-list-variables-json-verify-update" class="md-nav__link">
+    35. List Variables (JSON, verify update)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#36-delete-variables-cleanup" class="md-nav__link">
+    36. Delete Variables (cleanup)
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workspace-configuration-versions" class="md-nav__link">
+    Workspace Configuration Versions
+  </a>
+  
+    <nav class="md-nav" aria-label="Workspace Configuration Versions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#37-list-configuration-versions" class="md-nav__link">
+    37. List Configuration Versions
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#38-list-configuration-versions-alias-max-items" class="md-nav__link">
+    38. List Configuration Versions (alias + max-items)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#39-create-a-configuration-version" class="md-nav__link">
+    39. Create a Configuration Version
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#40-create-a-speculative-configuration-version" class="md-nav__link">
+    40. Create a Speculative Configuration Version
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#41-show-configuration-version" class="md-nav__link">
+    41. Show Configuration Version
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-download-configuration-version" class="md-nav__link">
+    42. Download Configuration Version
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workspace-runs" class="md-nav__link">
+    Workspace Runs
+  </a>
+  
+    <nav class="md-nav" aria-label="Workspace Runs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#43-list-runs" class="md-nav__link">
+    43. List Runs
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-list-runs-max-items" class="md-nav__link">
+    44. List Runs (max-items)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-create-a-run" class="md-nav__link">
+    45. Create a Run
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#46-show-a-run" class="md-nav__link">
+    46. Show a Run
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#47-discard-a-run" class="md-nav__link">
+    47. Discard a Run
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#48-cancel-latest-run" class="md-nav__link">
+    48. Cancel Latest Run
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workspace-plans" class="md-nav__link">
+    Workspace Plans
+  </a>
+  
+    <nav class="md-nav" aria-label="Workspace Plans">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#49-create-a-plan" class="md-nav__link">
+    49. Create a Plan
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#50-show-plan" class="md-nav__link">
+    50. Show Plan
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#51-plan-logs" class="md-nav__link">
+    51. Plan Logs
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-plan-json-output" class="md-nav__link">
+    52. Plan JSON Output
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-create-a-speculative-plan" class="md-nav__link">
+    53. Create a Speculative Plan
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workspace-state-versions" class="md-nav__link">
+    Workspace State Versions
+  </a>
+  
+    <nav class="md-nav" aria-label="Workspace State Versions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#54-list-state-versions" class="md-nav__link">
+    54. List State Versions
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#55-list-state-versions-alias-max-items" class="md-nav__link">
+    55. List State Versions (alias + max-items)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#56-show-state-version" class="md-nav__link">
+    56. Show State Version
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#57-download-state-version" class="md-nav__link">
+    57. Download State Version
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workspace-teams" class="md-nav__link">
+    Workspace Teams
+  </a>
+  
+    <nav class="md-nav" aria-label="Workspace Teams">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#58-list-workspace-teams" class="md-nav__link">
+    58. List Workspace Teams
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#registry-modules" class="md-nav__link">
+    Registry — Modules
+  </a>
+  
+    <nav class="md-nav" aria-label="Registry — Modules">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#59-list-modules" class="md-nav__link">
+    59. List Modules
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#60-list-modules-json-all-pages" class="md-nav__link">
+    60. List Modules (JSON + all pages)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#61-create-a-module" class="md-nav__link">
+    61. Create a Module
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-show-module" class="md-nav__link">
+    62. Show Module
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-create-a-module-version" class="md-nav__link">
+    63. Create a Module Version
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64-list-module-versions" class="md-nav__link">
+    64. List Module Versions
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#65-download-module-version" class="md-nav__link">
+    65. Download Module Version
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#66-delete-module-version" class="md-nav__link">
+    66. Delete Module Version
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#67-delete-module-cleanup" class="md-nav__link">
+    67. Delete Module (cleanup)
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#registry-providers" class="md-nav__link">
+    Registry — Providers
+  </a>
+  
+    <nav class="md-nav" aria-label="Registry — Providers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#68-list-providers" class="md-nav__link">
+    68. List Providers
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#69-list-providers-json-all-pages" class="md-nav__link">
+    69. List Providers (JSON + all pages)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#70-create-a-provider" class="md-nav__link">
+    70. Create a Provider
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#71-show-provider" class="md-nav__link">
+    71. Show Provider
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-delete-provider-cleanup" class="md-nav__link">
+    72. Delete Provider (cleanup)
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#admin-gpg-keys" class="md-nav__link">
+    Admin — GPG Keys
+  </a>
+  
+    <nav class="md-nav" aria-label="Admin — GPG Keys">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#73-list-gpg-keys" class="md-nav__link">
+    73. List GPG Keys
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#74-create-a-gpg-key" class="md-nav__link">
+    74. Create a GPG Key
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#75-show-gpg-key" class="md-nav__link">
+    75. Show GPG Key
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#76-delete-gpg-key-cleanup" class="md-nav__link">
+    76. Delete GPG Key (cleanup)
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#admin-terraform-versions" class="md-nav__link">
+    Admin — Terraform Versions
+  </a>
+  
+    <nav class="md-nav" aria-label="Admin — Terraform Versions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#77-list-terraform-versions" class="md-nav__link">
+    77. List Terraform Versions
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#78-list-terraform-versions-alias-search" class="md-nav__link">
+    78. List Terraform Versions (alias + search)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#79-show-terraform-version" class="md-nav__link">
+    79. Show Terraform Version
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#80-create-official-terraform-version" class="md-nav__link">
+    80. Create Official Terraform Version
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#81-enable-a-terraform-version" class="md-nav__link">
+    81. Enable a Terraform Version
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82-disable-a-terraform-version" class="md-nav__link">
+    82. Disable a Terraform Version
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#83-delete-terraform-version-cleanup" class="md-nav__link">
+    83. Delete Terraform Version (cleanup)
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#global-flags" class="md-nav__link">
+    Global Flags
+  </a>
+  
+    <nav class="md-nav" aria-label="Global Flags">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#84-json-output-flag-short-form" class="md-nav__link">
+    84. JSON Output Flag (short form)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#85-config-file-flag" class="md-nav__link">
+    85. Config File Flag
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#86-hostname-and-token-flags" class="md-nav__link">
+    86. Hostname and Token Flags
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#87-missing-required-flag-error" class="md-nav__link">
+    87. Missing Required Flag Error
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#88-invalid-token-error" class="md-nav__link">
+    88. Invalid Token Error
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary-checklist" class="md-nav__link">
+    Summary Checklist
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_6" type="checkbox" id="__nav_6" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_6">
+          About
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="About" data-md-level="1">
+        <label class="md-nav__title" for="__nav_6">
+          <span class="md-nav__icon md-icon"></span>
+          About
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../about/purpose/" class="md-nav__link">
+        Why TFx?
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/straubt1/tfx/blob/main/CHANGELOG.md" class="md-nav__link">
+        Release Notes
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../about/contributing/" class="md-nav__link">
+        Contributing
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../about/style_guide/" class="md-nav__link">
+        Style Guide
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    Setup
+  </a>
+  
+    <nav class="md-nav" aria-label="Setup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-installation" class="md-nav__link">
+    1. Installation
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-configuration" class="md-nav__link">
+    2. Configuration
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#organization" class="md-nav__link">
+    Organization
+  </a>
+  
+    <nav class="md-nav" aria-label="Organization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#3-list-organizations" class="md-nav__link">
+    3. List Organizations
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-list-organizations-alias" class="md-nav__link">
+    4. List Organizations (alias)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-list-organizations-json-output" class="md-nav__link">
+    5. List Organizations (JSON output)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-show-organization" class="md-nav__link">
+    6. Show Organization
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#project" class="md-nav__link">
+    Project
+  </a>
+  
+    <nav class="md-nav" aria-label="Project">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#7-list-projects" class="md-nav__link">
+    7. List Projects
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-list-projects-alias-search" class="md-nav__link">
+    8. List Projects (alias + search)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-list-projects-json" class="md-nav__link">
+    9. List Projects (JSON)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#10-show-project-by-name" class="md-nav__link">
+    10. Show Project by Name
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#11-show-project-by-id" class="md-nav__link">
+    11. Show Project by ID
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workspace" class="md-nav__link">
+    Workspace
+  </a>
+  
+    <nav class="md-nav" aria-label="Workspace">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#12-list-workspaces" class="md-nav__link">
+    12. List Workspaces
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-list-workspaces-alias" class="md-nav__link">
+    13. List Workspaces (alias)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14-list-workspaces-search-filter" class="md-nav__link">
+    14. List Workspaces (search filter)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15-list-workspaces-wildcard-filter" class="md-nav__link">
+    15. List Workspaces (wildcard filter)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#16-list-workspaces-run-status-filter" class="md-nav__link">
+    16. List Workspaces (run status filter)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#17-list-workspaces-project-filter" class="md-nav__link">
+    17. List Workspaces (project filter)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#18-list-workspaces-all-organizations" class="md-nav__link">
+    18. List Workspaces (all organizations)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#19-list-workspaces-json" class="md-nav__link">
+    19. List Workspaces (JSON)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#20-show-workspace" class="md-nav__link">
+    20. Show Workspace
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workspace-lock-unlock" class="md-nav__link">
+    Workspace Lock / Unlock
+  </a>
+  
+    <nav class="md-nav" aria-label="Workspace Lock / Unlock">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-lock-a-workspace" class="md-nav__link">
+    21. Lock a Workspace
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-verify-lock" class="md-nav__link">
+    22. Verify Lock
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-unlock-a-workspace" class="md-nav__link">
+    23. Unlock a Workspace
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-verify-unlock" class="md-nav__link">
+    24. Verify Unlock
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#25-lock-all-search-scoped" class="md-nav__link">
+    25. Lock All (search scoped)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#26-unlock-all-search-scoped" class="md-nav__link">
+    26. Unlock All (search scoped)
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workspace-variables" class="md-nav__link">
+    Workspace Variables
+  </a>
+  
+    <nav class="md-nav" aria-label="Workspace Variables">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#27-list-variables" class="md-nav__link">
+    27. List Variables
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#28-list-variables-alias" class="md-nav__link">
+    28. List Variables (alias)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#29-create-a-terraform-variable" class="md-nav__link">
+    29. Create a Terraform Variable
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#30-create-an-environment-variable" class="md-nav__link">
+    30. Create an Environment Variable
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#31-create-a-sensitive-variable" class="md-nav__link">
+    31. Create a Sensitive Variable
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-create-an-hcl-variable" class="md-nav__link">
+    32. Create an HCL Variable
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-show-a-variable" class="md-nav__link">
+    33. Show a Variable
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-update-a-variable" class="md-nav__link">
+    34. Update a Variable
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#35-list-variables-json-verify-update" class="md-nav__link">
+    35. List Variables (JSON, verify update)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#36-delete-variables-cleanup" class="md-nav__link">
+    36. Delete Variables (cleanup)
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workspace-configuration-versions" class="md-nav__link">
+    Workspace Configuration Versions
+  </a>
+  
+    <nav class="md-nav" aria-label="Workspace Configuration Versions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#37-list-configuration-versions" class="md-nav__link">
+    37. List Configuration Versions
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#38-list-configuration-versions-alias-max-items" class="md-nav__link">
+    38. List Configuration Versions (alias + max-items)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#39-create-a-configuration-version" class="md-nav__link">
+    39. Create a Configuration Version
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#40-create-a-speculative-configuration-version" class="md-nav__link">
+    40. Create a Speculative Configuration Version
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#41-show-configuration-version" class="md-nav__link">
+    41. Show Configuration Version
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-download-configuration-version" class="md-nav__link">
+    42. Download Configuration Version
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workspace-runs" class="md-nav__link">
+    Workspace Runs
+  </a>
+  
+    <nav class="md-nav" aria-label="Workspace Runs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#43-list-runs" class="md-nav__link">
+    43. List Runs
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-list-runs-max-items" class="md-nav__link">
+    44. List Runs (max-items)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-create-a-run" class="md-nav__link">
+    45. Create a Run
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#46-show-a-run" class="md-nav__link">
+    46. Show a Run
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#47-discard-a-run" class="md-nav__link">
+    47. Discard a Run
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#48-cancel-latest-run" class="md-nav__link">
+    48. Cancel Latest Run
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workspace-plans" class="md-nav__link">
+    Workspace Plans
+  </a>
+  
+    <nav class="md-nav" aria-label="Workspace Plans">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#49-create-a-plan" class="md-nav__link">
+    49. Create a Plan
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#50-show-plan" class="md-nav__link">
+    50. Show Plan
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#51-plan-logs" class="md-nav__link">
+    51. Plan Logs
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-plan-json-output" class="md-nav__link">
+    52. Plan JSON Output
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-create-a-speculative-plan" class="md-nav__link">
+    53. Create a Speculative Plan
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workspace-state-versions" class="md-nav__link">
+    Workspace State Versions
+  </a>
+  
+    <nav class="md-nav" aria-label="Workspace State Versions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#54-list-state-versions" class="md-nav__link">
+    54. List State Versions
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#55-list-state-versions-alias-max-items" class="md-nav__link">
+    55. List State Versions (alias + max-items)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#56-show-state-version" class="md-nav__link">
+    56. Show State Version
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#57-download-state-version" class="md-nav__link">
+    57. Download State Version
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workspace-teams" class="md-nav__link">
+    Workspace Teams
+  </a>
+  
+    <nav class="md-nav" aria-label="Workspace Teams">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#58-list-workspace-teams" class="md-nav__link">
+    58. List Workspace Teams
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#registry-modules" class="md-nav__link">
+    Registry — Modules
+  </a>
+  
+    <nav class="md-nav" aria-label="Registry — Modules">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#59-list-modules" class="md-nav__link">
+    59. List Modules
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#60-list-modules-json-all-pages" class="md-nav__link">
+    60. List Modules (JSON + all pages)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#61-create-a-module" class="md-nav__link">
+    61. Create a Module
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-show-module" class="md-nav__link">
+    62. Show Module
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-create-a-module-version" class="md-nav__link">
+    63. Create a Module Version
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64-list-module-versions" class="md-nav__link">
+    64. List Module Versions
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#65-download-module-version" class="md-nav__link">
+    65. Download Module Version
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#66-delete-module-version" class="md-nav__link">
+    66. Delete Module Version
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#67-delete-module-cleanup" class="md-nav__link">
+    67. Delete Module (cleanup)
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#registry-providers" class="md-nav__link">
+    Registry — Providers
+  </a>
+  
+    <nav class="md-nav" aria-label="Registry — Providers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#68-list-providers" class="md-nav__link">
+    68. List Providers
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#69-list-providers-json-all-pages" class="md-nav__link">
+    69. List Providers (JSON + all pages)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#70-create-a-provider" class="md-nav__link">
+    70. Create a Provider
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#71-show-provider" class="md-nav__link">
+    71. Show Provider
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-delete-provider-cleanup" class="md-nav__link">
+    72. Delete Provider (cleanup)
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#admin-gpg-keys" class="md-nav__link">
+    Admin — GPG Keys
+  </a>
+  
+    <nav class="md-nav" aria-label="Admin — GPG Keys">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#73-list-gpg-keys" class="md-nav__link">
+    73. List GPG Keys
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#74-create-a-gpg-key" class="md-nav__link">
+    74. Create a GPG Key
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#75-show-gpg-key" class="md-nav__link">
+    75. Show GPG Key
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#76-delete-gpg-key-cleanup" class="md-nav__link">
+    76. Delete GPG Key (cleanup)
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#admin-terraform-versions" class="md-nav__link">
+    Admin — Terraform Versions
+  </a>
+  
+    <nav class="md-nav" aria-label="Admin — Terraform Versions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#77-list-terraform-versions" class="md-nav__link">
+    77. List Terraform Versions
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#78-list-terraform-versions-alias-search" class="md-nav__link">
+    78. List Terraform Versions (alias + search)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#79-show-terraform-version" class="md-nav__link">
+    79. Show Terraform Version
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#80-create-official-terraform-version" class="md-nav__link">
+    80. Create Official Terraform Version
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#81-enable-a-terraform-version" class="md-nav__link">
+    81. Enable a Terraform Version
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82-disable-a-terraform-version" class="md-nav__link">
+    82. Disable a Terraform Version
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#83-delete-terraform-version-cleanup" class="md-nav__link">
+    83. Delete Terraform Version (cleanup)
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#global-flags" class="md-nav__link">
+    Global Flags
+  </a>
+  
+    <nav class="md-nav" aria-label="Global Flags">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#84-json-output-flag-short-form" class="md-nav__link">
+    84. JSON Output Flag (short form)
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#85-config-file-flag" class="md-nav__link">
+    85. Config File Flag
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#86-hostname-and-token-flags" class="md-nav__link">
+    86. Hostname and Token Flags
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#87-missing-required-flag-error" class="md-nav__link">
+    87. Missing Required Flag Error
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#88-invalid-token-error" class="md-nav__link">
+    88. Invalid Token Error
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary-checklist" class="md-nav__link">
+    Summary Checklist
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          <div class="md-content" data-md-component="content">
+            <article class="md-content__inner md-typeset">
+              
+                
+  <a href="https://github.com/straubt1/tfx/edit/main/site/docs/testing/test_plan.md" title="Edit this page" class="md-content__button md-icon">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25Z"/></svg>
+  </a>
+
+
+
+<h1 id="tfx-test-plan">TFx Test Plan<a class="headerlink" href="#tfx-test-plan" title="Permanent link">&para;</a></h1>
+<p>This document is a structured walkthrough for early users to validate TFx against a live HCP Terraform or Terraform Enterprise instance. Work through each section in order — later sections depend on resources created earlier.</p>
+<div class="admonition note">
+<p class="admonition-title">Feedback</p>
+<p>If you encounter any unexpected behavior, please <a href="https://github.com/straubt1/tfx/issues">open an issue</a> with the command you ran, the output you received, and your TFx version (<code>tfx version</code>).</p>
+</div>
+<h2 id="setup">Setup<a class="headerlink" href="#setup" title="Permanent link">&para;</a></h2>
+<h3 id="1-installation">1. Installation<a class="headerlink" href="#1-installation" title="Permanent link">&para;</a></h3>
+<p>Verify TFx is installed and reporting the correct version.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>tfx version
+</code></pre></div>
+<p><strong>Expected:</strong> Version string is printed with no errors.</p>
+<h3 id="2-configuration">2. Configuration<a class="headerlink" href="#2-configuration" title="Permanent link">&para;</a></h3>
+<p>Create a <code>.tfx.hcl</code> config file or export environment variables, then confirm connectivity:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Option A: config file</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>cat <span class="s">&lt;&lt;EOF &gt; .tfx.hcl</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="s">tfeHostname     = &quot;app.terraform.io&quot;</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="s">tfeOrganization = &quot;my-org&quot;</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="s">tfeToken        = &quot;my-token&quot;</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="s">EOF</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="c1"># Option B: environment variables</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="nb">export</span> <span class="nv">TFE_HOSTNAME</span><span class="o">=</span>app.terraform.io
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="nb">export</span> <span class="nv">TFE_ORGANIZATION</span><span class="o">=</span>my-org
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="nb">export</span> <span class="nv">TFE_TOKEN</span><span class="o">=</span>my-token
+</code></pre></div>
+<p>Validate the configuration by listing organizations — this is the simplest authenticated call:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>tfx organization list
+</code></pre></div>
+<p><strong>Expected:</strong> Table of organizations is displayed with no authentication errors.</p>
+<hr />
+<h2 id="organization">Organization<a class="headerlink" href="#organization" title="Permanent link">&para;</a></h2>
+<h3 id="3-list-organizations">3. List Organizations<a class="headerlink" href="#3-list-organizations" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>tfx organization list
+</code></pre></div>
+<p><strong>Expected:</strong> Table with at least one organization row.</p>
+<h3 id="4-list-organizations-alias">4. List Organizations (alias)<a class="headerlink" href="#4-list-organizations-alias" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>tfx org list
+</code></pre></div>
+<p><strong>Expected:</strong> Same output as above — confirms the <code>org</code> alias works.</p>
+<h3 id="5-list-organizations-json-output">5. List Organizations (JSON output)<a class="headerlink" href="#5-list-organizations-json-output" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>tfx organization list --json
+</code></pre></div>
+<p><strong>Expected:</strong> Valid JSON array. Pipe through <code>jq</code> to confirm structure:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>tfx organization list --json <span class="p">|</span> jq <span class="s1">&#39;.[0].Name&#39;</span>
+</code></pre></div>
+<h3 id="6-show-organization">6. Show Organization<a class="headerlink" href="#6-show-organization" title="Permanent link">&para;</a></h3>
+<p>Replace <code>&lt;org-name&gt;</code> with a name from the list above.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>tfx organization show --name &lt;org-name&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> Detail view showing the organization name, email, and plan.</p>
+<hr />
+<h2 id="project">Project<a class="headerlink" href="#project" title="Permanent link">&para;</a></h2>
+<h3 id="7-list-projects">7. List Projects<a class="headerlink" href="#7-list-projects" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>tfx project list
+</code></pre></div>
+<p><strong>Expected:</strong> Table of projects for the configured organization.</p>
+<h3 id="8-list-projects-alias-search">8. List Projects (alias + search)<a class="headerlink" href="#8-list-projects-alias-search" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>tfx prj list --search default
+</code></pre></div>
+<p><strong>Expected:</strong> Filtered list. If no results, try a different search term or omit <code>--search</code>.</p>
+<h3 id="9-list-projects-json">9. List Projects (JSON)<a class="headerlink" href="#9-list-projects-json" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>tfx project list --json
+</code></pre></div>
+<p><strong>Expected:</strong> Valid JSON array of project objects.</p>
+<h3 id="10-show-project-by-name">10. Show Project by Name<a class="headerlink" href="#10-show-project-by-name" title="Permanent link">&para;</a></h3>
+<p>Replace <code>&lt;project-name&gt;</code> with a name from the list.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>tfx project show --name &lt;project-name&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> Project ID, name, and description are displayed.</p>
+<h3 id="11-show-project-by-id">11. Show Project by ID<a class="headerlink" href="#11-show-project-by-id" title="Permanent link">&para;</a></h3>
+<p>Use the ID returned in the previous step.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>tfx project show --id &lt;project-id&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> Same output as the name lookup.</p>
+<hr />
+<h2 id="workspace">Workspace<a class="headerlink" href="#workspace" title="Permanent link">&para;</a></h2>
+<h3 id="12-list-workspaces">12. List Workspaces<a class="headerlink" href="#12-list-workspaces" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>tfx workspace list
+</code></pre></div>
+<p><strong>Expected:</strong> Table of workspaces with name, ID, resource count, and status columns.</p>
+<h3 id="13-list-workspaces-alias">13. List Workspaces (alias)<a class="headerlink" href="#13-list-workspaces-alias" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>tfx ws list
+</code></pre></div>
+<p><strong>Expected:</strong> Same output — confirms the <code>ws</code> alias works.</p>
+<h3 id="14-list-workspaces-search-filter">14. List Workspaces (search filter)<a class="headerlink" href="#14-list-workspaces-search-filter" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>tfx workspace list --search &lt;partial-name&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> Filtered list containing only workspaces whose names match the search string.</p>
+<h3 id="15-list-workspaces-wildcard-filter">15. List Workspaces (wildcard filter)<a class="headerlink" href="#15-list-workspaces-wildcard-filter" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>tfx workspace list --wildcard-name <span class="s2">&quot;*dev*&quot;</span>
+</code></pre></div>
+<p><strong>Expected:</strong> Workspaces whose names contain <code>dev</code>. If none, try a pattern that matches your environment.</p>
+<h3 id="16-list-workspaces-run-status-filter">16. List Workspaces (run status filter)<a class="headerlink" href="#16-list-workspaces-run-status-filter" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>tfx workspace list --run-status errored
+</code></pre></div>
+<p><strong>Expected:</strong> Only workspaces with a current run in <code>errored</code> state. An empty table is a valid result if none exist.</p>
+<h3 id="17-list-workspaces-project-filter">17. List Workspaces (project filter)<a class="headerlink" href="#17-list-workspaces-project-filter" title="Permanent link">&para;</a></h3>
+<p>Use a project ID from <a href="#10-show-project-by-name">step 10</a>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>tfx workspace list --project-id &lt;project-id&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> Only workspaces that belong to the specified project.</p>
+<h3 id="18-list-workspaces-all-organizations">18. List Workspaces (all organizations)<a class="headerlink" href="#18-list-workspaces-all-organizations" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>tfx workspace list --all
+</code></pre></div>
+<p><strong>Expected:</strong> Table includes an <code>ORGANIZATION</code> column and workspaces from every org accessible to your token.</p>
+<h3 id="19-list-workspaces-json">19. List Workspaces (JSON)<a class="headerlink" href="#19-list-workspaces-json" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>tfx workspace list --json
+</code></pre></div>
+<p><strong>Expected:</strong> Valid JSON array.</p>
+<h3 id="20-show-workspace">20. Show Workspace<a class="headerlink" href="#20-show-workspace" title="Permanent link">&para;</a></h3>
+<p>Replace <code>&lt;workspace-name&gt;</code> with a workspace name from the list. Record the workspace name — it is used throughout the rest of this plan.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>tfx workspace show --name &lt;workspace-name&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> Detail view showing ID, Terraform version, execution mode, lock status, and current run information.</p>
+<hr />
+<h2 id="workspace-lock-unlock">Workspace Lock / Unlock<a class="headerlink" href="#workspace-lock-unlock" title="Permanent link">&para;</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>These steps temporarily lock a workspace. Ensure the workspace is not in active use before proceeding.</p>
+</div>
+<h3 id="21-lock-a-workspace">21. Lock a Workspace<a class="headerlink" href="#21-lock-a-workspace" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>tfx workspace lock --name &lt;workspace-name&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> Confirmation that the workspace is now locked.</p>
+<h3 id="22-verify-lock">22. Verify Lock<a class="headerlink" href="#22-verify-lock" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>tfx workspace show --name &lt;workspace-name&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> <code>Locked: true</code> in the output.</p>
+<h3 id="23-unlock-a-workspace">23. Unlock a Workspace<a class="headerlink" href="#23-unlock-a-workspace" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>tfx workspace unlock --name &lt;workspace-name&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> Confirmation that the workspace is now unlocked.</p>
+<h3 id="24-verify-unlock">24. Verify Unlock<a class="headerlink" href="#24-verify-unlock" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>tfx workspace show --name &lt;workspace-name&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> <code>Locked: false</code> in the output.</p>
+<h3 id="25-lock-all-search-scoped">25. Lock All (search scoped)<a class="headerlink" href="#25-lock-all-search-scoped" title="Permanent link">&para;</a></h3>
+<p>Use a search string that limits scope to avoid accidentally locking production workspaces.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>tfx workspace lock all --search &lt;safe-prefix&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> All matching workspaces are locked and a summary is printed.</p>
+<h3 id="26-unlock-all-search-scoped">26. Unlock All (search scoped)<a class="headerlink" href="#26-unlock-all-search-scoped" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>tfx workspace unlock all --search &lt;safe-prefix&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> All matching workspaces are unlocked.</p>
+<hr />
+<h2 id="workspace-variables">Workspace Variables<a class="headerlink" href="#workspace-variables" title="Permanent link">&para;</a></h2>
+<h3 id="27-list-variables">27. List Variables<a class="headerlink" href="#27-list-variables" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>tfx workspace variable list --name &lt;workspace-name&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> Table of workspace variables (may be empty for a new workspace).</p>
+<h3 id="28-list-variables-alias">28. List Variables (alias)<a class="headerlink" href="#28-list-variables-alias" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>tfx ws var list --name &lt;workspace-name&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> Same output — confirms the <code>var</code> alias works.</p>
+<h3 id="29-create-a-terraform-variable">29. Create a Terraform Variable<a class="headerlink" href="#29-create-a-terraform-variable" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>tfx workspace variable create <span class="se">\</span>
+<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>  --name &lt;workspace-name&gt; <span class="se">\</span>
+<a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a>  --key tfx_test_var <span class="se">\</span>
+<a id="__codelineno-30-4" name="__codelineno-30-4" href="#__codelineno-30-4"></a>  --value <span class="s2">&quot;hello-from-tfx&quot;</span>
+</code></pre></div>
+<p><strong>Expected:</strong> Confirmation showing the new variable ID and key.</p>
+<h3 id="30-create-an-environment-variable">30. Create an Environment Variable<a class="headerlink" href="#30-create-an-environment-variable" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>tfx workspace variable create <span class="se">\</span>
+<a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a>  --name &lt;workspace-name&gt; <span class="se">\</span>
+<a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a>  --key TFX_TEST_ENV <span class="se">\</span>
+<a id="__codelineno-31-4" name="__codelineno-31-4" href="#__codelineno-31-4"></a>  --value <span class="s2">&quot;env-value&quot;</span> <span class="se">\</span>
+<a id="__codelineno-31-5" name="__codelineno-31-5" href="#__codelineno-31-5"></a>  --env
+</code></pre></div>
+<p><strong>Expected:</strong> Confirmation showing the new variable with <code>env</code> category.</p>
+<h3 id="31-create-a-sensitive-variable">31. Create a Sensitive Variable<a class="headerlink" href="#31-create-a-sensitive-variable" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>tfx workspace variable create <span class="se">\</span>
+<a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a>  --name &lt;workspace-name&gt; <span class="se">\</span>
+<a id="__codelineno-32-3" name="__codelineno-32-3" href="#__codelineno-32-3"></a>  --key tfx_secret <span class="se">\</span>
+<a id="__codelineno-32-4" name="__codelineno-32-4" href="#__codelineno-32-4"></a>  --value <span class="s2">&quot;s3cr3t&quot;</span> <span class="se">\</span>
+<a id="__codelineno-32-5" name="__codelineno-32-5" href="#__codelineno-32-5"></a>  --sensitive
+</code></pre></div>
+<p><strong>Expected:</strong> Confirmation showing <code>Sensitive: true</code>. The value will not be readable afterward.</p>
+<h3 id="32-create-an-hcl-variable">32. Create an HCL Variable<a class="headerlink" href="#32-create-an-hcl-variable" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a>tfx workspace variable create <span class="se">\</span>
+<a id="__codelineno-33-2" name="__codelineno-33-2" href="#__codelineno-33-2"></a>  --name &lt;workspace-name&gt; <span class="se">\</span>
+<a id="__codelineno-33-3" name="__codelineno-33-3" href="#__codelineno-33-3"></a>  --key tfx_map <span class="se">\</span>
+<a id="__codelineno-33-4" name="__codelineno-33-4" href="#__codelineno-33-4"></a>  --value <span class="s1">&#39;{&quot;key1&quot;=&quot;val1&quot;,&quot;key2&quot;=&quot;val2&quot;}&#39;</span> <span class="se">\</span>
+<a id="__codelineno-33-5" name="__codelineno-33-5" href="#__codelineno-33-5"></a>  --hcl
+</code></pre></div>
+<p><strong>Expected:</strong> Confirmation showing <code>HCL: true</code>.</p>
+<h3 id="33-show-a-variable">33. Show a Variable<a class="headerlink" href="#33-show-a-variable" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a>tfx workspace variable show <span class="se">\</span>
+<a id="__codelineno-34-2" name="__codelineno-34-2" href="#__codelineno-34-2"></a>  --name &lt;workspace-name&gt; <span class="se">\</span>
+<a id="__codelineno-34-3" name="__codelineno-34-3" href="#__codelineno-34-3"></a>  --key tfx_test_var
+</code></pre></div>
+<p><strong>Expected:</strong> Detail view for <code>tfx_test_var</code>.</p>
+<h3 id="34-update-a-variable">34. Update a Variable<a class="headerlink" href="#34-update-a-variable" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a>tfx workspace variable update <span class="se">\</span>
+<a id="__codelineno-35-2" name="__codelineno-35-2" href="#__codelineno-35-2"></a>  --name &lt;workspace-name&gt; <span class="se">\</span>
+<a id="__codelineno-35-3" name="__codelineno-35-3" href="#__codelineno-35-3"></a>  --key tfx_test_var <span class="se">\</span>
+<a id="__codelineno-35-4" name="__codelineno-35-4" href="#__codelineno-35-4"></a>  --value <span class="s2">&quot;updated-value&quot;</span> <span class="se">\</span>
+<a id="__codelineno-35-5" name="__codelineno-35-5" href="#__codelineno-35-5"></a>  --description <span class="s2">&quot;Updated by TFx test plan&quot;</span>
+</code></pre></div>
+<p><strong>Expected:</strong> Confirmation that the variable was updated.</p>
+<h3 id="35-list-variables-json-verify-update">35. List Variables (JSON, verify update)<a class="headerlink" href="#35-list-variables-json-verify-update" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a>tfx workspace variable list --name &lt;workspace-name&gt; --json <span class="p">|</span> jq <span class="s1">&#39;.[] | select(.Key==&quot;tfx_test_var&quot;)&#39;</span>
+</code></pre></div>
+<p><strong>Expected:</strong> JSON object showing <code>Value: "updated-value"</code>.</p>
+<h3 id="36-delete-variables-cleanup">36. Delete Variables (cleanup)<a class="headerlink" href="#36-delete-variables-cleanup" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a>tfx workspace variable delete --name &lt;workspace-name&gt; --key tfx_test_var
+<a id="__codelineno-37-2" name="__codelineno-37-2" href="#__codelineno-37-2"></a>tfx workspace variable delete --name &lt;workspace-name&gt; --key TFX_TEST_ENV
+<a id="__codelineno-37-3" name="__codelineno-37-3" href="#__codelineno-37-3"></a>tfx workspace variable delete --name &lt;workspace-name&gt; --key tfx_secret
+<a id="__codelineno-37-4" name="__codelineno-37-4" href="#__codelineno-37-4"></a>tfx workspace variable delete --name &lt;workspace-name&gt; --key tfx_map
+</code></pre></div>
+<p><strong>Expected:</strong> Each deletion is confirmed with no errors.</p>
+<hr />
+<h2 id="workspace-configuration-versions">Workspace Configuration Versions<a class="headerlink" href="#workspace-configuration-versions" title="Permanent link">&para;</a></h2>
+<h3 id="37-list-configuration-versions">37. List Configuration Versions<a class="headerlink" href="#37-list-configuration-versions" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a>tfx workspace configuration-version list --name &lt;workspace-name&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> Table of existing configuration versions (may be empty).</p>
+<h3 id="38-list-configuration-versions-alias-max-items">38. List Configuration Versions (alias + max-items)<a class="headerlink" href="#38-list-configuration-versions-alias-max-items" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a>tfx ws cv list --name &lt;workspace-name&gt; --max-items <span class="m">5</span>
+</code></pre></div>
+<p><strong>Expected:</strong> At most 5 rows returned.</p>
+<h3 id="39-create-a-configuration-version">39. Create a Configuration Version<a class="headerlink" href="#39-create-a-configuration-version" title="Permanent link">&para;</a></h3>
+<p>Run this from a directory that contains Terraform files (even a minimal <code>main.tf</code> is sufficient).</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a><span class="c1"># Create a minimal Terraform config if needed</span>
+<a id="__codelineno-40-2" name="__codelineno-40-2" href="#__codelineno-40-2"></a>mkdir -p /tmp/tfx-test <span class="o">&amp;&amp;</span> <span class="nb">echo</span> <span class="s1">&#39;terraform {}&#39;</span> &gt; /tmp/tfx-test/main.tf
+<a id="__codelineno-40-3" name="__codelineno-40-3" href="#__codelineno-40-3"></a>
+<a id="__codelineno-40-4" name="__codelineno-40-4" href="#__codelineno-40-4"></a>tfx workspace configuration-version create <span class="se">\</span>
+<a id="__codelineno-40-5" name="__codelineno-40-5" href="#__codelineno-40-5"></a>  --name &lt;workspace-name&gt; <span class="se">\</span>
+<a id="__codelineno-40-6" name="__codelineno-40-6" href="#__codelineno-40-6"></a>  --directory /tmp/tfx-test
+</code></pre></div>
+<p><strong>Expected:</strong> Upload completes and a configuration version ID (<code>cv-...</code>) is printed. Record this ID.</p>
+<h3 id="40-create-a-speculative-configuration-version">40. Create a Speculative Configuration Version<a class="headerlink" href="#40-create-a-speculative-configuration-version" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-41-1" name="__codelineno-41-1" href="#__codelineno-41-1"></a>tfx workspace configuration-version create <span class="se">\</span>
+<a id="__codelineno-41-2" name="__codelineno-41-2" href="#__codelineno-41-2"></a>  --name &lt;workspace-name&gt; <span class="se">\</span>
+<a id="__codelineno-41-3" name="__codelineno-41-3" href="#__codelineno-41-3"></a>  --directory /tmp/tfx-test <span class="se">\</span>
+<a id="__codelineno-41-4" name="__codelineno-41-4" href="#__codelineno-41-4"></a>  --speculative
+</code></pre></div>
+<p><strong>Expected:</strong> Configuration version created with <code>Speculative: true</code>.</p>
+<h3 id="41-show-configuration-version">41. Show Configuration Version<a class="headerlink" href="#41-show-configuration-version" title="Permanent link">&para;</a></h3>
+<p>Use the ID from step 39.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a>tfx workspace configuration-version show --id &lt;cv-id&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> Detail view showing status, upload URL, and speculative flag.</p>
+<h3 id="42-download-configuration-version">42. Download Configuration Version<a class="headerlink" href="#42-download-configuration-version" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-43-1" name="__codelineno-43-1" href="#__codelineno-43-1"></a>tfx workspace configuration-version download <span class="se">\</span>
+<a id="__codelineno-43-2" name="__codelineno-43-2" href="#__codelineno-43-2"></a>  --id &lt;cv-id&gt; <span class="se">\</span>
+<a id="__codelineno-43-3" name="__codelineno-43-3" href="#__codelineno-43-3"></a>  --directory /tmp/tfx-download
+</code></pre></div>
+<p><strong>Expected:</strong> Archive is saved to <code>/tmp/tfx-download</code>. Verify the file exists:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a>ls /tmp/tfx-download
+</code></pre></div>
+<hr />
+<h2 id="workspace-runs">Workspace Runs<a class="headerlink" href="#workspace-runs" title="Permanent link">&para;</a></h2>
+<h3 id="43-list-runs">43. List Runs<a class="headerlink" href="#43-list-runs" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a>tfx workspace run list --name &lt;workspace-name&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> Table of recent runs (up to 10 by default).</p>
+<h3 id="44-list-runs-max-items">44. List Runs (max-items)<a class="headerlink" href="#44-list-runs-max-items" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-46-1" name="__codelineno-46-1" href="#__codelineno-46-1"></a>tfx workspace run list --name &lt;workspace-name&gt; --max-items <span class="m">3</span>
+</code></pre></div>
+<p><strong>Expected:</strong> At most 3 rows.</p>
+<h3 id="45-create-a-run">45. Create a Run<a class="headerlink" href="#45-create-a-run" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-47-1" name="__codelineno-47-1" href="#__codelineno-47-1"></a>tfx workspace run create <span class="se">\</span>
+<a id="__codelineno-47-2" name="__codelineno-47-2" href="#__codelineno-47-2"></a>  --name &lt;workspace-name&gt; <span class="se">\</span>
+<a id="__codelineno-47-3" name="__codelineno-47-3" href="#__codelineno-47-3"></a>  --message <span class="s2">&quot;TFx test plan run&quot;</span>
+</code></pre></div>
+<p><strong>Expected:</strong> A new run ID (<code>run-...</code>) is returned. Record this ID.</p>
+<h3 id="46-show-a-run">46. Show a Run<a class="headerlink" href="#46-show-a-run" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-48-1" name="__codelineno-48-1" href="#__codelineno-48-1"></a>tfx workspace run show --id &lt;run-id&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> Run details including status, message, and timestamps.</p>
+<h3 id="47-discard-a-run">47. Discard a Run<a class="headerlink" href="#47-discard-a-run" title="Permanent link">&para;</a></h3>
+<p>If the run from step 45 is in <code>planned</code> or <code>planned_and_finished</code> status, discard it:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-49-1" name="__codelineno-49-1" href="#__codelineno-49-1"></a>tfx workspace run discard --id &lt;run-id&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> Run is discarded. Confirm with <code>run show</code>.</p>
+<h3 id="48-cancel-latest-run">48. Cancel Latest Run<a class="headerlink" href="#48-cancel-latest-run" title="Permanent link">&para;</a></h3>
+<p>If a run is queued or currently applying, cancel it:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-50-1" name="__codelineno-50-1" href="#__codelineno-50-1"></a>tfx workspace run cancel --name &lt;workspace-name&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> The latest run on the workspace is cancelled.</p>
+<hr />
+<h2 id="workspace-plans">Workspace Plans<a class="headerlink" href="#workspace-plans" title="Permanent link">&para;</a></h2>
+<h3 id="49-create-a-plan">49. Create a Plan<a class="headerlink" href="#49-create-a-plan" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-51-1" name="__codelineno-51-1" href="#__codelineno-51-1"></a>tfx workspace plan create <span class="se">\</span>
+<a id="__codelineno-51-2" name="__codelineno-51-2" href="#__codelineno-51-2"></a>  --name &lt;workspace-name&gt; <span class="se">\</span>
+<a id="__codelineno-51-3" name="__codelineno-51-3" href="#__codelineno-51-3"></a>  --directory /tmp/tfx-test <span class="se">\</span>
+<a id="__codelineno-51-4" name="__codelineno-51-4" href="#__codelineno-51-4"></a>  --message <span class="s2">&quot;TFx test plan&quot;</span>
+</code></pre></div>
+<p><strong>Expected:</strong> A run is queued and a plan ID is returned. Record the plan ID (<code>plan-...</code>) from the output.</p>
+<h3 id="50-show-plan">50. Show Plan<a class="headerlink" href="#50-show-plan" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-52-1" name="__codelineno-52-1" href="#__codelineno-52-1"></a>tfx workspace plan show --id &lt;plan-id&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> Plan detail view showing status and resource counts.</p>
+<h3 id="51-plan-logs">51. Plan Logs<a class="headerlink" href="#51-plan-logs" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-53-1" name="__codelineno-53-1" href="#__codelineno-53-1"></a>tfx workspace plan logs --id &lt;plan-id&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> Streaming or full plan log output (similar to <code>terraform plan</code> output).</p>
+<h3 id="52-plan-json-output">52. Plan JSON Output<a class="headerlink" href="#52-plan-json-output" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-54-1" name="__codelineno-54-1" href="#__codelineno-54-1"></a>tfx workspace plan jsonoutput --id &lt;plan-id&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> Raw JSON plan output. Pipe through <code>jq</code> to verify structure:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-55-1" name="__codelineno-55-1" href="#__codelineno-55-1"></a>tfx workspace plan jsonoutput --id &lt;plan-id&gt; <span class="p">|</span> jq <span class="s1">&#39;.format_version&#39;</span>
+</code></pre></div>
+<h3 id="53-create-a-speculative-plan">53. Create a Speculative Plan<a class="headerlink" href="#53-create-a-speculative-plan" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-56-1" name="__codelineno-56-1" href="#__codelineno-56-1"></a>tfx workspace plan create <span class="se">\</span>
+<a id="__codelineno-56-2" name="__codelineno-56-2" href="#__codelineno-56-2"></a>  --name &lt;workspace-name&gt; <span class="se">\</span>
+<a id="__codelineno-56-3" name="__codelineno-56-3" href="#__codelineno-56-3"></a>  --directory /tmp/tfx-test <span class="se">\</span>
+<a id="__codelineno-56-4" name="__codelineno-56-4" href="#__codelineno-56-4"></a>  --speculative
+</code></pre></div>
+<p><strong>Expected:</strong> Speculative plan is created and does not trigger an apply.</p>
+<hr />
+<h2 id="workspace-state-versions">Workspace State Versions<a class="headerlink" href="#workspace-state-versions" title="Permanent link">&para;</a></h2>
+<h3 id="54-list-state-versions">54. List State Versions<a class="headerlink" href="#54-list-state-versions" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-57-1" name="__codelineno-57-1" href="#__codelineno-57-1"></a>tfx workspace state-version list --name &lt;workspace-name&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> Table of state versions (may be empty for a new workspace).</p>
+<h3 id="55-list-state-versions-alias-max-items">55. List State Versions (alias + max-items)<a class="headerlink" href="#55-list-state-versions-alias-max-items" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-58-1" name="__codelineno-58-1" href="#__codelineno-58-1"></a>tfx ws sv list --name &lt;workspace-name&gt; --max-items <span class="m">5</span>
+</code></pre></div>
+<p><strong>Expected:</strong> At most 5 rows.</p>
+<p>If the workspace has at least one state version, continue with steps 56–58. Otherwise skip to <a href="#workspace-teams">Workspace Teams</a>.</p>
+<h3 id="56-show-state-version">56. Show State Version<a class="headerlink" href="#56-show-state-version" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-59-1" name="__codelineno-59-1" href="#__codelineno-59-1"></a><span class="c1"># Get a state version ID from the list above, then:</span>
+<a id="__codelineno-59-2" name="__codelineno-59-2" href="#__codelineno-59-2"></a>tfx workspace state-version show --state-id &lt;sv-id&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> Detail view with size, created timestamp, and download URL.</p>
+<h3 id="57-download-state-version">57. Download State Version<a class="headerlink" href="#57-download-state-version" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-60-1" name="__codelineno-60-1" href="#__codelineno-60-1"></a>tfx workspace state-version download <span class="se">\</span>
+<a id="__codelineno-60-2" name="__codelineno-60-2" href="#__codelineno-60-2"></a>  --state-id &lt;sv-id&gt; <span class="se">\</span>
+<a id="__codelineno-60-3" name="__codelineno-60-3" href="#__codelineno-60-3"></a>  --directory /tmp/tfx-state
+</code></pre></div>
+<p><strong>Expected:</strong> State file is saved. Verify:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-61-1" name="__codelineno-61-1" href="#__codelineno-61-1"></a>ls /tmp/tfx-state <span class="o">&amp;&amp;</span> cat /tmp/tfx-state/*.json <span class="p">|</span> jq <span class="s1">&#39;.version&#39;</span>
+</code></pre></div>
+<hr />
+<h2 id="workspace-teams">Workspace Teams<a class="headerlink" href="#workspace-teams" title="Permanent link">&para;</a></h2>
+<h3 id="58-list-workspace-teams">58. List Workspace Teams<a class="headerlink" href="#58-list-workspace-teams" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-62-1" name="__codelineno-62-1" href="#__codelineno-62-1"></a>tfx workspace team list --name &lt;workspace-name&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> Table of teams with their access level for this workspace (may be empty).</p>
+<hr />
+<h2 id="registry-modules">Registry — Modules<a class="headerlink" href="#registry-modules" title="Permanent link">&para;</a></h2>
+<h3 id="59-list-modules">59. List Modules<a class="headerlink" href="#59-list-modules" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-63-1" name="__codelineno-63-1" href="#__codelineno-63-1"></a>tfx registry module list
+</code></pre></div>
+<p><strong>Expected:</strong> Table of private registry modules (may be empty).</p>
+<h3 id="60-list-modules-json-all-pages">60. List Modules (JSON + all pages)<a class="headerlink" href="#60-list-modules-json-all-pages" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-64-1" name="__codelineno-64-1" href="#__codelineno-64-1"></a>tfx registry module list --all --json
+</code></pre></div>
+<p><strong>Expected:</strong> Full JSON array of all modules without pagination truncation.</p>
+<h3 id="61-create-a-module">61. Create a Module<a class="headerlink" href="#61-create-a-module" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-65-1" name="__codelineno-65-1" href="#__codelineno-65-1"></a>tfx registry module create <span class="se">\</span>
+<a id="__codelineno-65-2" name="__codelineno-65-2" href="#__codelineno-65-2"></a>  --name tfx-test-module <span class="se">\</span>
+<a id="__codelineno-65-3" name="__codelineno-65-3" href="#__codelineno-65-3"></a>  --provider aws
+</code></pre></div>
+<p><strong>Expected:</strong> Module is created and its ID is returned. The module has no versions yet.</p>
+<h3 id="62-show-module">62. Show Module<a class="headerlink" href="#62-show-module" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-66-1" name="__codelineno-66-1" href="#__codelineno-66-1"></a>tfx registry module show <span class="se">\</span>
+<a id="__codelineno-66-2" name="__codelineno-66-2" href="#__codelineno-66-2"></a>  --name tfx-test-module <span class="se">\</span>
+<a id="__codelineno-66-3" name="__codelineno-66-3" href="#__codelineno-66-3"></a>  --provider aws
+</code></pre></div>
+<p><strong>Expected:</strong> Module detail view showing name, provider, and empty versions.</p>
+<h3 id="63-create-a-module-version">63. Create a Module Version<a class="headerlink" href="#63-create-a-module-version" title="Permanent link">&para;</a></h3>
+<p>Run from a directory that contains a valid Terraform module.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-67-1" name="__codelineno-67-1" href="#__codelineno-67-1"></a>tfx registry module version create <span class="se">\</span>
+<a id="__codelineno-67-2" name="__codelineno-67-2" href="#__codelineno-67-2"></a>  --name tfx-test-module <span class="se">\</span>
+<a id="__codelineno-67-3" name="__codelineno-67-3" href="#__codelineno-67-3"></a>  --provider aws <span class="se">\</span>
+<a id="__codelineno-67-4" name="__codelineno-67-4" href="#__codelineno-67-4"></a>  --version <span class="m">1</span>.0.0 <span class="se">\</span>
+<a id="__codelineno-67-5" name="__codelineno-67-5" href="#__codelineno-67-5"></a>  --directory /tmp/tfx-test
+</code></pre></div>
+<p><strong>Expected:</strong> Version is uploaded and <code>1.0.0</code> is confirmed.</p>
+<h3 id="64-list-module-versions">64. List Module Versions<a class="headerlink" href="#64-list-module-versions" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-68-1" name="__codelineno-68-1" href="#__codelineno-68-1"></a>tfx registry module version list <span class="se">\</span>
+<a id="__codelineno-68-2" name="__codelineno-68-2" href="#__codelineno-68-2"></a>  --name tfx-test-module <span class="se">\</span>
+<a id="__codelineno-68-3" name="__codelineno-68-3" href="#__codelineno-68-3"></a>  --provider aws
+</code></pre></div>
+<p><strong>Expected:</strong> Table showing <code>1.0.0</code>.</p>
+<h3 id="65-download-module-version">65. Download Module Version<a class="headerlink" href="#65-download-module-version" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-69-1" name="__codelineno-69-1" href="#__codelineno-69-1"></a>tfx registry module version download <span class="se">\</span>
+<a id="__codelineno-69-2" name="__codelineno-69-2" href="#__codelineno-69-2"></a>  --name tfx-test-module <span class="se">\</span>
+<a id="__codelineno-69-3" name="__codelineno-69-3" href="#__codelineno-69-3"></a>  --provider aws <span class="se">\</span>
+<a id="__codelineno-69-4" name="__codelineno-69-4" href="#__codelineno-69-4"></a>  --version <span class="m">1</span>.0.0 <span class="se">\</span>
+<a id="__codelineno-69-5" name="__codelineno-69-5" href="#__codelineno-69-5"></a>  --directory /tmp/tfx-module-download
+</code></pre></div>
+<p><strong>Expected:</strong> Module archive saved to <code>/tmp/tfx-module-download</code>.</p>
+<h3 id="66-delete-module-version">66. Delete Module Version<a class="headerlink" href="#66-delete-module-version" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-70-1" name="__codelineno-70-1" href="#__codelineno-70-1"></a>tfx registry module version delete <span class="se">\</span>
+<a id="__codelineno-70-2" name="__codelineno-70-2" href="#__codelineno-70-2"></a>  --name tfx-test-module <span class="se">\</span>
+<a id="__codelineno-70-3" name="__codelineno-70-3" href="#__codelineno-70-3"></a>  --provider aws <span class="se">\</span>
+<a id="__codelineno-70-4" name="__codelineno-70-4" href="#__codelineno-70-4"></a>  --version <span class="m">1</span>.0.0
+</code></pre></div>
+<p><strong>Expected:</strong> Version is deleted without error.</p>
+<h3 id="67-delete-module-cleanup">67. Delete Module (cleanup)<a class="headerlink" href="#67-delete-module-cleanup" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-71-1" name="__codelineno-71-1" href="#__codelineno-71-1"></a>tfx registry module delete <span class="se">\</span>
+<a id="__codelineno-71-2" name="__codelineno-71-2" href="#__codelineno-71-2"></a>  --name tfx-test-module <span class="se">\</span>
+<a id="__codelineno-71-3" name="__codelineno-71-3" href="#__codelineno-71-3"></a>  --provider aws
+</code></pre></div>
+<p><strong>Expected:</strong> Module is deleted without error.</p>
+<hr />
+<h2 id="registry-providers">Registry — Providers<a class="headerlink" href="#registry-providers" title="Permanent link">&para;</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Provider registration requires a GPG key. Complete the <a href="#admin-gpg-keys">Admin — GPG Keys</a> section first if you intend to test provider version creation.</p>
+</div>
+<h3 id="68-list-providers">68. List Providers<a class="headerlink" href="#68-list-providers" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-72-1" name="__codelineno-72-1" href="#__codelineno-72-1"></a>tfx registry provider list
+</code></pre></div>
+<p><strong>Expected:</strong> Table of private registry providers (may be empty).</p>
+<h3 id="69-list-providers-json-all-pages">69. List Providers (JSON + all pages)<a class="headerlink" href="#69-list-providers-json-all-pages" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-73-1" name="__codelineno-73-1" href="#__codelineno-73-1"></a>tfx registry provider list --all --json
+</code></pre></div>
+<p><strong>Expected:</strong> Full JSON array.</p>
+<h3 id="70-create-a-provider">70. Create a Provider<a class="headerlink" href="#70-create-a-provider" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-74-1" name="__codelineno-74-1" href="#__codelineno-74-1"></a>tfx registry provider create --name tfx-test-provider
+</code></pre></div>
+<p><strong>Expected:</strong> Provider is created and its ID is returned.</p>
+<h3 id="71-show-provider">71. Show Provider<a class="headerlink" href="#71-show-provider" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-75-1" name="__codelineno-75-1" href="#__codelineno-75-1"></a>tfx registry provider show --name tfx-test-provider
+</code></pre></div>
+<p><strong>Expected:</strong> Provider detail view.</p>
+<h3 id="72-delete-provider-cleanup">72. Delete Provider (cleanup)<a class="headerlink" href="#72-delete-provider-cleanup" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-76-1" name="__codelineno-76-1" href="#__codelineno-76-1"></a>tfx registry provider delete --name tfx-test-provider
+</code></pre></div>
+<p><strong>Expected:</strong> Provider is deleted without error.</p>
+<hr />
+<h2 id="admin-gpg-keys">Admin — GPG Keys<a class="headerlink" href="#admin-gpg-keys" title="Permanent link">&para;</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>These commands require admin-level API token permissions.</p>
+</div>
+<h3 id="73-list-gpg-keys">73. List GPG Keys<a class="headerlink" href="#73-list-gpg-keys" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-77-1" name="__codelineno-77-1" href="#__codelineno-77-1"></a>tfx admin gpg list
+</code></pre></div>
+<p><strong>Expected:</strong> Table of GPG keys for the organization (may be empty).</p>
+<h3 id="74-create-a-gpg-key">74. Create a GPG Key<a class="headerlink" href="#74-create-a-gpg-key" title="Permanent link">&para;</a></h3>
+<p>Generate or use an existing GPG public key. Export the armored public key to a file:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-78-1" name="__codelineno-78-1" href="#__codelineno-78-1"></a><span class="c1"># Example: export from local keyring</span>
+<a id="__codelineno-78-2" name="__codelineno-78-2" href="#__codelineno-78-2"></a>gpg --armor --export &lt;key-fingerprint&gt; &gt; /tmp/tfx-test-public.asc
+<a id="__codelineno-78-3" name="__codelineno-78-3" href="#__codelineno-78-3"></a>
+<a id="__codelineno-78-4" name="__codelineno-78-4" href="#__codelineno-78-4"></a>tfx admin gpg create <span class="se">\</span>
+<a id="__codelineno-78-5" name="__codelineno-78-5" href="#__codelineno-78-5"></a>  --namespace &lt;org-name&gt; <span class="se">\</span>
+<a id="__codelineno-78-6" name="__codelineno-78-6" href="#__codelineno-78-6"></a>  --public-key /tmp/tfx-test-public.asc
+</code></pre></div>
+<p><strong>Expected:</strong> GPG key ID (<code>&lt;key-id&gt;</code>) is returned. Record it.</p>
+<h3 id="75-show-gpg-key">75. Show GPG Key<a class="headerlink" href="#75-show-gpg-key" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-79-1" name="__codelineno-79-1" href="#__codelineno-79-1"></a>tfx admin gpg show <span class="se">\</span>
+<a id="__codelineno-79-2" name="__codelineno-79-2" href="#__codelineno-79-2"></a>  --namespace &lt;org-name&gt; <span class="se">\</span>
+<a id="__codelineno-79-3" name="__codelineno-79-3" href="#__codelineno-79-3"></a>  --id &lt;key-id&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> Key detail view showing fingerprint and namespace.</p>
+<h3 id="76-delete-gpg-key-cleanup">76. Delete GPG Key (cleanup)<a class="headerlink" href="#76-delete-gpg-key-cleanup" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-80-1" name="__codelineno-80-1" href="#__codelineno-80-1"></a>tfx admin gpg delete <span class="se">\</span>
+<a id="__codelineno-80-2" name="__codelineno-80-2" href="#__codelineno-80-2"></a>  --namespace &lt;org-name&gt; <span class="se">\</span>
+<a id="__codelineno-80-3" name="__codelineno-80-3" href="#__codelineno-80-3"></a>  --id &lt;key-id&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> Key is deleted without error.</p>
+<hr />
+<h2 id="admin-terraform-versions">Admin — Terraform Versions<a class="headerlink" href="#admin-terraform-versions" title="Permanent link">&para;</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>These commands require admin-level API token permissions and are only applicable to Terraform Enterprise. HCP Terraform does not support custom Terraform version management.</p>
+</div>
+<h3 id="77-list-terraform-versions">77. List Terraform Versions<a class="headerlink" href="#77-list-terraform-versions" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-81-1" name="__codelineno-81-1" href="#__codelineno-81-1"></a>tfx admin terraform-version list
+</code></pre></div>
+<p><strong>Expected:</strong> Table of available Terraform versions.</p>
+<h3 id="78-list-terraform-versions-alias-search">78. List Terraform Versions (alias + search)<a class="headerlink" href="#78-list-terraform-versions-alias-search" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-82-1" name="__codelineno-82-1" href="#__codelineno-82-1"></a>tfx admin tfv list --search <span class="m">1</span>.9
+</code></pre></div>
+<p><strong>Expected:</strong> Filtered list of <code>1.9.x</code> versions.</p>
+<h3 id="79-show-terraform-version">79. Show Terraform Version<a class="headerlink" href="#79-show-terraform-version" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-83-1" name="__codelineno-83-1" href="#__codelineno-83-1"></a>tfx admin terraform-version show --version <span class="m">1</span>.9.0
+</code></pre></div>
+<p><strong>Expected:</strong> Detail view for version <code>1.9.0</code> including enabled/disabled status.</p>
+<h3 id="80-create-official-terraform-version">80. Create Official Terraform Version<a class="headerlink" href="#80-create-official-terraform-version" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-84-1" name="__codelineno-84-1" href="#__codelineno-84-1"></a>tfx admin terraform-version create official <span class="se">\</span>
+<a id="__codelineno-84-2" name="__codelineno-84-2" href="#__codelineno-84-2"></a>  --version <span class="m">1</span>.9.9 <span class="se">\</span>
+<a id="__codelineno-84-3" name="__codelineno-84-3" href="#__codelineno-84-3"></a>  --disable
+</code></pre></div>
+<p><strong>Expected:</strong> Version <code>1.9.9</code> is created in disabled state.</p>
+<h3 id="81-enable-a-terraform-version">81. Enable a Terraform Version<a class="headerlink" href="#81-enable-a-terraform-version" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-85-1" name="__codelineno-85-1" href="#__codelineno-85-1"></a>tfx admin terraform-version <span class="nb">enable</span> --versions <span class="m">1</span>.9.9
+</code></pre></div>
+<p><strong>Expected:</strong> Version is now enabled.</p>
+<h3 id="82-disable-a-terraform-version">82. Disable a Terraform Version<a class="headerlink" href="#82-disable-a-terraform-version" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-86-1" name="__codelineno-86-1" href="#__codelineno-86-1"></a>tfx admin terraform-version disable --versions <span class="m">1</span>.9.9
+</code></pre></div>
+<p><strong>Expected:</strong> Version is now disabled.</p>
+<h3 id="83-delete-terraform-version-cleanup">83. Delete Terraform Version (cleanup)<a class="headerlink" href="#83-delete-terraform-version-cleanup" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-87-1" name="__codelineno-87-1" href="#__codelineno-87-1"></a>tfx admin terraform-version delete --version <span class="m">1</span>.9.9
+</code></pre></div>
+<p><strong>Expected:</strong> Version is deleted without error.</p>
+<hr />
+<h2 id="global-flags">Global Flags<a class="headerlink" href="#global-flags" title="Permanent link">&para;</a></h2>
+<p>These tests verify cross-cutting behavior available on all commands.</p>
+<h3 id="84-json-output-flag-short-form">84. JSON Output Flag (short form)<a class="headerlink" href="#84-json-output-flag-short-form" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-88-1" name="__codelineno-88-1" href="#__codelineno-88-1"></a>tfx workspace list -j
+</code></pre></div>
+<p><strong>Expected:</strong> Same JSON output as <code>--json</code>.</p>
+<h3 id="85-config-file-flag">85. Config File Flag<a class="headerlink" href="#85-config-file-flag" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-89-1" name="__codelineno-89-1" href="#__codelineno-89-1"></a>tfx organization list --config /path/to/custom/.tfx.hcl
+</code></pre></div>
+<p><strong>Expected:</strong> Command runs using the specified config file (confirmation message includes the config path).</p>
+<h3 id="86-hostname-and-token-flags">86. Hostname and Token Flags<a class="headerlink" href="#86-hostname-and-token-flags" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-90-1" name="__codelineno-90-1" href="#__codelineno-90-1"></a>tfx organization list <span class="se">\</span>
+<a id="__codelineno-90-2" name="__codelineno-90-2" href="#__codelineno-90-2"></a>  --tfeHostname app.terraform.io <span class="se">\</span>
+<a id="__codelineno-90-3" name="__codelineno-90-3" href="#__codelineno-90-3"></a>  --tfeOrganization &lt;org-name&gt; <span class="se">\</span>
+<a id="__codelineno-90-4" name="__codelineno-90-4" href="#__codelineno-90-4"></a>  --tfeToken &lt;token&gt;
+</code></pre></div>
+<p><strong>Expected:</strong> Same output as using the config file — confirms inline flags override the config.</p>
+<h3 id="87-missing-required-flag-error">87. Missing Required Flag Error<a class="headerlink" href="#87-missing-required-flag-error" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-91-1" name="__codelineno-91-1" href="#__codelineno-91-1"></a>tfx workspace show
+</code></pre></div>
+<p><strong>Expected:</strong> Error message indicating <code>--name</code> is required. Exit code is non-zero.</p>
+<h3 id="88-invalid-token-error">88. Invalid Token Error<a class="headerlink" href="#88-invalid-token-error" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-92-1" name="__codelineno-92-1" href="#__codelineno-92-1"></a>tfx organization list --tfeToken invalid-token-value
+</code></pre></div>
+<p><strong>Expected:</strong> Authentication error is reported clearly. No panic or unhandled stack trace.</p>
+<hr />
+<h2 id="summary-checklist">Summary Checklist<a class="headerlink" href="#summary-checklist" title="Permanent link">&para;</a></h2>
+<p>After completing all sections, confirm:</p>
+<ul>
+<li>[ ] All <code>list</code> commands return results or a clear empty-state message</li>
+<li>[ ] All <code>show</code> commands display structured detail views</li>
+<li>[ ] All <code>create</code> → <code>show</code> → <code>delete</code> workflows complete without error</li>
+<li>[ ] <code>--json</code> flag produces valid JSON on every command tested</li>
+<li>[ ] Authentication and config errors produce clear, human-readable messages</li>
+<li>[ ] No panics or unhandled exceptions were encountered</li>
+</ul>
+
+              
+            </article>
+            
+          </div>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+    <nav class="md-footer__inner md-grid" aria-label="Footer" >
+      
+        
+        <a href="../../debugging/log-path/" class="md-footer__link md-footer__link--prev" aria-label="Previous: TFX_LOG_PATH" rel="prev">
+          <div class="md-footer__button md-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+          </div>
+          <div class="md-footer__title">
+            <div class="md-ellipsis">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              TFX_LOG_PATH
+            </div>
+          </div>
+        </a>
+      
+      
+        
+        <a href="../../about/purpose/" class="md-footer__link md-footer__link--next" aria-label="Next: Why TFx?" rel="next">
+          <div class="md-footer__title">
+            <div class="md-ellipsis">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              Why TFx?
+            </div>
+          </div>
+          <div class="md-footer__button md-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
+          </div>
+        </a>
+      
+    </nav>
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      TFx is licensed under the <a href='https://github.com/straubt1/tfx/blob/main/LICENSE'>MIT license</a>
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+      
+      
+    
+    <a href="https://www.linkedin.com/in/terraform-tom/" target="_blank" rel="noopener" title="www.linkedin.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.1.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc.--><path d="M416 32H31.9C14.3 32 0 46.5 0 64.3v383.4C0 465.5 14.3 480 31.9 480H416c17.6 0 32-14.5 32-32.3V64.3c0-17.8-14.4-32.3-32-32.3zM135.4 416H69V202.2h66.5V416zm-33.2-243c-21.3 0-38.5-17.3-38.5-38.5S80.9 96 102.2 96c21.2 0 38.5 17.3 38.5 38.5 0 21.3-17.2 38.5-38.5 38.5zm282.1 243h-66.4V312c0-24.8-.5-56.7-34.5-56.7-34.6 0-39.9 27-39.9 54.9V416h-66.4V202.2h63.7v29.2h.9c8.9-16.8 30.6-34.5 62.9-34.5 67.2 0 79.7 44.3 79.7 101.9V416z"/></svg>
+    </a>
+  
+    
+    
+      
+      
+    
+    <a href="https://github.com/straubt1/tfx" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.1.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.b97dbffb.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version.title": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.0238f547.min.js"></script>
+      
+    
+  </body>
+</html>
