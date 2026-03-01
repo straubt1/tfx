@@ -115,7 +115,7 @@ Cancel the latest run for a workspace.
 **Example**
 
 ```sh
-$ tfx workspace run cancel -w tt-workspace
+$ tfx workspace run cancel --name tt-workspace
 Using config file: /Users/tstraub/.tfx.hcl
 Cancel latest run for Workspace: tt-workspace
 Found latest Run: run-v3jHAYot4AYb4myn
