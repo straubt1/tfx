@@ -21,18 +21,19 @@ Check out our docs site [tfx.rocks](https://tfx.rocks)
 | `tfx organization` | `list`, `show` |
 | `tfx project` | `list`, `show` |
 | `tfx workspace` | `list`, `show` |
-| `tfx workspace configurationversion` | `list`, `show`, `create`, `download` |
-| `tfx workspace lock` | `lock`, `unlock`, `list` |
+| `tfx workspace configuration-version` | `list`, `show`, `create`, `download` |
+| `tfx workspace lock` | `all` |
+| `tfx workspace unlock` | `all` |
+| `tfx workspace plan` | `show`, `logs`, `jsonoutput`, `create` |
 | `tfx workspace run` | `list`, `show`, `create`, `cancel`, `discard` |
-| `tfx workspace stateversion` | `list`, `show`, `create`, `download` |
+| `tfx workspace state-version` | `list`, `show`, `create`, `download` |
 | `tfx workspace team` | `list` |
 | `tfx workspace variable` | `list`, `show`, `create`, `update`, `delete` |
-| `tfx plan` | `show`, `logs`, `jsonoutput`, `create` |
-| `tfx registry module` | `list`, `show`, `upload`, `delete` |
-| `tfx registry module-version` | `list`, `show`, `delete` |
-| `tfx registry provider` | `list`, `show`, `upload`, `delete` |
-| `tfx registry provider-version` | `list`, `show`, `delete` |
-| `tfx registry provider-version-platform` | `list`, `show`, `delete` |
+| `tfx registry module` | `list`, `show`, `create`, `delete` |
+| `tfx registry module version` | `list`, `create`, `delete`, `download` |
+| `tfx registry provider` | `list`, `show`, `create`, `delete` |
+| `tfx registry provider version` | `list`, `show`, `create`, `delete` |
+| `tfx registry provider version platform` | `list`, `show`, `create`, `delete` |
 | `tfx release tfe` | `list`, `show` |
 | `tfx admin gpg` | `list`, `show`, `create`, `delete` |
 | `tfx admin metrics` | `workspace` |
