@@ -15,6 +15,10 @@ brew install goreleaser
 brew install mkdocs
 ```
 
+## Git Workflow
+
+**Do not commit changes unless explicitly asked.** After implementing a task, leave changes staged or unstaged for the user to review. Only run `git commit` when the user says to commit.
+
 ## Build & Test Commands
 
 ```bash

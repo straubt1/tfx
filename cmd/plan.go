@@ -77,21 +77,6 @@ var (
 		},
 	}
 
-	// `tfx plan export` command
-	planExportCmd = &cobra.Command{
-		Use:        "export",
-		Short:      "Export Plan",
-		Long:       "Export a Plan for a TFx Workspace.",
-		Deprecated: "this command is not yet implemented",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return nil
-			// cmdConfig, err := flags.ParsePlanExportFlags(cmd)
-			// if err != nil {
-			// 	return err
-			// }
-			// return planExport(cmdConfig)
-		},
-	}
 )
 
 func init() {
@@ -122,7 +107,6 @@ func init() {
 	planCmd.AddCommand(planLogsCmd)
 	planCmd.AddCommand(planJSONOutputCmd)
 	planCmd.AddCommand(planCreateCmd)
-	planCmd.AddCommand(planExportCmd)
 }
 
 func planShow(cmdConfig *flags.PlanShowFlags) error {

@@ -39,7 +39,7 @@ These are random things that have been on the back burner for a while.
 - Download a WS Plan as JSON https://developer.hashicorp.com/terraform/enterprise/api-docs/plans#retrieve-the-json-execution-plan
   - log-read-url
   - is it possible to get the actual plan, I think no
-- 
+- Plan export (removed this unimplemented command during refactor)
 
 ## Command Refactor
 
