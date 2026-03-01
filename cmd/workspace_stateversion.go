@@ -181,7 +181,7 @@ func stateDownload(cmdConfig *flags.StateDownloadFlags) error {
 	}
 	filename := cmdConfig.Filename
 	if filename == "" {
-		filename = directory + ".state"
+		filename = directory + "/" + cmdConfig.StateID + ".state"
 	}
 
 	buff, err := data.DownloadStateVersion(c, cmdConfig.StateID)
