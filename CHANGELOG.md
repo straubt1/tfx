@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v0.2.1] - unreleased
 
+**Added**
+
+* `tfx variable-set list` — list variable sets in an organization, with optional `--search` filter (alias: `varset`)
+* `tfx variable-set show` — show details of a variable set by ID, including assigned workspaces, projects, and variables
+* `tfx variable-set create` — create a variable set with optional `--description`, `--global`, and `--priority` flags
+* `tfx variable-set delete` — delete a variable set by ID
+
 **Fixed**
 
 * `tfx ws cv download` no longer fails with "no such file or directory" when no `--directory` flag is provided; the target subdirectory is now created automatically
