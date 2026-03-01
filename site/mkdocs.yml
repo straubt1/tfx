@@ -80,6 +80,8 @@ nav:
       - General: commands/organization.md
     - Project:
       - General: commands/project.md
+    - Variable Sets:
+      - General: commands/variable_set.md
     - Workspace: 
       - General: commands/workspace.md
       - Plans: commands/workspace_plan.md
@@ -101,6 +103,8 @@ nav:
   - Debugging:
     - TFX_LOG: debugging/log-level.md
     - TFX_LOG_PATH: debugging/log-path.md
+  - Testing:
+    - Test Plan: testing/test_plan.md
   - About:
     - Why TFx?: about/purpose.md
     - Release Notes: https://github.com/straubt1/tfx/blob/main/CHANGELOG.md

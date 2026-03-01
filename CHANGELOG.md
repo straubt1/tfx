@@ -5,11 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.2.1] - unreleased
+## [v0.2.1] - 2026-03-01
+
+**Added**
+
+* `tfx variable-set list` — list variable sets in an organization, with optional `--search` filter (alias: `varset`)
+* `tfx variable-set show` — show details of a variable set by ID, including assigned workspaces, projects, and variables
+* `tfx variable-set create` — create a variable set with optional `--description`, `--global`, and `--priority` flags
+* `tfx variable-set delete` — delete a variable set by ID
 
 **Fixed**
 
 * `tfx ws cv download` no longer fails with "no such file or directory" when no `--directory` flag is provided; the target subdirectory is now created automatically
+* Updated documentation site
+* Created a Test Plan on the website for those who want to run through the commands and test out the functionality
 
 ## [v0.2.0] - 2026-03-01
 
