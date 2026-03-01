@@ -19,8 +19,13 @@ tasks:
     desc: Upgrade Go toolchain (via brew) and all module dependencies
     cmds:
       - brew upgrade go
+      - go mod edit -go=$(go version | awk '{print $3}' | sed 's/go//')
       - go get -u ./...
       - go mod tidy
+      - |
+        GO_VER=$(go version | awk '{print $3}' | sed 's/go//')
+        sed -i '' "s/go%20version-%3E=[0-9.]*-/go%20version-%3E=${GO_VER}-/" README.md
+        echo "Updated README.md Go badge to >= ${GO_VER}"
   test:
     desc: Run unit tests
     cmds:
