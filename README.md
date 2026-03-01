@@ -20,6 +20,7 @@ Check out our docs site [tfx.rocks](https://tfx.rocks)
 |---|---|
 | `tfx organization` | `list`, `show` |
 | `tfx project` | `list`, `show` |
+| `tfx variable-set` | `list`, `show`, `create`, `delete` |
 | `tfx workspace` | `list`, `show` |
 | `tfx workspace configuration-version` | `list`, `show`, `create`, `download` |
 | `tfx workspace lock` | `all` |
