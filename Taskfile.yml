@@ -16,8 +16,9 @@ tasks:
     cmds:
       - goreleaser release --snapshot --clean
   go-upgrade:
-    desc: Upgrade Go dependencies
+    desc: Upgrade Go toolchain (via brew) and all module dependencies
     cmds:
+      - brew upgrade go
       - go get -u ./...
       - go mod tidy
   test:
