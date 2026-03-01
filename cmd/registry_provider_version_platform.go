@@ -195,7 +195,7 @@ func registryProviderVersionPlatformCreate(cmdConfig *flags.RegistryProviderVers
 	}
 
 	v.Renderer().Message("Uploading Provider Version Platform...")
-	err = UploadBinary(rpp.Links["provider-binary-upload"].(string), cmdConfig.Filename)
+	err = data.UploadBinary(rpp.Links["provider-binary-upload"].(string), cmdConfig.Filename)
 	if err != nil {
 		return v.RenderError(errors.Wrap(err, "failed to upload binary to provider version platform"))
 	}

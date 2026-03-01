@@ -4,6 +4,11 @@
 package data
 
 import (
+	"errors"
+	"fmt"
+	"net/http"
+
+	"github.com/hashicorp/go-slug"
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/straubt1/tfx/client"
 	"github.com/straubt1/tfx/output"
@@ -86,6 +91,50 @@ func CreateRegistryModuleVersion(c *client.TfxClient, orgName, name, provider, v
 		return nil, err
 	}
 	return mv, nil
+}
+
+// DownloadRegistryModuleVersion downloads a module version and unpacks it to directory
+func DownloadRegistryModuleVersion(c *client.TfxClient, orgName, name, provider, version, directory string) (string, error) {
+	output.Get().Logger().Debug("Downloading module version", "org", orgName, "name", name, "provider", provider, "version", version)
+
+	_, err := ReadRegistryModule(c, orgName, name, provider)
+	if err != nil {
+		return "", errors.New("can't find module")
+	}
+
+	url := fmt.Sprintf(
+		"https://%s/api/registry/v1/modules/%s/%s/%s/%s/download",
+		c.Hostname, orgName, name, provider, version,
+	)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+	req.Header.Set("Accept", "application/vnd.api+json")
+
+	resp, err := (&http.Client{}).Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	downloadURL := resp.Header.Get("X-Terraform-Get")
+	if downloadURL == "" {
+		return "", errors.New("did not get a download link")
+	}
+
+	dlResp, err := http.Get(downloadURL)
+	if err != nil {
+		return "", err
+	}
+	defer dlResp.Body.Close()
+
+	if err := slug.Unpack(dlResp.Body, directory); err != nil {
+		return "", err
+	}
+	return directory, nil
 }
 
 // DeleteRegistryModuleVersion deletes a module version

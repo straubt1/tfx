@@ -160,10 +160,10 @@ func registryProviderVersionCreate(cmdConfig *flags.RegistryProviderVersionCreat
 		return v.RenderError(errors.Wrap(err, "failed to create provider version"))
 	}
 	v.Renderer().Message("Uploading shasums and sig")
-	if err := UploadBinary(p.Links["shasums-upload"].(string), cmdConfig.Shasums); err != nil {
+	if err := data.UploadBinary(p.Links["shasums-upload"].(string), cmdConfig.Shasums); err != nil {
 		return v.RenderError(errors.Wrap(err, "failed to upload shasums"))
 	}
-	if err := UploadBinary(p.Links["shasums-sig-upload"].(string), cmdConfig.ShasumsSig); err != nil {
+	if err := data.UploadBinary(p.Links["shasums-sig-upload"].(string), cmdConfig.ShasumsSig); err != nil {
 		return v.RenderError(errors.Wrap(err, "failed to upload shasums sig"))
 	}
 	fmt.Println(cmdConfig.Shasums, cmdConfig.ShasumsSig, p.CreatedAt)
@@ -183,7 +183,7 @@ func registryProviderVersionShow(cmdConfig *flags.RegistryProviderVersionShowFla
 	}
 	var shas string
 	if provider.ShasumsUploaded {
-		sha, err := DownloadTextFile(provider.Links["shasums-download"].(string))
+		sha, err := data.DownloadTextFile(provider.Links["shasums-download"].(string))
 		if err != nil {
 			return v.RenderError(errors.Wrap(err, "Failed to read shasums download link"))
 		}

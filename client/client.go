@@ -15,6 +15,7 @@ type TfxClient struct {
 	Client           *tfe.Client
 	Context          context.Context
 	Hostname         string
+	Token            string
 	OrganizationName string
 }
 
@@ -63,6 +64,7 @@ func NewWithContext(ctx context.Context, hostname, token, organization string) (
 		Client:           client,
 		Context:          ctx,
 		Hostname:         hostname,
+		Token:            token,
 		OrganizationName: organization,
 	}, nil
 }

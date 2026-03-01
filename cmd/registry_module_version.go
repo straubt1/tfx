@@ -180,14 +180,13 @@ func registryModuleVersionDelete(cmdConfig *flags.RegistryModuleVersionDeleteFla
 }
 
 func registryModuleVersionDownload(cmdConfig *flags.RegistryModuleVersionDownloadFlags) error {
-	// Use existing REST helper for download; render simple output
-	v := view.NewBaseView() // simple renderer sufficient
+	v := view.NewBaseView()
 	c, err := client.NewFromViper()
 	if err != nil {
 		return v.RenderError(err)
 	}
 	v.PrintCommandHeader("Downloading Module Version: %s", cmdConfig.Name)
-	_, err = DownloadModule(c, cmdConfig.Name, cmdConfig.Provider, cmdConfig.Version, cmdConfig.Directory)
+	_, err = data.DownloadRegistryModuleVersion(c, c.OrganizationName, cmdConfig.Name, cmdConfig.Provider, cmdConfig.Version, cmdConfig.Directory)
 	if err != nil {
 		return v.RenderError(errors.Wrap(err, "failed to download module"))
 	}
