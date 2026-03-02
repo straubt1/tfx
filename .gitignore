@@ -36,3 +36,8 @@ cv-*
 site/cinder_del
 dist/
 logs/
+
+# Starlight/Astro docs build artifacts
+site/node_modules/
+site/dist/
+site/.astro/

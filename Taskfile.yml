@@ -46,9 +46,10 @@ tasks:
       - task: test
       - task: test-integration
   serve-docs:
-    desc: Serve documentation site
+    desc: Serve documentation site locally (Starlight/Astro)
+    dir: site
     cmds:
-      - mkdocs serve -f site/mkdocs.yml
+      - npm run dev
 
   release-dry-run:
     desc: Simulate the full release pipeline locally (no publish, no tag required); cask written to dist/

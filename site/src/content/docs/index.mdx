@@ -1,0 +1,105 @@
+---
+title: TFx
+description: A standalone CLI for HCP Terraform and Terraform Enterprise.
+template: splash
+hero:
+  title: TFx
+  tagline: A powerful standalone CLI for HCP Terraform and Terraform Enterprise. Automate your infrastructure workflows from the terminal.
+  actions:
+    - text: Get Started
+      link: /gettingstarted/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/straubt1/tfx
+      icon: github
+      variant: minimal
+      attrs:
+        target: _blank
+---
+
+import { CardGrid, Card } from '@astrojs/starlight/components';
+
+<CardGrid stagger>
+  <Card title="API-Driven" icon="rocket">
+    Leverages the API with HashiCorp's go-tfe SDK via a clean CLI interface.
+  </Card>
+  <Card title="HCP Terraform & TFE" icon="laptop">
+    Works with both HCP Terraform (Terraform Cloud) and self-hosted Terraform Enterprise.
+  </Card>
+  <Card title="CI/CD Ready" icon="setting">
+    Integrate with any CI/CD pipeline. First-class support for GitLab CI and scriptable for any environment.
+  </Card>
+  <Card title="Open Source" icon="open-book">
+    MIT licensed and community driven. Contributions welcome and built by engineers who use it daily.
+  </Card>
+</CardGrid>
+
+## Installation
+
+<Tabs>
+  <TabItem label="Homebrew (macOS/Linux)">
+```sh
+brew install straubt1/tap/tfx
+```
+  </TabItem>
+  <TabItem label="Go">
+From Go version 1.19+:
+```sh
+go install github.com/straubt1/tfx@latest
+```
+`@latest` can be replaced with a specific version, e.g. `@v0.2.1`.
+  </TabItem>
+  <TabItem label="Docker">
+```sh
+docker pull ghcr.io/straubt1/tfx:latest
+```
+  </TabItem>
+  <TabItem label="Windows">
+Download the latest binary from the [Releases page](https://github.com/straubt1/tfx/releases).
+  </TabItem>
+</Tabs>
+
+## Configuration
+
+Each command accepts flags, but the three required flags can be placed in a config file so you don't have to pass them every time.
+
+| Flag | Environment Variable | Default |
+|---|---|---|
+| `--tfeHostname` | `TFE_HOSTNAME` | `app.terraform.io` |
+| `--tfeOrganization` | `TFE_ORGANIZATION` | _(required)_ |
+| `--tfeToken` | `TFE_TOKEN` | _(required)_ |
+
+Create `.tfx.hcl` in your home directory (`~/.tfx.hcl`) or the directory where you run `tfx`:
+
+```hcl
+tfeHostname     = "tfe.rocks"
+tfeOrganization = "my-awesome-org"
+tfeToken        = "<token from HCP Terraform or TFE>"
+```
+
+You can also specify a config file explicitly with `--config /path/to/.tfx.hcl`.
+
+## Output
+
+Most commands output a formatted table by default. Add `--json` (or `-j`) to get machine-readable JSON for scripting and CI pipelines.
+
+```
+$ tfx variable list -w tfx-test
+╭──────────────────────┬───────────┬──────────────┬───────────┬───────┬───────────┬──────────────────────╮
+│ ID                   │ KEY       │ VALUE        │ SENSITIVE │ HCL   │ CATEGORY  │ DESCRIPTION          │
+├──────────────────────┼───────────┼──────────────┼───────────┼───────┼───────────┼──────────────────────┤
+│ var-7XYNuuo4tMjXeXG4 │ variable7 │ {"a":"1"...} │ false     │ true  │ terraform │ I am a map in a file │
+│ var-MJaLJ7czxKuU48eu │ variable3 │ It is friday │ false     │ false │ env       │ I am environmental   │
+╰──────────────────────┴───────────┴──────────────┴───────────┴───────┴───────────┴──────────────────────╯
+```
+
+```sh
+$ tfx variable list -w tfx-test --json | jq '.[].Key'
+"variable7"
+"variable3"
+```
+
+:::note
+TFx is an open source project under the [MIT License](https://github.com/straubt1/tfx/blob/main/LICENSE). While not officially supported by HashiCorp, its primary contributors are current or former HashiCorp employees.
+:::
