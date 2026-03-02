@@ -15,6 +15,7 @@ export default defineConfig({
       },
       customCss: ['./src/styles/custom.css'],
       sidebar: [
+        { label: 'Getting Started', slug: 'gettingstarted' },
         {
           label: 'Commands',
           items: [
