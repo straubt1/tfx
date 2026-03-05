@@ -214,13 +214,15 @@ func fetchPolicySetOutcomes(c *client.TfxClient, evaluationID string, fetchLogs 
 	var details []view.PolicySetDetail
 	for _, pso := range allOutcomes {
 		detail := view.PolicySetDetail{
-			ID:              pso.ID,
-			PolicySetName:   pso.PolicySetName,
-			Error:           pso.Error,
-			Passed:          pso.ResultCount.Passed,
-			AdvisoryFailed:  pso.ResultCount.AdvisoryFailed,
-			MandatoryFailed: pso.ResultCount.MandatoryFailed,
-			Errored:         pso.ResultCount.Errored,
+			ID:            pso.ID,
+			PolicySetName: pso.PolicySetName,
+			Error:         pso.Error,
+		}
+		if pso.ResultCount != nil {
+			detail.Passed = pso.ResultCount.Passed
+			detail.AdvisoryFailed = pso.ResultCount.AdvisoryFailed
+			detail.MandatoryFailed = pso.ResultCount.MandatoryFailed
+			detail.Errored = pso.ResultCount.Errored
 		}
 		if pso.Overridable != nil {
 			detail.Overridable = *pso.Overridable
