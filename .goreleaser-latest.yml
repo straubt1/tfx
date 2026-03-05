@@ -1,0 +1,67 @@
+version: 2
+
+project_name: tfx-latest
+
+env:
+  - GO111MODULE=on
+  - CGO_ENABLED=0
+
+builds:
+  - binary: tfx-latest
+    ldflags:
+      - -s -w -X github.com/straubt1/tfx/version.Version={{ .Version }}
+      - -s -w -X github.com/straubt1/tfx/version.Build={{ .ShortCommit }}
+      - -s -w -X github.com/straubt1/tfx/version.Date={{ .Date }}
+      - -s -w -X github.com/straubt1/tfx/version.BuiltBy=goreleaser
+
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: tfx-latest
+    files:
+      - README.md
+      - LICENSE
+      - CHANGELOG.md
+    name_template: >-
+      {{- .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end -}}
+    wrap_in_directory: true
+
+brews:
+  - name: tfx-latest
+    ids:
+      - tfx-latest
+    directory: Formula
+    repository:
+      owner: straubt1
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+      branch: main
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    commit_msg_template: "brew: update tfx-latest formula ({{ .ShortCommit }})"
+    homepage: "https://tfx.rocks/"
+    description: "TFx latest build from main branch (unstable)."
+    license: "MIT"
+
+release:
+  prerelease: true
+  make_latest: false
+  name_template: "Latest Build ({{ .ShortCommit }})"
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  disable: true
