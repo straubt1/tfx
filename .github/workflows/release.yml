@@ -3,7 +3,7 @@ name: TFx Release
 on:
   push:
     tags:
-      - '*'
+      - 'v*'
 
 permissions:
   contents: write
