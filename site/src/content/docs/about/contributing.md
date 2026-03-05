@@ -17,7 +17,7 @@ The simplest way to contribute following a normal git workflow.
 1. Clone the repository to your local environment.
 1. From the root of the project folder create your working branch preferably named issue#id-short-description `git checkout -b issue99-example-description`
 1. Run the following command `go mod edit -replace github.com/straubt1/tfx=$(pwd)`. This will update `go.mod` with `replace github.com/straubt1/tfx => /path/to/your/working/dir`
-1. Make your local changes and use the `make build` to build your local code as you develop your updates.
+1. Make your local changes and use `task go-build` to build your local code as you develop your updates.
 1. Before you finally create a pull request remove the replace line by running `go mod edit -dropreplace github.com/straubt1/tfx`. This removes the line appended to `go.mod`
 
 ## Pull Request Process

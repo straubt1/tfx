@@ -99,6 +99,30 @@ Terraform Version:     1.0.0
 Created:               Tue Jun 28 17:46 2022
 ```
 
+## `tfx workspace run policy`
+
+Show policy check and evaluation details for a Run. Supports both legacy Sentinel Policy Checks and newer Policy Evaluations (OPA/Sentinel via task stages).
+
+Use `--logs` to include raw policy output (Sentinel logs and OPA `output.print`).
+
+**By Workspace Name (latest run)**
+
+```sh
+$ tfx workspace run policy --name my-workspace
+```
+
+**By Run ID**
+
+```sh
+$ tfx workspace run policy --id run-abc123
+```
+
+**With Policy Logs**
+
+```sh
+$ tfx workspace run policy --name my-workspace --logs
+```
+
 ## `tfx workspace run discard`
 
 Discard a supplied Run.

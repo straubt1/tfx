@@ -62,3 +62,18 @@ func ParseRunDiscardFlags(cmd *cobra.Command) (*RunDiscardFlags, error) {
 func ParseRunCancelFlags(cmd *cobra.Command) (*RunCancelFlags, error) {
 	return &RunCancelFlags{WorkspaceName: viper.GetString("name")}, nil
 }
+
+// RunPolicyFlags holds flags for run policy command
+type RunPolicyFlags struct {
+	ID            string
+	WorkspaceName string
+	Logs          bool
+}
+
+func ParseRunPolicyFlags(cmd *cobra.Command) (*RunPolicyFlags, error) {
+	return &RunPolicyFlags{
+		ID:            viper.GetString("id"),
+		WorkspaceName: viper.GetString("name"),
+		Logs:          viper.GetBool("logs"),
+	}, nil
+}
