@@ -1,43 +1,49 @@
-
 name: Build and Deploy Docs https://tfx.rocks
 
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the "main" branch
-  # push:
-  #   branches:
-  #   - "main"
-  #   paths:
-  #   - site/**
-  # Only allow manual publishing while I clean up the docs
-
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
 jobs:
-  # This workflow contains a single job called "build"
   build:
-    # The type of runner that the job will run on
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
-
-      - name: Copy Release Notes for docs site
-        uses: canastro/copy-file-action@master
         with:
-          source: "CHANGELOG.md"
-          target: "site/docs/about/release_notes.md"
-      # - name: test copy
-      #   run: ls -l site/docs/about 
-      - name: Deploy MkDocs
-        # You may pin to the exact commit or the version.
-        uses: mhausenblas/mkdocs-deploy-gh-pages@1.25
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # CUSTOM_DOMAIN: tfx.rocks
-          CONFIG_FILE: site/mkdocs.yml
-          EXTRA_PACKAGES: build-base
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: site
+
+      - name: Build
+        run: npm run build
+        working-directory: site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

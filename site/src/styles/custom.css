@@ -1,0 +1,75 @@
+:root {
+  /* Terraform brand purple — https://brand.hashicorp.com/color */
+  --sl-color-accent-low: #3D1A6E;   /* dark purple for low-emphasis backgrounds */
+  --sl-color-accent: #7B42BC;       /* primary Terraform purple */
+  --sl-color-accent-high: #AC72F0;  /* bright alternate for dark backgrounds */
+  --overlay-accent: rgba(123, 66, 188, 0.18); /* hero gradient tint */
+}
+
+/* Remove top and bottom padding from code blocks */
+figure.frame {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+figure.frame pre {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+figure.frame code {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.ec-line .code.pipe-leading {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  line-height: 1 !important;
+}
+
+/* Hero page gradient background */
+[data-has-hero] .page {
+  background:
+    radial-gradient(ellipse 80% 50% at 20% -10%, var(--overlay-accent), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 110%, rgba(172, 114, 240, 0.08), transparent);
+}
+
+/* Frosted glass header on hero pages */
+[data-has-hero] header {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background-color: rgba(var(--sl-color-bg-rgb, 0 0 0), 0.6);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Feature cards: HashiCorp product color accents per card */
+.card:nth-child(4n + 1) {
+  /* Terraform purple */
+  --sl-card-border: #7B42BC;
+  --sl-card-bg: rgba(123, 66, 188, 0.06);
+}
+
+.card:nth-child(4n + 2) {
+  /* Terraform alternate (lighter purple) */
+  --sl-card-border: #AC72F0;
+  --sl-card-bg: rgba(172, 114, 240, 0.06);
+}
+
+.card:nth-child(4n + 3) {
+  /* Nomad green */
+  --sl-card-border: #00CA8E;
+  --sl-card-bg: rgba(0, 202, 142, 0.06);
+}
+
+.card:nth-child(4n + 4) {
+  /* HashiCorp CTA blue */
+  --sl-card-border: #1060FF;
+  --sl-card-bg: rgba(16, 96, 255, 0.06);
+}

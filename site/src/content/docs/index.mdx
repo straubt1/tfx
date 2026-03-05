@@ -1,0 +1,69 @@
+---
+title: TFx
+description: A standalone CLI for HCP Terraform and Terraform Enterprise.
+template: splash
+hero:
+  title: TFx
+  tagline: A powerful standalone CLI for HCP Terraform and Terraform Enterprise. Automate your infrastructure workflows from the terminal.
+  actions:
+    - text: Get Started
+      link: /gettingstarted/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/straubt1/tfx
+      icon: github
+      variant: minimal
+      attrs:
+        target: _blank
+---
+
+import { CardGrid, Card, Tabs, TabItem } from '@astrojs/starlight/components';
+
+<CardGrid stagger>
+  <Card title="API-Driven" icon="rocket">
+    Leverages the API with HashiCorp's go-tfe SDK via a clean CLI interface.
+  </Card>
+  <Card title="HCP Terraform & TFE" icon="laptop">
+    Works with both HCP Terraform (Terraform Cloud) and self-hosted Terraform Enterprise.
+  </Card>
+  <Card title="CI/CD Ready" icon="setting">
+    Integrate with any CI/CD pipeline. First-class support for GitLab CI and scriptable for any environment.
+  </Card>
+  <Card title="Open Source" icon="open-book">
+    MIT licensed and community driven. Contributions welcome and built by engineers who use it daily.
+  </Card>
+</CardGrid>
+
+## Up and running in 3 steps
+
+**1. Install**
+
+<Tabs>
+  <TabItem label="Homebrew">
+```sh
+brew install straubt1/tap/tfx
+```
+  </TabItem>
+  <TabItem label="Docker">
+```sh
+docker pull ghcr.io/straubt1/tfx:latest
+```
+  </TabItem>
+  <TabItem label="Windows">
+Download the latest binary from the [Releases page](https://github.com/straubt1/tfx/releases).
+  </TabItem>
+</Tabs>
+
+**2. Configure**
+```hcl
+# ~/.tfx.hcl
+tfeHostname     = "app.terraform.io"
+tfeOrganization = "my-org"
+tfeToken        = "my-token"
+```
+
+**3. Run**
+```sh
+tfx workspace list
+```

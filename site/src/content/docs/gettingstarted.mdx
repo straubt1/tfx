@@ -1,0 +1,71 @@
+---
+title: Getting Started
+description: Install and configure TFx to manage HCP Terraform and Terraform Enterprise from the CLI.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Installation
+
+<Tabs>
+  <TabItem label="Homebrew (macOS/Linux)">
+```sh
+brew install straubt1/tap/tfx
+```
+  </TabItem>
+  <TabItem label="Go">
+From Go version 1.19+:
+```sh
+go install github.com/straubt1/tfx@latest
+```
+`@latest` can be replaced with a specific version, e.g. `@v0.2.1`.
+  </TabItem>
+  <TabItem label="Docker">
+```sh
+docker pull ghcr.io/straubt1/tfx:latest
+```
+  </TabItem>
+  <TabItem label="Windows">
+Download the latest binary from the [Releases page](https://github.com/straubt1/tfx/releases).
+  </TabItem>
+</Tabs>
+
+## Configuration
+
+Each command accepts flags, but the three required flags can be placed in a config file so you don't have to pass them every time.
+
+| Flag | Environment Variable | Default |
+|---|---|---|
+| `--tfeHostname` | `TFE_HOSTNAME` | `app.terraform.io` |
+| `--tfeOrganization` | `TFE_ORGANIZATION` | _(required)_ |
+| `--tfeToken` | `TFE_TOKEN` | _(required)_ |
+
+Create `.tfx.hcl` in your home directory (`~/.tfx.hcl`) or the directory where you run `tfx`:
+
+```hcl
+tfeHostname     = "tfe.rocks"
+tfeOrganization = "my-awesome-org"
+tfeToken        = "<token from HCP Terraform or TFE>"
+```
+
+You can also specify a config file explicitly with `--config /path/to/.tfx.hcl`.
+
+## Output
+
+Most commands output a formatted table by default. Add `--json` (or `-j`) to get machine-readable JSON for scripting and CI pipelines.
+
+```
+$ tfx variable list -w tfx-test
+╭──────────────────────┬───────────┬──────────────┬───────────┬───────┬───────────┬──────────────────────╮
+│ ID                   │ KEY       │ VALUE        │ SENSITIVE │ HCL   │ CATEGORY  │ DESCRIPTION          │
+├──────────────────────┼───────────┼──────────────┼───────────┼───────┼───────────┼──────────────────────┤
+│ var-7XYNuuo4tMjXeXG4 │ variable7 │ {"a":"1"...} │ false     │ true  │ terraform │ I am a map in a file │
+│ var-MJaLJ7czxKuU48eu │ variable3 │ It is friday │ false     │ false │ env       │ I am environmental   │
+╰──────────────────────┴───────────┴──────────────┴───────────┴───────┴───────────┴──────────────────────╯
+```
+
+```sh
+$ tfx variable list -w tfx-test --json | jq '.[].Key'
+"variable7"
+"variable3"
+```
