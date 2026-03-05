@@ -49,6 +49,19 @@ tasks:
     desc: Serve documentation site locally (Starlight/Astro)
     dir: site
     cmds:
+      - |
+        if ! command -v node &>/dev/null; then
+          echo "  → node not found, installing via Homebrew..."
+          brew install node
+        elif ! node --version &>/dev/null 2>&1; then
+          echo "  → node is not working (libuv mismatch), reinstalling via Homebrew..."
+          brew reinstall node
+        fi
+      - |
+        if [ ! -d "node_modules" ]; then
+          echo "  → node_modules not found, running npm install..."
+          npm install
+        fi
       - npm run dev
 
   release-dry-run:
