@@ -91,6 +91,20 @@ var (
 			return runCancel(cmdConfig)
 		},
 	}
+
+	// `tfx workspace run policy` command
+	runPolicyCmd = &cobra.Command{
+		Use:   "policy",
+		Short: "Show Run Policy Details",
+		Long:  "Show Policy Check and Evaluation details for a Workspace Run.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmdConfig, err := flags.ParseRunPolicyFlags(cmd)
+			if err != nil {
+				return err
+			}
+			return runPolicy(cmdConfig)
+		},
+	}
 )
 
 func init() {
@@ -120,12 +134,20 @@ func init() {
 	runCancelCmd.Flags().StringP("name", "n", "", "Workspace name")
 	runCancelCmd.MarkFlagRequired("name")
 
+	// `tfx workspace run policy` command
+	runPolicyCmd.Flags().StringP("id", "i", "", "Run Id (i.e. run-*)")
+	runPolicyCmd.Flags().StringP("name", "n", "", "Workspace name (uses latest run)")
+	runPolicyCmd.Flags().BoolP("logs", "l", false, "Include raw Sentinel policy check logs")
+	runPolicyCmd.MarkFlagsMutuallyExclusive("id", "name")
+	runPolicyCmd.MarkFlagsOneRequired("id", "name")
+
 	workspaceCmd.AddCommand(runCmd)
 	runCmd.AddCommand(runListCmd)
 	runCmd.AddCommand(runCreateCmd)
 	runCmd.AddCommand(runShowCmd)
 	runCmd.AddCommand(runDiscardCmd)
 	runCmd.AddCommand(runCancelCmd)
+	runCmd.AddCommand(runPolicyCmd)
 }
 
 func runList(cmdConfig *flags.RunListFlags) error {
@@ -232,4 +254,37 @@ func runCancel(cmdConfig *flags.RunCancelFlags) error {
 	}
 
 	return v.Render(runID)
+}
+
+func runPolicy(cmdConfig *flags.RunPolicyFlags) error {
+	v := view.NewRunPolicyView()
+
+	c, err := client.NewFromViper()
+	if err != nil {
+		return v.RenderError(err)
+	}
+
+	runID := cmdConfig.ID
+	if runID == "" {
+		v.PrintCommandHeader("Fetching policy details for latest run in workspace '%s'", cmdConfig.WorkspaceName)
+
+		workspaceID, err := data.GetWorkspaceID(c, c.OrganizationName, cmdConfig.WorkspaceName)
+		if err != nil {
+			return v.RenderError(errors.Wrap(err, "unable to read workspace id"))
+		}
+
+		runID, err = data.GetLatestRunID(c, workspaceID)
+		if err != nil {
+			return v.RenderError(errors.Wrap(err, "failed to get latest run id"))
+		}
+	} else {
+		v.PrintCommandHeader("Fetching policy details for run '%s'", runID)
+	}
+
+	result, err := data.FetchRunPolicyDetails(c, runID, cmdConfig.Logs)
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to fetch policy details"))
+	}
+
+	return v.Render(result)
 }
