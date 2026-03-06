@@ -189,6 +189,18 @@ func (o *Output) RenderJSON(data interface{}) error {
 	return o.renderer.RenderJSON(data)
 }
 
+// DisableSpinner stops and permanently removes the spinner.
+// Call this before entering an alternate-screen mode (e.g. TUI) so the spinner
+// does not write to stdout while another renderer controls the terminal.
+func (o *Output) DisableSpinner() {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.spinner != nil {
+		o.spinner.FinalStop()
+		o.spinner = nil
+	}
+}
+
 // Close stops the spinner if running and closes any open output streams
 // This should be called before the application exits to ensure clean shutdown
 func (o *Output) Close() error {

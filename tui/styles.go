@@ -7,14 +7,17 @@ import "charm.land/lipgloss/v2"
 
 // Color palette — GitHub Dark inspired, works well on dark terminals.
 var (
-	colorBg       = lipgloss.Color("#0D1117")
-	colorFg       = lipgloss.Color("#E6EDF3")
-	colorAccent   = lipgloss.Color("#58A6FF")
-	colorDim      = lipgloss.Color("#8B949E")
-	colorPurple   = lipgloss.Color("#BC8CFF")
-	colorBorder   = lipgloss.Color("#30363D")
-	colorHeaderBg = lipgloss.Color("#161B22")
-	colorAppBg    = lipgloss.Color("#1F6FEB")
+	colorBg        = lipgloss.Color("#0D1117")
+	colorFg        = lipgloss.Color("#E6EDF3")
+	colorAccent    = lipgloss.Color("#58A6FF")
+	colorDim       = lipgloss.Color("#8B949E")
+	colorPurple    = lipgloss.Color("#BC8CFF")
+	colorBorder    = lipgloss.Color("#30363D")
+	colorHeaderBg  = lipgloss.Color("#161B22")
+	colorAppBg     = lipgloss.Color("#1F6FEB")
+	colorSelected  = lipgloss.Color("#1C2128") // slightly lighter than bg for selected row
+	colorError     = lipgloss.Color("#F85149")
+	colorLoading   = lipgloss.Color("#D29922")
 )
 
 var (
@@ -105,4 +108,37 @@ var (
 	helpBarStyle = lipgloss.NewStyle().
 			Background(colorHeaderBg).
 			Foreground(colorDim)
+
+	// Status bar variants
+	statusLoadingStyle = lipgloss.NewStyle().
+				Background(colorHeaderBg).
+				Foreground(colorLoading)
+
+	statusErrorStyle = lipgloss.NewStyle().
+			Background(colorHeaderBg).
+			Foreground(colorError)
+
+	// Table
+	tableHeaderStyle = lipgloss.NewStyle().
+			Background(colorHeaderBg).
+			Foreground(colorDim).
+			Bold(true)
+
+	tableRowStyle = lipgloss.NewStyle().
+			Background(colorBg).
+			Foreground(colorFg)
+
+	tableRowSelectedStyle = lipgloss.NewStyle().
+				Background(colorSelected).
+				Foreground(colorAccent).
+				Bold(true)
+
+	// Filter bar
+	filterBarStyle = lipgloss.NewStyle().
+			Background(colorHeaderBg).
+			Foreground(colorDim)
+
+	filterBarActiveStyle = lipgloss.NewStyle().
+				Background(colorHeaderBg).
+				Foreground(colorFg)
 )

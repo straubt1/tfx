@@ -6,15 +6,23 @@ package tui
 import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/pkg/errors"
-	"github.com/spf13/viper"
+	"github.com/straubt1/tfx/client"
+	"github.com/straubt1/tfx/output"
 )
 
 // Run launches the TUI, reading connection settings from Viper (same source as CLI commands).
 func Run() error {
-	m := newModel(
-		viper.GetString("tfeHostname"),
-		viper.GetString("tfeOrganization"),
-	)
+	// Kill the CLI spinner before handing the terminal to Bubble Tea.
+	// Without this, the spinner's goroutine writes "TFx is working..." to stdout
+	// while Bubble Tea is rendering, corrupting the alt-screen display.
+	output.Get().DisableSpinner()
+
+	c, err := client.NewFromViper()
+	if err != nil {
+		return errors.Wrap(err, "failed to create TFx client")
+	}
+
+	m := newModel(c)
 
 	p := tea.NewProgram(m)
 	if _, err := p.Run(); err != nil {
