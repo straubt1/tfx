@@ -2180,11 +2180,19 @@ func (m Model) renderStatusBar() string {
 		if m.cvFileErr != "" {
 			return m.pad(statusErrorStyle.Render(fmt.Sprintf("  ✗  %s", m.cvFileErr)), statusErrorStyle)
 		}
-		diskPath := ""
+		// Build status bar with OSC 8 hyperlink for the disk path so the user can
+		// Cmd+Click (macOS) / Ctrl+Click (Linux/Windows) to open the directory in
+		// Finder or the native file manager.  Apply lipgloss styling first, then
+		// wrap in the OSC 8 bytes — never pass raw OSC 8 through lipgloss Render.
+		prefix := statusBarStyle.Render("  config version files  •  ")
+		suffix := statusBarStyle.Render(fmt.Sprintf("  •  %d files", len(m.cvFiles)))
+		var pathPart string
 		if m.selectedCV != nil {
-			diskPath = tildePath(cvExtractDirPath(m.selectedCV.ID))
+			absPath := cvExtractDirPath(m.selectedCV.ID)
+			styledPath := statusBarStyle.Render(tildePath(absPath))
+			pathPart = osc8FileLink(absPath, styledPath)
 		}
-		msg = fmt.Sprintf("  config version files  •  %s  •  %d files", diskPath, len(m.cvFiles))
+		return m.pad(prefix+pathPart+suffix, statusBarStyle)
 	case viewConfigVersionFileContent:
 		numLines := len(m.cvFileLines)
 		cur := m.cvFileScroll + 1

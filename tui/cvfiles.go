@@ -47,6 +47,68 @@ func (f cvFile) sizeStr() string {
 	return fmt.Sprintf("%.1f MB", float64(f.size)/(1024*1024))
 }
 
+// ── Tree connector helpers ─────────────────────────────────────────────────────
+
+// isLastChild reports whether the item at index i is the last sibling at depth `level`.
+// When level == files[i].depth() it checks the file itself.
+// When level < files[i].depth() it checks the ancestor at that depth.
+func isLastChild(files []cvFile, i, level int) bool {
+	if i >= len(files) {
+		return true
+	}
+	fParts := strings.Split(filepath.ToSlash(files[i].relPath), "/")
+	if level >= len(fParts) {
+		return true
+	}
+	for j := i + 1; j < len(files); j++ {
+		jParts := strings.Split(filepath.ToSlash(files[j].relPath), "/")
+		if len(jParts) <= level {
+			continue // shallower than this level — cannot be a sibling here
+		}
+		// Verify the first `level` path components match (same parent).
+		sameParent := true
+		for k := 0; k < level; k++ {
+			if k >= len(jParts) || jParts[k] != fParts[k] {
+				sameParent = false
+				break
+			}
+		}
+		if sameParent && jParts[level] != fParts[level] {
+			return false // found a sibling after this item
+		}
+	}
+	return true
+}
+
+// buildTreeConnector returns the box-drawing connector prefix for file i, e.g.:
+//
+//	"├── "        (top-level, non-last)
+//	"│   └── "   (depth 1, last child, parent has siblings)
+//	"    ├── "   (depth 1, non-last child, parent was last)
+//
+// Inspired by the charm.land/lipgloss/v2/tree DefaultEnumerator style.
+func buildTreeConnector(files []cvFile, i int) string {
+	d := files[i].depth()
+	var sb strings.Builder
+	// Continuation lines for each ancestor level.
+	for level := 0; level < d; level++ {
+		if isLastChild(files, i, level) {
+			sb.WriteString("    ") // ancestor was last child — no vertical line needed
+		} else {
+			sb.WriteString("│   ") // ancestor has siblings below — draw continuation
+		}
+	}
+	// Branch connector for this item.
+	if isLastChild(files, i, d) {
+		sb.WriteString("└── ")
+	} else {
+		sb.WriteString("├── ")
+	}
+	return sb.String()
+}
+
+// ── File browser rendering ─────────────────────────────────────────────────────
+
 // cvFilesVisibleRows returns the number of file-browser rows that fit on screen.
 func (m Model) cvFilesVisibleRows() int {
 	h := m.contentHeight() - 2 // header + divider
@@ -56,7 +118,8 @@ func (m Model) cvFilesVisibleRows() int {
 	return h
 }
 
-// renderConfigVersionFilesContent renders the config-version file tree browser.
+// renderConfigVersionFilesContent renders the config-version file tree browser
+// with Unicode box-drawing connectors (├── / └── / │) à la eza / lipgloss tree.
 func (m Model) renderConfigVersionFilesContent() string {
 	h := m.contentHeight()
 
@@ -89,18 +152,21 @@ func (m Model) renderConfigVersionFilesContent() string {
 	}
 
 	// ── File tree ─────────────────────────────────────────────────────────────
-	const sizeColW = 10 // right-aligned size column width
-	nameColW := m.width - 2 - sizeColW - 2 // cursor(2) + name + gap(2) + size
-	if nameColW < 10 {
-		nameColW = 10
+	// Layout: nameColW (connector + name) + gap(2) + sizeColW(10)
+	// No separate cursor column — selection is shown via row highlight colour.
+	const sizeColW = 10
+	const gapW = 2
+	nameColW := m.width - sizeColW - gapW
+	if nameColW < 12 {
+		nameColW = 12
 	}
 
 	var lines []string
 
-	// Header + divider
+	// Header + divider (indent header label to align with non-connector depth-0 prefix).
 	hdr := m.pad(
-		tableHeaderStyle.Render("  ")+
-			tableHeaderStyle.Width(nameColW).Render("NAME")+
+		tableHeaderStyle.Render("    ")+ // 4-char indent to align with "├── " / "└── "
+			tableHeaderStyle.Width(nameColW-4).Render("NAME")+
 			tableHeaderStyle.Render("  ")+
 			tableHeaderStyle.Width(sizeColW).Render("SIZE"),
 		tableHeaderStyle,
@@ -121,33 +187,63 @@ func (m Model) renderConfigVersionFilesContent() string {
 			selected := i == m.cvFileCursor
 			tfFile := !f.isDir && isHCLFile(f.displayName())
 
-			indent := strings.Repeat("  ", f.depth())
+			// Build connector string and measure its width (all ASCII → byte len).
+			connStr := buildTreeConnector(m.cvFiles, i)
+			connW := len(connStr)
+
+			// Available width for the name portion after the connector.
+			availW := nameColW - connW
+			if availW < 0 {
+				availW = 0
+				connStr = connStr[:nameColW] // truncate connector on very narrow terminals
+				connW = nameColW
+			}
+
 			displayN := f.displayName()
 			size := f.sizeStr()
 
-			style := tableRowStyle
-			cursor := "  "
-			if selected {
-				style = tableRowSelectedStyle
-				cursor = "> "
+			// Compute name portion (with optional ◆ icon for HCL files).
+			var namePart string
+			switch {
+			case !selected && tfFile:
+				namePart = truncateStr("◆ "+displayN, availW)
+			default:
+				namePart = truncateStr(displayN, availW)
 			}
 
+			// Build the row from separately-styled segments.
+			// Connectors are always dim; item text colour depends on type & selection.
 			var row string
-			if !selected && tfFile {
-				// Terraform/HCL files: diamond icon + purple name (unselected only).
-				name := truncateStr(indent+"◆ "+displayN, nameColW)
-				row = tableRowStyle.Render(cursor) +
-					hclFileStyle.Width(nameColW).Render(name) +
+			switch {
+			case selected:
+				// Entire row in selection style.
+				row = tableRowSelectedStyle.Render(connStr) +
+					tableRowSelectedStyle.Width(availW).Render(namePart) +
+					tableRowSelectedStyle.Render("  ") +
+					tableRowSelectedStyle.Width(sizeColW).Render(size)
+				lines = append(lines, m.pad(row, tableRowSelectedStyle))
+			case tfFile:
+				// Connectors dim, name/icon purple.
+				row = jsonPunctStyle.Render(connStr) +
+					hclFileStyle.Width(availW).Render(namePart) +
 					tableRowStyle.Render("  ") +
 					tableRowStyle.Width(sizeColW).Render(size)
-			} else {
-				name := truncateStr(indent+displayN, nameColW)
-				row = style.Render(cursor) +
-					style.Width(nameColW).Render(name) +
-					style.Render("  ") +
-					style.Width(sizeColW).Render(size)
+				lines = append(lines, m.pad(row, tableRowStyle))
+			case f.isDir:
+				// Connectors dim, directory name bold/bright.
+				row = jsonPunctStyle.Render(connStr) +
+					contentTitleStyle.Width(availW).Render(namePart) +
+					tableRowStyle.Render("  ") +
+					tableRowStyle.Width(sizeColW).Render(size)
+				lines = append(lines, m.pad(row, tableRowStyle))
+			default:
+				// Connectors dim, regular file name in default fg.
+				row = jsonPunctStyle.Render(connStr) +
+					tableRowStyle.Width(availW).Render(namePart) +
+					tableRowStyle.Render("  ") +
+					tableRowStyle.Width(sizeColW).Render(size)
+				lines = append(lines, m.pad(row, tableRowStyle))
 			}
-			lines = append(lines, m.pad(row, style))
 		}
 	}
 

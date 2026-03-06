@@ -124,6 +124,15 @@ func extractTarGz(src, destDir string) error {
 	return nil
 }
 
+// osc8FileLink wraps styledText in an OSC 8 terminal hyperlink for absPath.
+// Supporting terminals (iTerm2, VS Code terminal, Ghostty, WezTerm, Kitty, Alacritty,
+// Windows Terminal) open the path in Finder/Explorer on Cmd+Click / Ctrl+Click.
+// styledText should already be ANSI-styled with lipgloss before being passed here —
+// never pass raw OSC 8 bytes through a lipgloss Render() call.
+func osc8FileLink(absPath, styledText string) string {
+	return "\x1b]8;;file://" + absPath + "\x1b\\" + styledText + "\x1b]8;;\x1b\\"
+}
+
 // cvExtractDirPath returns the extraction directory for cvID without creating it.
 // Use this for display purposes (status bar, hints) where side effects are undesired.
 func cvExtractDirPath(cvID string) string {
