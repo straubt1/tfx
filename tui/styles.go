@@ -146,4 +146,21 @@ var (
 	filterBarActiveStyle = lipgloss.NewStyle().
 				Background(colorHeaderBg).
 				Foreground(colorFg)
+
+	// Workspace tab strip
+	tabBarStyle = lipgloss.NewStyle().
+			Background(colorHeaderBg).
+			Foreground(colorDim)
+
+	tabActiveStyle = lipgloss.NewStyle().
+			Background(colorHeaderBg).
+			Foreground(colorAccent).
+			Bold(true).
+			Underline(true).
+			Padding(0, 1)
+
+	tabInactiveStyle = lipgloss.NewStyle().
+				Background(colorHeaderBg).
+				Foreground(colorDim).
+				Padding(0, 1)
 )

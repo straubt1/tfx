@@ -45,6 +45,9 @@ func (m Model) renderOrgsContent() string {
 	filtered := filteredOrgs(m)
 
 	var lines []string
+	if m.orgFilter != "" || m.orgFiltering {
+		lines = append(lines, m.renderFilterBar(m.orgFilter, m.orgFiltering))
+	}
 	lines = append(lines, m.renderTableHeader(cols))
 	lines = append(lines, m.renderTableDivider())
 
@@ -59,10 +62,6 @@ func (m Model) renderOrgsContent() string {
 			o := filtered[i]
 			lines = append(lines, m.renderTableRow(i == m.orgCursor, []string{o.Name, o.Email, o.ExternalID}, cols))
 		}
-	}
-
-	if m.orgFilter != "" || m.orgFiltering {
-		lines = append(lines, m.renderFilterBar(m.orgFilter, m.orgFiltering))
 	}
 
 	for len(lines) < m.contentHeight() {

@@ -53,6 +53,10 @@ func (m Model) renderConfigVersionsContent() string {
 	filtered := filteredConfigVersions(m)
 
 	var lines []string
+	lines = append(lines, m.renderWorkspaceTabStrip())
+	if m.cvFilter != "" || m.cvFiltering {
+		lines = append(lines, m.renderFilterBar(m.cvFilter, m.cvFiltering))
+	}
 	lines = append(lines, m.renderTableHeader(cols))
 	lines = append(lines, m.renderTableDivider())
 
@@ -72,10 +76,6 @@ func (m Model) renderConfigVersionsContent() string {
 				cv.ID,
 			}, cols))
 		}
-	}
-
-	if m.cvFilter != "" || m.cvFiltering {
-		lines = append(lines, m.renderFilterBar(m.cvFilter, m.cvFiltering))
 	}
 
 	for len(lines) < m.contentHeight() {

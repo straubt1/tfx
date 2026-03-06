@@ -50,6 +50,9 @@ func (m Model) renderWorkspacesContent() string {
 	filtered := filteredWorkspaces(m)
 
 	var lines []string
+	if m.wsFilter != "" || m.wsFiltering {
+		lines = append(lines, m.renderFilterBar(m.wsFilter, m.wsFiltering))
+	}
 	lines = append(lines, m.renderTableHeader(cols))
 	lines = append(lines, m.renderTableDivider())
 
@@ -64,10 +67,6 @@ func (m Model) renderWorkspacesContent() string {
 			ws := filtered[i]
 			lines = append(lines, m.renderTableRow(i == m.wsCursor, []string{ws.Name, workspaceStatus(ws), ws.ID}, cols))
 		}
-	}
-
-	if m.wsFilter != "" || m.wsFiltering {
-		lines = append(lines, m.renderFilterBar(m.wsFilter, m.wsFiltering))
 	}
 
 	for len(lines) < m.contentHeight() {

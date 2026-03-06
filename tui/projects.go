@@ -41,6 +41,9 @@ func (m Model) renderProjectsContent() string {
 	filtered := filteredProjects(m)
 
 	var lines []string
+	if m.projFilter != "" || m.projFiltering {
+		lines = append(lines, m.renderFilterBar(m.projFilter, m.projFiltering))
+	}
 	lines = append(lines, m.renderTableHeader(cols))
 	lines = append(lines, m.renderTableDivider())
 
@@ -55,10 +58,6 @@ func (m Model) renderProjectsContent() string {
 			p := filtered[i]
 			lines = append(lines, m.renderTableRow(i == m.projCursor, []string{p.Name, p.ID}, cols))
 		}
-	}
-
-	if m.projFilter != "" || m.projFiltering {
-		lines = append(lines, m.renderFilterBar(m.projFilter, m.projFiltering))
 	}
 
 	for len(lines) < m.contentHeight() {

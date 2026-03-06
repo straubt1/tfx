@@ -84,6 +84,10 @@ func (m Model) renderRunsContent() string {
 	filtered := filteredRuns(m)
 
 	var lines []string
+	lines = append(lines, m.renderWorkspaceTabStrip())
+	if m.runFilter != "" || m.runFiltering {
+		lines = append(lines, m.renderFilterBar(m.runFilter, m.runFiltering))
+	}
 	lines = append(lines, m.renderTableHeader(cols))
 	lines = append(lines, m.renderTableDivider())
 
@@ -106,10 +110,6 @@ func (m Model) renderRunsContent() string {
 			cellFgs := []color.Color{runStatusFg(r.Status), nil, nil, nil}
 			lines = append(lines, m.renderTableRowWithCellStyles(i == m.runCursor, cells, cols, cellFgs))
 		}
-	}
-
-	if m.runFilter != "" || m.runFiltering {
-		lines = append(lines, m.renderFilterBar(m.runFilter, m.runFiltering))
 	}
 
 	for len(lines) < m.contentHeight() {

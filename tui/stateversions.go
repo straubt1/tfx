@@ -48,6 +48,10 @@ func (m Model) renderStateVersionsContent() string {
 	filtered := filteredStateVersions(m)
 
 	var lines []string
+	lines = append(lines, m.renderWorkspaceTabStrip())
+	if m.svFilter != "" || m.svFiltering {
+		lines = append(lines, m.renderFilterBar(m.svFilter, m.svFiltering))
+	}
 	lines = append(lines, m.renderTableHeader(cols))
 	lines = append(lines, m.renderTableDivider())
 
@@ -68,10 +72,6 @@ func (m Model) renderStateVersionsContent() string {
 				sv.ID,
 			}, cols))
 		}
-	}
-
-	if m.svFilter != "" || m.svFiltering {
-		lines = append(lines, m.renderFilterBar(m.svFilter, m.svFiltering))
 	}
 
 	for len(lines) < m.contentHeight() {

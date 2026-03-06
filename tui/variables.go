@@ -4,6 +4,7 @@
 package tui
 
 import (
+	"image/color"
 	"strings"
 
 	tfe "github.com/hashicorp/go-tfe"
@@ -13,14 +14,16 @@ func variableColumns(width int) []column {
 	idW := 30
 	catW := 12  // "terraform" or "env"
 	valW := 20
-	keyW := width - idW - catW - valW - 10 // 2(cursor) + 4×2(col padding)
+	senW := 9   // "SENSITIVE" header; values are "yes" / "no"
+	keyW := width - idW - catW - valW - senW - 12 // 2(cursor) + 5×2(col padding)
 	if keyW < 15 {
 		keyW = 15
 	}
 	return []column{
 		{name: "KEY", width: keyW},
-		{name: "CATEGORY", width: catW},
 		{name: "VALUE", width: valW},
+		{name: "SENSITIVE", width: senW},
+		{name: "CATEGORY", width: catW},
 		{name: "ID", width: idW},
 	}
 }
@@ -31,6 +34,26 @@ func variableValue(v *tfe.Variable) string {
 		return "••••••••"
 	}
 	return v.Value
+}
+
+// sensitiveStr returns a human-readable yes/no for v.Sensitive.
+func sensitiveStr(v *tfe.Variable) string {
+	if v.Sensitive {
+		return "yes"
+	}
+	return "no"
+}
+
+// categoryFg returns a foreground color for the variable category.
+func categoryFg(v *tfe.Variable) color.Color {
+	switch v.Category {
+	case tfe.CategoryTerraform:
+		return colorAccent // blue — native terraform type
+	case tfe.CategoryEnv:
+		return colorSuccess // green — from environment
+	default:
+		return nil
+	}
 }
 
 func filteredVariables(m Model) []*tfe.Variable {
@@ -55,6 +78,10 @@ func (m Model) renderVariablesContent() string {
 	filtered := filteredVariables(m)
 
 	var lines []string
+	lines = append(lines, m.renderWorkspaceTabStrip())
+	if m.varFilter != "" || m.varFiltering {
+		lines = append(lines, m.renderFilterBar(m.varFilter, m.varFiltering))
+	}
 	lines = append(lines, m.renderTableHeader(cols))
 	lines = append(lines, m.renderTableDivider())
 
@@ -67,17 +94,16 @@ func (m Model) renderVariablesContent() string {
 		}
 		for i := m.varOffset; i < end; i++ {
 			v := filtered[i]
-			lines = append(lines, m.renderTableRow(i == m.varCursor, []string{
+			// CATEGORY is at index 3: KEY(0) VALUE(1) SENSITIVE(2) CATEGORY(3) ID(4)
+			cellFgs := []color.Color{nil, nil, nil, categoryFg(v), nil}
+			lines = append(lines, m.renderTableRowWithCellStyles(i == m.varCursor, []string{
 				v.Key,
-				string(v.Category),
 				variableValue(v),
+				sensitiveStr(v),
+				string(v.Category),
 				v.ID,
-			}, cols))
+			}, cols, cellFgs))
 		}
-	}
-
-	if m.varFilter != "" || m.varFiltering {
-		lines = append(lines, m.renderFilterBar(m.varFilter, m.varFiltering))
 	}
 
 	for len(lines) < m.contentHeight() {

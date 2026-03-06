@@ -26,6 +26,17 @@ const (
 // spinnerFrames is the braille-sweep animation sequence for the loading indicator.
 var spinnerFrames = []string{"⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"}
 
+// wsTabs defines the ordered workspace sub-view tabs (left → right).
+var wsTabs = []struct {
+	label string
+	view  viewType
+}{
+	{"Runs", viewRuns},
+	{"Variables", viewVariables},
+	{"Config Versions", viewConfigVersions},
+	{"State Versions", viewStateVersions},
+}
+
 type viewType int
 
 const (
@@ -313,22 +324,18 @@ func (m Model) navigateBack() (tea.Model, tea.Cmd) {
 		m.wsCursor, m.wsOffset = 0, 0
 		m.wsFilter, m.wsFiltering = "", false
 		m.selectedProj = nil
-	case viewRuns:
+	case viewRuns, viewVariables, viewConfigVersions, viewStateVersions:
+		// All workspace tab views return to the workspace list and clear sub-view data.
 		m.currentView = viewWorkspaces
 		m.runs = nil
-		m.runCursor, m.runOffset = 0, 0
-		m.runFilter, m.runFiltering = "", false
-		m.selectedWS = nil
-	case viewVariables, viewConfigVersions, viewStateVersions:
-		// All workspace sub-views return to the workspace list.
-		m.currentView = viewWorkspaces
+		m.runCursor, m.runOffset, m.runFilter, m.runFiltering = 0, 0, "", false
 		m.variables = nil
 		m.varCursor, m.varOffset, m.varFilter, m.varFiltering = 0, 0, "", false
 		m.configVersions = nil
 		m.cvCursor, m.cvOffset, m.cvFilter, m.cvFiltering = 0, 0, "", false
 		m.stateVersions = nil
 		m.svCursor, m.svOffset, m.svFilter, m.svFiltering = 0, 0, "", false
-		// selectedWS is preserved — the workspace list stays showing the same workspace.
+		m.selectedWS = nil
 	}
 	return m, nil
 }
@@ -380,6 +387,51 @@ func (m Model) refresh() (tea.Model, tea.Cmd) {
 		}
 	}
 	return m, tea.Batch(cmd, tickSpinner())
+}
+
+// isWorkspaceSubView returns true when the current view is one of the
+// workspace tab views (Runs, Variables, Config Versions, State Versions).
+func (m Model) isWorkspaceSubView() bool {
+	switch m.currentView {
+	case viewRuns, viewVariables, viewConfigVersions, viewStateVersions:
+		return true
+	}
+	return false
+}
+
+// switchWsTab transitions to the target workspace tab. If the data for that
+// tab is already cached it switches instantly; otherwise it triggers a fetch.
+func (m Model) switchWsTab(target viewType) (tea.Model, tea.Cmd) {
+	m.currentView = target
+	m.errMsg = ""
+
+	switch target {
+	case viewRuns:
+		if m.runs != nil {
+			return m, nil
+		}
+		m.loading = true
+		return m, tea.Batch(loadRuns(m.c, m.selectedWS.ID), tickSpinner())
+	case viewVariables:
+		if m.variables != nil {
+			return m, nil
+		}
+		m.loading = true
+		return m, tea.Batch(loadVariables(m.c, m.selectedWS.ID), tickSpinner())
+	case viewConfigVersions:
+		if m.configVersions != nil {
+			return m, nil
+		}
+		m.loading = true
+		return m, tea.Batch(loadConfigVersions(m.c, m.org, m.selectedWS.Name), tickSpinner())
+	case viewStateVersions:
+		if m.stateVersions != nil {
+			return m, nil
+		}
+		m.loading = true
+		return m, tea.Batch(loadStateVersions(m.c, m.org, m.selectedWS.Name), tickSpinner())
+	}
+	return m, nil
 }
 
 // ── Key handlers ──────────────────────────────────────────────────────────────
@@ -486,28 +538,34 @@ func (m Model) handleFilterKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 	default:
-		if r := []rune(msg.String()); len(r) == 1 && r[0] >= 32 {
+		// Normalize "space" (Bubble Tea v2's key name for the space bar) to " ".
+		s := msg.String()
+		if s == "space" {
+			s = " "
+		}
+		if r := []rune(s); len(r) == 1 && r[0] >= 32 {
+			ch := string(r)
 			switch m.currentView {
 			case viewOrganizations:
-				m.orgFilter += string(r)
+				m.orgFilter += ch
 				m.orgCursor, m.orgOffset = 0, 0
 			case viewProjects:
-				m.projFilter += string(r)
+				m.projFilter += ch
 				m.projCursor, m.projOffset = 0, 0
 			case viewWorkspaces:
-				m.wsFilter += string(r)
+				m.wsFilter += ch
 				m.wsCursor, m.wsOffset = 0, 0
 			case viewRuns:
-				m.runFilter += string(r)
+				m.runFilter += ch
 				m.runCursor, m.runOffset = 0, 0
 			case viewVariables:
-				m.varFilter += string(r)
+				m.varFilter += ch
 				m.varCursor, m.varOffset = 0, 0
 			case viewConfigVersions:
-				m.cvFilter += string(r)
+				m.cvFilter += ch
 				m.cvCursor, m.cvOffset = 0, 0
 			case viewStateVersions:
-				m.svFilter += string(r)
+				m.svFilter += ch
 				m.svCursor, m.svOffset = 0, 0
 			}
 		}
@@ -712,8 +770,30 @@ func (m Model) handleRunsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	case "/":
 		m.runFiltering = true
+	case "left":
+		// First tab — nothing to the left.
+	case "right":
+		return m.switchWsTab(viewVariables)
 	case "enter":
-		// Phase 5+: drill into run detail.
+		// Future: drill into run detail.
+	case "u":
+		if url := m.wsURL(); url != "" {
+			if err := copyToClipboard(url); err == nil {
+				m.clipFeedback = "✓ workspace URL copied"
+			} else {
+				m.clipFeedback = "clipboard unavailable"
+			}
+		}
+		return m, nil
+	case "U":
+		if url := m.wsURL(); url != "" {
+			if err := openBrowser(url); err == nil {
+				m.clipFeedback = "✓ opening in browser"
+			} else {
+				m.clipFeedback = "could not open browser"
+			}
+		}
+		return m, nil
 	}
 	return m, nil
 }
@@ -749,6 +829,28 @@ func (m Model) handleVariablesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	case "/":
 		m.varFiltering = true
+	case "left":
+		return m.switchWsTab(viewRuns)
+	case "right":
+		return m.switchWsTab(viewConfigVersions)
+	case "u":
+		if url := m.wsURL(); url != "" {
+			if err := copyToClipboard(url); err == nil {
+				m.clipFeedback = "✓ workspace URL copied"
+			} else {
+				m.clipFeedback = "clipboard unavailable"
+			}
+		}
+		return m, nil
+	case "U":
+		if url := m.wsURL(); url != "" {
+			if err := openBrowser(url); err == nil {
+				m.clipFeedback = "✓ opening in browser"
+			} else {
+				m.clipFeedback = "could not open browser"
+			}
+		}
+		return m, nil
 	}
 	return m, nil
 }
@@ -784,6 +886,28 @@ func (m Model) handleConfigVersionsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd)
 		}
 	case "/":
 		m.cvFiltering = true
+	case "left":
+		return m.switchWsTab(viewVariables)
+	case "right":
+		return m.switchWsTab(viewStateVersions)
+	case "u":
+		if url := m.wsURL(); url != "" {
+			if err := copyToClipboard(url); err == nil {
+				m.clipFeedback = "✓ workspace URL copied"
+			} else {
+				m.clipFeedback = "clipboard unavailable"
+			}
+		}
+		return m, nil
+	case "U":
+		if url := m.wsURL(); url != "" {
+			if err := openBrowser(url); err == nil {
+				m.clipFeedback = "✓ opening in browser"
+			} else {
+				m.clipFeedback = "could not open browser"
+			}
+		}
+		return m, nil
 	}
 	return m, nil
 }
@@ -819,6 +943,28 @@ func (m Model) handleStateVersionsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) 
 		}
 	case "/":
 		m.svFiltering = true
+	case "left":
+		return m.switchWsTab(viewConfigVersions)
+	case "right":
+		// Last tab — nothing to the right.
+	case "u":
+		if url := m.wsURL(); url != "" {
+			if err := copyToClipboard(url); err == nil {
+				m.clipFeedback = "✓ workspace URL copied"
+			} else {
+				m.clipFeedback = "clipboard unavailable"
+			}
+		}
+		return m, nil
+	case "U":
+		if url := m.wsURL(); url != "" {
+			if err := openBrowser(url); err == nil {
+				m.clipFeedback = "✓ opening in browser"
+			} else {
+				m.clipFeedback = "could not open browser"
+			}
+		}
+		return m, nil
 	}
 	return m, nil
 }
@@ -867,7 +1013,7 @@ func (m Model) wsVisibleRows() int {
 }
 
 func (m Model) runVisibleRows() int {
-	h := m.contentHeight() - 2
+	h := m.contentHeight() - 3 // tab strip + table header + divider
 	if m.runFilter != "" || m.runFiltering {
 		h--
 	}
@@ -878,7 +1024,7 @@ func (m Model) runVisibleRows() int {
 }
 
 func (m Model) varVisibleRows() int {
-	h := m.contentHeight() - 2
+	h := m.contentHeight() - 3 // tab strip + table header + divider
 	if m.varFilter != "" || m.varFiltering {
 		h--
 	}
@@ -889,7 +1035,7 @@ func (m Model) varVisibleRows() int {
 }
 
 func (m Model) cvVisibleRows() int {
-	h := m.contentHeight() - 2
+	h := m.contentHeight() - 3 // tab strip + table header + divider
 	if m.cvFilter != "" || m.cvFiltering {
 		h--
 	}
@@ -900,7 +1046,7 @@ func (m Model) cvVisibleRows() int {
 }
 
 func (m Model) svVisibleRows() int {
-	h := m.contentHeight() - 2
+	h := m.contentHeight() - 3 // tab strip + table header + divider
 	if m.svFilter != "" || m.svFiltering {
 		h--
 	}
@@ -973,10 +1119,39 @@ func copyToClipboard(text string) error {
 	return cmd.Run()
 }
 
+// openBrowser opens url in the system default browser.
+func openBrowser(url string) error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", url)
+	case "linux":
+		cmd = exec.Command("xdg-open", url)
+	case "windows":
+		cmd = exec.Command("cmd", "/c", "start", url)
+	default:
+		return fmt.Errorf("open browser not supported on %s", runtime.GOOS)
+	}
+	return cmd.Start() // Start (not Run) so we don't wait for the browser to exit.
+}
+
+// wsURL returns the HCP Terraform / TFE web URL for the currently selected workspace.
+func (m Model) wsURL() string {
+	if m.selectedWS == nil {
+		return ""
+	}
+	return fmt.Sprintf("https://%s/app/%s/workspaces/%s", m.hostname, m.org, m.selectedWS.Name)
+}
+
 // ── Content routing ───────────────────────────────────────────────────────────
 
 func (m Model) renderContent() string {
 	if m.loading {
+		// Workspace sub-views show the tab strip even while loading so the
+		// user can see which tab they switched to.
+		if m.isWorkspaceSubView() {
+			return m.renderWorkspaceDetailLoading()
+		}
 		return m.renderLoadingContent()
 	}
 	if m.errMsg != "" {
@@ -999,6 +1174,42 @@ func (m Model) renderContent() string {
 		return m.renderStateVersionsContent()
 	}
 	return m.renderLoadingContent()
+}
+
+// renderWorkspaceTabStrip renders the horizontal tab strip for workspace sub-views.
+func (m Model) renderWorkspaceTabStrip() string {
+	var sb strings.Builder
+	sb.WriteString(tabBarStyle.Render(" "))
+	for i, t := range wsTabs {
+		if i > 0 {
+			sb.WriteString(tabBarStyle.Render("  "))
+		}
+		if m.currentView == t.view {
+			sb.WriteString(tabActiveStyle.Render(t.label))
+		} else {
+			sb.WriteString(tabInactiveStyle.Render(t.label))
+		}
+	}
+	return m.pad(sb.String(), tabBarStyle)
+}
+
+// renderWorkspaceDetailLoading renders the tab strip + spinner for workspace
+// sub-views that are in a loading state (e.g., after switching tabs).
+func (m Model) renderWorkspaceDetailLoading() string {
+	h := m.contentHeight()
+	lines := make([]string, 0, h)
+	lines = append(lines, m.renderWorkspaceTabStrip())
+
+	frame := spinnerFrames[m.spinnerIdx]
+	mid := (h - 1) / 2
+	for i := 0; i < h-1; i++ {
+		if i == mid {
+			lines = append(lines, contentPlaceholderStyle.Width(m.width).Render("  "+frame+"  Loading…"))
+		} else {
+			lines = append(lines, contentStyle.Width(m.width).Render(""))
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (m Model) renderLoadingContent() string {
@@ -1171,11 +1382,13 @@ func (m Model) renderCliHint() string {
 	label := cliHintBarStyle.Render("  cmd: ")
 	cmd := cliHintCmdStyle.Render(m.currentCliCmd())
 
-	// Workspace-level hint includes the shortcut keys for sub-views.
 	var hints string
-	if m.currentView == viewWorkspaces {
+	switch {
+	case m.currentView == viewWorkspaces:
 		hints = cliHintBarStyle.Render("   •   enter runs   v vars   f cvs   s svs   •   c copy   •   ? help   •   q quit")
-	} else {
+	case m.isWorkspaceSubView():
+		hints = cliHintBarStyle.Render("   •   ← → switch tabs   •   u url   U browser   •   c copy   •   ? help   •   q quit")
+	default:
 		hints = cliHintBarStyle.Render("   •   c copy   •   ? help   •   q quit")
 	}
 	return m.pad(label+cmd+hints, cliHintBarStyle)
@@ -1202,10 +1415,13 @@ func (m Model) renderHelpOverlay() string {
 		{"q", "quit"},
 		// Workspace-specific (visual separator then entries)
 		{"", ""},
-		{"[ws] enter", "view runs"},
-		{"[ws] v", "view variables"},
-		{"[ws] f", "view config versions"},
-		{"[ws] s", "view state versions"},
+		{"[ws] enter", "view runs tab"},
+		{"[ws] v", "view variables tab"},
+		{"[ws] f", "view config versions tab"},
+		{"[ws] s", "view state versions tab"},
+		{"[ws tab] ← →", "switch tabs"},
+		{"[ws tab] u", "copy workspace URL"},
+		{"[ws tab] U", "open workspace in browser"},
 	}
 
 	lines := make([]string, 0, m.height)
