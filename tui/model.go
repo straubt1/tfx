@@ -44,9 +44,12 @@ const (
 	viewProjects
 	viewWorkspaces
 	viewRuns
-	viewVariables      // Phase 5
-	viewConfigVersions // Phase 5
-	viewStateVersions  // Phase 5
+	viewVariables        // Phase 5
+	viewConfigVersions   // Phase 5
+	viewStateVersions    // Phase 5
+	viewWorkspaceDetail  // workspace settings detail (d key from workspace list)
+	viewOrgDetail        // organization detail (d key from org list)
+	viewProjectDetail    // project detail (d key from project list)
 )
 
 // Model is the root TUI model. All state lives here per the ELM architecture.
@@ -124,6 +127,16 @@ type Model struct {
 	svOffset      int
 	svFilter      string
 	svFiltering   bool
+
+	// Workspace detail state
+	wsDetScroll   int
+	wsDetPrevView viewType // view to return to when esc-ing from workspace detail
+
+	// Organization detail state
+	orgDetScroll int
+
+	// Project detail state
+	projDetScroll int
 }
 
 func newModel(c *client.TfxClient) Model {
@@ -275,6 +288,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.handleConfigVersionsKey(msg)
 			case viewStateVersions:
 				return m.handleStateVersionsKey(msg)
+			case viewWorkspaceDetail:
+				return m.handleWorkspaceDetailKey(msg)
+			case viewOrgDetail:
+				return m.handleOrgDetailKey(msg)
+			case viewProjectDetail:
+				return m.handleProjectDetailKey(msg)
 			}
 		}
 	}
@@ -336,6 +355,24 @@ func (m Model) navigateBack() (tea.Model, tea.Cmd) {
 		m.stateVersions = nil
 		m.svCursor, m.svOffset, m.svFilter, m.svFiltering = 0, 0, "", false
 		m.selectedWS = nil
+	case viewWorkspaceDetail:
+		// Return to wherever d was pressed from (workspace list or a sub-view tab).
+		m.currentView = m.wsDetPrevView
+		m.wsDetScroll = 0
+		// Only clear selectedWS when returning to the workspace list; sub-views still need it.
+		if m.wsDetPrevView == viewWorkspaces {
+			m.selectedWS = nil
+		}
+	case viewOrgDetail:
+		// Return to org list; cursor/offset intentionally preserved.
+		m.currentView = viewOrganizations
+		m.orgDetScroll = 0
+		m.selectedOrg = nil
+	case viewProjectDetail:
+		// Return to project list; cursor/offset intentionally preserved.
+		m.currentView = viewProjects
+		m.projDetScroll = 0
+		m.selectedProj = nil
 	}
 	return m, nil
 }
@@ -385,6 +422,10 @@ func (m Model) refresh() (tea.Model, tea.Cmd) {
 		if m.selectedWS != nil {
 			cmd = loadStateVersions(m.c, m.org, m.selectedWS.Name)
 		}
+	case viewWorkspaceDetail, viewOrgDetail, viewProjectDetail:
+		// Detail views show already-loaded data; nothing to refresh.
+		m.loading = false
+		return m, nil
 	}
 	return m, tea.Batch(cmd, tickSpinner())
 }
@@ -604,6 +645,13 @@ func (m Model) handleOrgsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	case "/":
 		m.orgFiltering = true
+	case "d":
+		if n == 0 || m.orgCursor >= n {
+			break
+		}
+		m.selectedOrg = filtered[m.orgCursor]
+		m.orgDetScroll = 0
+		m.currentView = viewOrgDetail
 	case "enter":
 		if n == 0 || m.orgCursor >= n {
 			break
@@ -615,6 +663,38 @@ func (m Model) handleOrgsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.errMsg = ""
 		m.projCursor, m.projOffset, m.projFilter = 0, 0, ""
 		return m, tea.Batch(loadProjects(m.c, sel.Name), tickSpinner())
+	}
+	return m, nil
+}
+
+func (m Model) handleOrgDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if m.orgDetScroll > 0 {
+			m.orgDetScroll--
+		}
+	case "down", "j":
+		m.orgDetScroll++
+	case "g":
+		m.orgDetScroll = 0
+	case "G":
+		m.orgDetScroll = 9999
+	case "u":
+		if url := m.orgURL(); url != "" {
+			if err := copyToClipboard(url); err == nil {
+				m.clipFeedback = "✓ org URL copied"
+			} else {
+				m.clipFeedback = "clipboard unavailable"
+			}
+		}
+	case "U":
+		if url := m.orgURL(); url != "" {
+			if err := openBrowser(url); err == nil {
+				m.clipFeedback = "✓ opening in browser"
+			} else {
+				m.clipFeedback = "could not open browser"
+			}
+		}
 	}
 	return m, nil
 }
@@ -650,6 +730,13 @@ func (m Model) handleProjectsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	case "/":
 		m.projFiltering = true
+	case "d":
+		if n == 0 || m.projCursor >= n {
+			break
+		}
+		m.selectedProj = filtered[m.projCursor]
+		m.projDetScroll = 0
+		m.currentView = viewProjectDetail
 	case "enter":
 		if n == 0 || m.projCursor >= n {
 			break
@@ -660,6 +747,38 @@ func (m Model) handleProjectsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.errMsg = ""
 		m.wsCursor, m.wsOffset, m.wsFilter = 0, 0, ""
 		return m, tea.Batch(loadWorkspaces(m.c, m.org, sel.ID), tickSpinner())
+	}
+	return m, nil
+}
+
+func (m Model) handleProjectDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if m.projDetScroll > 0 {
+			m.projDetScroll--
+		}
+	case "down", "j":
+		m.projDetScroll++
+	case "g":
+		m.projDetScroll = 0
+	case "G":
+		m.projDetScroll = 9999
+	case "u":
+		if url := m.projURL(); url != "" {
+			if err := copyToClipboard(url); err == nil {
+				m.clipFeedback = "✓ project URL copied"
+			} else {
+				m.clipFeedback = "clipboard unavailable"
+			}
+		}
+	case "U":
+		if url := m.projURL(); url != "" {
+			if err := openBrowser(url); err == nil {
+				m.clipFeedback = "✓ opening in browser"
+			} else {
+				m.clipFeedback = "could not open browser"
+			}
+		}
 	}
 	return m, nil
 }
@@ -735,6 +854,46 @@ func (m Model) handleWorkspacesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.errMsg = ""
 		m.svCursor, m.svOffset, m.svFilter = 0, 0, ""
 		return m, tea.Batch(loadStateVersions(m.c, m.org, sel.Name), tickSpinner())
+	case "d":
+		if n == 0 || m.wsCursor >= n {
+			break
+		}
+		m.selectedWS = filtered[m.wsCursor]
+		m.wsDetScroll = 0
+		m.wsDetPrevView = viewWorkspaces
+		m.currentView = viewWorkspaceDetail
+	}
+	return m, nil
+}
+
+func (m Model) handleWorkspaceDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if m.wsDetScroll > 0 {
+			m.wsDetScroll--
+		}
+	case "down", "j":
+		m.wsDetScroll++
+	case "g":
+		m.wsDetScroll = 0
+	case "G":
+		m.wsDetScroll = 9999 // clamped to max by renderWorkspaceDetailContent
+	case "u":
+		if url := m.wsURL(); url != "" {
+			if err := copyToClipboard(url); err == nil {
+				m.clipFeedback = "✓ workspace URL copied"
+			} else {
+				m.clipFeedback = "clipboard unavailable"
+			}
+		}
+	case "U":
+		if url := m.wsURL(); url != "" {
+			if err := openBrowser(url); err == nil {
+				m.clipFeedback = "✓ opening in browser"
+			} else {
+				m.clipFeedback = "could not open browser"
+			}
+		}
 	}
 	return m, nil
 }
@@ -776,6 +935,10 @@ func (m Model) handleRunsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.switchWsTab(viewVariables)
 	case "enter":
 		// Future: drill into run detail.
+	case "d":
+		m.wsDetScroll = 0
+		m.wsDetPrevView = viewRuns
+		m.currentView = viewWorkspaceDetail
 	case "u":
 		if url := m.wsURL(); url != "" {
 			if err := copyToClipboard(url); err == nil {
@@ -833,6 +996,10 @@ func (m Model) handleVariablesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.switchWsTab(viewRuns)
 	case "right":
 		return m.switchWsTab(viewConfigVersions)
+	case "d":
+		m.wsDetScroll = 0
+		m.wsDetPrevView = viewVariables
+		m.currentView = viewWorkspaceDetail
 	case "u":
 		if url := m.wsURL(); url != "" {
 			if err := copyToClipboard(url); err == nil {
@@ -890,6 +1057,10 @@ func (m Model) handleConfigVersionsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd)
 		return m.switchWsTab(viewVariables)
 	case "right":
 		return m.switchWsTab(viewStateVersions)
+	case "d":
+		m.wsDetScroll = 0
+		m.wsDetPrevView = viewConfigVersions
+		m.currentView = viewWorkspaceDetail
 	case "u":
 		if url := m.wsURL(); url != "" {
 			if err := copyToClipboard(url); err == nil {
@@ -947,6 +1118,10 @@ func (m Model) handleStateVersionsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) 
 		return m.switchWsTab(viewConfigVersions)
 	case "right":
 		// Last tab — nothing to the right.
+	case "d":
+		m.wsDetScroll = 0
+		m.wsDetPrevView = viewStateVersions
+		m.currentView = viewWorkspaceDetail
 	case "u":
 		if url := m.wsURL(); url != "" {
 			if err := copyToClipboard(url); err == nil {
@@ -1097,6 +1272,21 @@ func (m Model) currentCliCmd() string {
 			return fmt.Sprintf("tfx workspace sv list -n %s", m.selectedWS.Name)
 		}
 		return "tfx workspace sv list"
+	case viewWorkspaceDetail:
+		if m.selectedWS != nil {
+			return fmt.Sprintf("tfx workspace show -n %s", m.selectedWS.Name)
+		}
+		return "tfx workspace show"
+	case viewOrgDetail:
+		if m.selectedOrg != nil {
+			return fmt.Sprintf("tfx organization show -n %s", m.selectedOrg.Name)
+		}
+		return "tfx organization show"
+	case viewProjectDetail:
+		if m.selectedProj != nil {
+			return fmt.Sprintf("tfx project show --project-id %s", m.selectedProj.ID)
+		}
+		return "tfx project show"
 	default:
 		return "tfx"
 	}
@@ -1143,6 +1333,22 @@ func (m Model) wsURL() string {
 	return fmt.Sprintf("https://%s/app/%s/workspaces/%s", m.hostname, m.org, m.selectedWS.Name)
 }
 
+// orgURL returns the HCP Terraform / TFE web URL for the currently selected org's settings.
+func (m Model) orgURL() string {
+	if m.selectedOrg == nil {
+		return ""
+	}
+	return fmt.Sprintf("https://%s/app/%s/settings/general", m.hostname, m.selectedOrg.Name)
+}
+
+// projURL returns the HCP Terraform / TFE web URL for the currently selected project's workspaces.
+func (m Model) projURL() string {
+	if m.selectedProj == nil {
+		return ""
+	}
+	return fmt.Sprintf("https://%s/app/%s/projects/%s/workspaces", m.hostname, m.org, m.selectedProj.ID)
+}
+
 // ── Content routing ───────────────────────────────────────────────────────────
 
 func (m Model) renderContent() string {
@@ -1172,6 +1378,12 @@ func (m Model) renderContent() string {
 		return m.renderConfigVersionsContent()
 	case viewStateVersions:
 		return m.renderStateVersionsContent()
+	case viewWorkspaceDetail:
+		return m.renderWorkspaceDetailContent()
+	case viewOrgDetail:
+		return m.renderOrgDetailContent()
+	case viewProjectDetail:
+		return m.renderProjectDetailContent()
 	}
 	return m.renderLoadingContent()
 }
@@ -1303,6 +1515,27 @@ func (m Model) renderBreadcrumb() string {
 			sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
 			sep + breadcrumbActiveStyle.Render("state versions ")
+	case viewWorkspaceDetail:
+		line = orgPart + sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
+			sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbActiveStyle.Render("detail ")
+	case viewOrgDetail:
+		orgDetailName := ""
+		if m.selectedOrg != nil {
+			orgDetailName = m.selectedOrg.Name
+		}
+		line = breadcrumbBarStyle.Render(fmt.Sprintf(" org: %s", orgDetailName)) +
+			sep + breadcrumbActiveStyle.Render("detail ")
+	case viewProjectDetail:
+		projDetailName := ""
+		if m.selectedProj != nil {
+			projDetailName = m.selectedProj.Name
+		}
+		line = orgPart + sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projDetailName)) +
+			sep + breadcrumbActiveStyle.Render("detail ")
 	default:
 		line = orgPart
 	}
@@ -1372,6 +1605,18 @@ func (m Model) renderStatusBar() string {
 		} else {
 			msg = fmt.Sprintf("  %d state versions", len(m.stateVersions))
 		}
+	case viewWorkspaceDetail:
+		if m.selectedWS != nil {
+			msg = fmt.Sprintf("  workspace: %s  •  ↑ ↓ to scroll", m.selectedWS.Name)
+		}
+	case viewOrgDetail:
+		if m.selectedOrg != nil {
+			msg = fmt.Sprintf("  org: %s  •  ↑ ↓ to scroll", m.selectedOrg.Name)
+		}
+	case viewProjectDetail:
+		if m.selectedProj != nil {
+			msg = fmt.Sprintf("  project: %s  •  ↑ ↓ to scroll", m.selectedProj.Name)
+		}
 	default:
 		msg = "  Ready"
 	}
@@ -1384,10 +1629,16 @@ func (m Model) renderCliHint() string {
 
 	var hints string
 	switch {
+	case m.currentView == viewOrganizations:
+		hints = cliHintBarStyle.Render("   •   enter projects   d detail   •   c copy   •   ? help   •   q quit")
+	case m.currentView == viewProjects:
+		hints = cliHintBarStyle.Render("   •   enter workspaces   d detail   •   c copy   •   ? help   •   q quit")
 	case m.currentView == viewWorkspaces:
-		hints = cliHintBarStyle.Render("   •   enter runs   v vars   f cvs   s svs   •   c copy   •   ? help   •   q quit")
+		hints = cliHintBarStyle.Render("   •   enter runs   v vars   f cvs   s svs   d detail   •   c copy   •   ? help   •   q quit")
+	case m.currentView == viewOrgDetail, m.currentView == viewProjectDetail, m.currentView == viewWorkspaceDetail:
+		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   u url   U browser   •   ? help   •   q quit")
 	case m.isWorkspaceSubView():
-		hints = cliHintBarStyle.Render("   •   ← → switch tabs   •   u url   U browser   •   c copy   •   ? help   •   q quit")
+		hints = cliHintBarStyle.Render("   •   ← → switch tabs   •   d detail   •   u url   U browser   •   c copy   •   ? help   •   q quit")
 	default:
 		hints = cliHintBarStyle.Render("   •   c copy   •   ? help   •   q quit")
 	}
@@ -1413,15 +1664,24 @@ func (m Model) renderHelpOverlay() string {
 		{"c", "copy CLI command"},
 		{"?", "toggle help"},
 		{"q", "quit"},
-		// Workspace-specific (visual separator then entries)
+		// List views
 		{"", ""},
+		{"[org] d", "view org detail"},
+		{"[project] d", "view project detail"},
 		{"[ws] enter", "view runs tab"},
 		{"[ws] v", "view variables tab"},
 		{"[ws] f", "view config versions tab"},
 		{"[ws] s", "view state versions tab"},
+		{"[ws] d", "view workspace detail"},
 		{"[ws tab] ← →", "switch tabs"},
+		{"[ws tab] d", "view workspace detail"},
 		{"[ws tab] u", "copy workspace URL"},
 		{"[ws tab] U", "open workspace in browser"},
+		// Detail views
+		{"", ""},
+		{"[detail] ↑ ↓", "scroll"},
+		{"[detail] u", "copy URL"},
+		{"[detail] U", "open in browser"},
 	}
 
 	lines := make([]string, 0, m.height)

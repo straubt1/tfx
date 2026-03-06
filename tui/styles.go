@@ -147,6 +147,11 @@ var (
 				Background(colorHeaderBg).
 				Foreground(colorFg)
 
+	// Workspace detail view
+	detailLabelStyle = lipgloss.NewStyle().
+			Background(colorBg).
+			Foreground(colorDim)
+
 	// Workspace tab strip
 	tabBarStyle = lipgloss.NewStyle().
 			Background(colorHeaderBg).
