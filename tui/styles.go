@@ -175,4 +175,8 @@ var (
 	jsonNumberStyle  = lipgloss.NewStyle().Background(colorBg).Foreground(colorPurple)  // numbers → purple
 	jsonKeywordStyle = lipgloss.NewStyle().Background(colorBg).Foreground(colorLoading) // true/false/null → amber
 	jsonPunctStyle   = lipgloss.NewStyle().Background(colorBg).Foreground(colorDim)     // braces/colons/commas → dim
+
+	// HCL/Terraform viewer syntax highlighting
+	hclBlockKeyStyle = lipgloss.NewStyle().Background(colorBg).Foreground(colorPurple) // block type keywords → purple
+	hclFileStyle     = lipgloss.NewStyle().Background(colorBg).Foreground(colorPurple) // .tf file icon/name in browser → purple
 )

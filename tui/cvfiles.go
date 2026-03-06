@@ -119,9 +119,10 @@ func (m Model) renderConfigVersionFilesContent() string {
 		for i := m.cvFileOffset; i < end; i++ {
 			f := m.cvFiles[i]
 			selected := i == m.cvFileCursor
+			tfFile := !f.isDir && isHCLFile(f.displayName())
 
 			indent := strings.Repeat("  ", f.depth())
-			name := truncateStr(indent+f.displayName(), nameColW)
+			displayN := f.displayName()
 			size := f.sizeStr()
 
 			style := tableRowStyle
@@ -131,10 +132,21 @@ func (m Model) renderConfigVersionFilesContent() string {
 				cursor = "> "
 			}
 
-			row := style.Render(cursor) +
-				style.Width(nameColW).Render(name) +
-				style.Render("  ") +
-				style.Width(sizeColW).Render(size)
+			var row string
+			if !selected && tfFile {
+				// Terraform/HCL files: diamond icon + purple name (unselected only).
+				name := truncateStr(indent+"◆ "+displayN, nameColW)
+				row = tableRowStyle.Render(cursor) +
+					hclFileStyle.Width(nameColW).Render(name) +
+					tableRowStyle.Render("  ") +
+					tableRowStyle.Width(sizeColW).Render(size)
+			} else {
+				name := truncateStr(indent+displayN, nameColW)
+				row = style.Render(cursor) +
+					style.Width(nameColW).Render(name) +
+					style.Render("  ") +
+					style.Width(sizeColW).Render(size)
+			}
 			lines = append(lines, m.pad(row, style))
 		}
 	}
@@ -147,7 +159,7 @@ func (m Model) renderConfigVersionFilesContent() string {
 
 // renderConfigVersionFileContent renders the scrollable line-numbered content
 // viewer for a single file from the config version archive.
-// .json files get the same syntax highlighting as the state JSON viewer.
+// .json files use JSON syntax highlighting; .tf/.tfvars/.hcl use HCL highlighting.
 func (m Model) renderConfigVersionFileContent() string {
 	h := m.contentHeight()
 
@@ -168,6 +180,7 @@ func (m Model) renderConfigVersionFileContent() string {
 	}
 
 	isJSON := strings.HasSuffix(strings.ToLower(m.cvFileName), ".json")
+	isHCL := isHCLFile(m.cvFileName)
 
 	all := make([]string, 0, numLines)
 	for i, line := range m.cvFileLines {
@@ -178,9 +191,12 @@ func (m Model) renderConfigVersionFileContent() string {
 		}
 
 		var colored string
-		if isJSON {
+		switch {
+		case isJSON:
 			colored = colorizeJSONLine(display)
-		} else {
+		case isHCL:
+			colored = colorizeHCLLine(display)
+		default:
 			colored = contentStyle.Render(display)
 		}
 

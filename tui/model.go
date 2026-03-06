@@ -1035,7 +1035,7 @@ func (m Model) handleCVDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.cvDetScroll = 0
 	case "G":
 		m.cvDetScroll = 9999
-	case "x":
+	case "o":
 		if m.selectedCV != nil {
 			m.cvFiles = nil
 			m.cvFileCursor = 0
@@ -1087,6 +1087,15 @@ func (m Model) handleCVFilesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.cvFileName = sel.displayName()
 		m.currentView = viewConfigVersionFileContent
 		return m, loadCVFileContent(m.selectedCV.ID, sel)
+	case "p":
+		// Copy the on-disk extraction path to the clipboard.
+		if m.selectedCV != nil {
+			if err := copyToClipboard(cvExtractDirPath(m.selectedCV.ID)); err == nil {
+				m.clipFeedback = "✓ path copied to clipboard"
+			} else {
+				m.clipFeedback = "clipboard unavailable"
+			}
+		}
 	}
 	return m, nil
 }
@@ -2171,11 +2180,11 @@ func (m Model) renderStatusBar() string {
 		if m.cvFileErr != "" {
 			return m.pad(statusErrorStyle.Render(fmt.Sprintf("  ✗  %s", m.cvFileErr)), statusErrorStyle)
 		}
-		cvID := ""
+		diskPath := ""
 		if m.selectedCV != nil {
-			cvID = m.selectedCV.ID
+			diskPath = tildePath(cvExtractDirPath(m.selectedCV.ID))
 		}
-		msg = fmt.Sprintf("  config version files  •  %s  •  %d files", cvID, len(m.cvFiles))
+		msg = fmt.Sprintf("  config version files  •  %s  •  %d files", diskPath, len(m.cvFiles))
 	case viewConfigVersionFileContent:
 		numLines := len(m.cvFileLines)
 		cur := m.cvFileScroll + 1
@@ -2226,9 +2235,9 @@ func (m Model) renderCliHint() string {
 	case m.currentView == viewStateVersionJson:
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   shift+↑↓ half page   •   r re-fetch   •   ? help   •   q quit")
 	case m.currentView == viewConfigVersionDetail:
-		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   x archive browser   •   ? help   •   q quit")
+		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   o archive browser   •   ? help   •   q quit")
 	case m.currentView == viewConfigVersionFiles:
-		hints = cliHintBarStyle.Render("   •   ↑ ↓ navigate   •   enter open   •   r re-fetch   •   ? help   •   q quit")
+		hints = cliHintBarStyle.Render("   •   ↑ ↓ navigate   •   enter open   •   p copy path   •   r re-fetch   •   ? help   •   q quit")
 	case m.currentView == viewConfigVersionFileContent:
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   shift+↑↓ half page   •   ? help   •   q quit")
 	case m.isWorkspaceSubView():
@@ -2270,7 +2279,8 @@ func (m Model) renderHelpOverlay() string {
 		{"[ws tab] ← →", "switch tabs"},
 		{"[ws tab] enter", "view item detail"},
 		{"[sv detail] o", "open state JSON viewer"},
-		{"[cv detail] x", "open archive browser"},
+		{"[cv detail] o", "open archive browser"},
+		{"[cv files] p", "copy cache path to clipboard"},
 		{"[ws tab] d", "view workspace detail"},
 		{"[ws tab] u", "copy workspace URL"},
 		{"[ws tab] U", "open workspace in browser"},

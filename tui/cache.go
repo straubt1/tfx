@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // cacheDir returns (and creates if absent) the base TFx cache directory.
@@ -121,6 +122,25 @@ func extractTarGz(src, destDir string) error {
 		}
 	}
 	return nil
+}
+
+// cvExtractDirPath returns the extraction directory for cvID without creating it.
+// Use this for display purposes (status bar, hints) where side effects are undesired.
+func cvExtractDirPath(cvID string) string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".tfx", "cache", "cv", cvID)
+}
+
+// tildePath replaces the home directory prefix with "~" for compact display.
+func tildePath(p string) string {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return p
+	}
+	if strings.HasPrefix(p, home) {
+		return "~" + p[len(home):]
+	}
+	return p
 }
 
 // isSubPath reports whether child is inside (or equal to) parent.
