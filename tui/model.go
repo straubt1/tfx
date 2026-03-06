@@ -47,9 +47,13 @@ const (
 	viewVariables        // Phase 5
 	viewConfigVersions   // Phase 5
 	viewStateVersions    // Phase 5
-	viewWorkspaceDetail  // workspace settings detail (d key from workspace list)
-	viewOrgDetail        // organization detail (d key from org list)
-	viewProjectDetail    // project detail (d key from project list)
+	viewWorkspaceDetail   // workspace settings detail (d key from workspace list)
+	viewOrgDetail         // organization detail (d key from org list)
+	viewProjectDetail     // project detail (d key from project list)
+	viewRunDetail         // run detail (enter from run list) — Phase 7
+	viewVariableDetail    // variable detail (enter from variable list) — Phase 7
+	viewStateVersionDetail // state version detail (enter from SV list) — Phase 7
+	viewConfigVersionDetail // config version detail (enter from CV list) — Phase 7
 )
 
 // Model is the root TUI model. All state lives here per the ELM architecture.
@@ -137,6 +141,22 @@ type Model struct {
 
 	// Project detail state
 	projDetScroll int
+
+	// Run detail state (Phase 7)
+	selectedRun *tfe.Run
+	runDetScroll int
+
+	// Variable detail state (Phase 7)
+	selectedVar  *tfe.Variable
+	varDetScroll int
+
+	// State version detail state (Phase 7)
+	selectedSV  *tfe.StateVersion
+	svDetScroll int
+
+	// Config version detail state (Phase 7)
+	selectedCV  *tfe.ConfigurationVersion
+	cvDetScroll int
 }
 
 func newModel(c *client.TfxClient) Model {
@@ -228,6 +248,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.svOffset = 0
 		m.errMsg = ""
 
+	case runDetailLoadedMsg:
+		// Silently update the selected run with full Plan/Apply data.
+		// Does not change currentView or loading — detail view updates in-place.
+		if msg != nil {
+			m.selectedRun = (*tfe.Run)(msg)
+		}
+
 	case fetchErrMsg:
 		m.loading = false
 		m.errMsg = msg.err.Error()
@@ -294,6 +321,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.handleOrgDetailKey(msg)
 			case viewProjectDetail:
 				return m.handleProjectDetailKey(msg)
+			case viewRunDetail:
+				return m.handleRunDetailKey(msg)
+			case viewVariableDetail:
+				return m.handleVariableDetailKey(msg)
+			case viewStateVersionDetail:
+				return m.handleSVDetailKey(msg)
+			case viewConfigVersionDetail:
+				return m.handleCVDetailKey(msg)
 			}
 		}
 	}
@@ -373,6 +408,22 @@ func (m Model) navigateBack() (tea.Model, tea.Cmd) {
 		m.currentView = viewProjects
 		m.projDetScroll = 0
 		m.selectedProj = nil
+	case viewRunDetail:
+		m.currentView = viewRuns
+		m.runDetScroll = 0
+		m.selectedRun = nil
+	case viewVariableDetail:
+		m.currentView = viewVariables
+		m.varDetScroll = 0
+		m.selectedVar = nil
+	case viewStateVersionDetail:
+		m.currentView = viewStateVersions
+		m.svDetScroll = 0
+		m.selectedSV = nil
+	case viewConfigVersionDetail:
+		m.currentView = viewConfigVersions
+		m.cvDetScroll = 0
+		m.selectedCV = nil
 	}
 	return m, nil
 }
@@ -422,7 +473,8 @@ func (m Model) refresh() (tea.Model, tea.Cmd) {
 		if m.selectedWS != nil {
 			cmd = loadStateVersions(m.c, m.org, m.selectedWS.Name)
 		}
-	case viewWorkspaceDetail, viewOrgDetail, viewProjectDetail:
+	case viewWorkspaceDetail, viewOrgDetail, viewProjectDetail,
+		viewRunDetail, viewVariableDetail, viewStateVersionDetail, viewConfigVersionDetail:
 		// Detail views show already-loaded data; nothing to refresh.
 		m.loading = false
 		return m, nil
@@ -783,6 +835,86 @@ func (m Model) handleProjectDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) 
 	return m, nil
 }
 
+func (m Model) handleRunDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if m.runDetScroll > 0 {
+			m.runDetScroll--
+		}
+	case "down", "j":
+		m.runDetScroll++
+	case "g":
+		m.runDetScroll = 0
+	case "G":
+		m.runDetScroll = 9999
+	case "u":
+		if url := m.runURL(); url != "" {
+			if err := copyToClipboard(url); err == nil {
+				m.clipFeedback = "✓ run URL copied"
+			} else {
+				m.clipFeedback = "clipboard unavailable"
+			}
+		}
+	case "U":
+		if url := m.runURL(); url != "" {
+			if err := openBrowser(url); err == nil {
+				m.clipFeedback = "✓ opening in browser"
+			} else {
+				m.clipFeedback = "could not open browser"
+			}
+		}
+	}
+	return m, nil
+}
+
+func (m Model) handleVariableDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if m.varDetScroll > 0 {
+			m.varDetScroll--
+		}
+	case "down", "j":
+		m.varDetScroll++
+	case "g":
+		m.varDetScroll = 0
+	case "G":
+		m.varDetScroll = 9999
+	}
+	return m, nil
+}
+
+func (m Model) handleSVDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if m.svDetScroll > 0 {
+			m.svDetScroll--
+		}
+	case "down", "j":
+		m.svDetScroll++
+	case "g":
+		m.svDetScroll = 0
+	case "G":
+		m.svDetScroll = 9999
+	}
+	return m, nil
+}
+
+func (m Model) handleCVDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if m.cvDetScroll > 0 {
+			m.cvDetScroll--
+		}
+	case "down", "j":
+		m.cvDetScroll++
+	case "g":
+		m.cvDetScroll = 0
+	case "G":
+		m.cvDetScroll = 9999
+	}
+	return m, nil
+}
+
 func (m Model) handleWorkspacesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	filtered := filteredWorkspaces(m)
 	n := len(filtered)
@@ -934,7 +1066,15 @@ func (m Model) handleRunsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "right":
 		return m.switchWsTab(viewVariables)
 	case "enter":
-		// Future: drill into run detail.
+		if n == 0 || m.runCursor >= n {
+			break
+		}
+		sel := filtered[m.runCursor]
+		m.selectedRun = sel
+		m.runDetScroll = 0
+		m.currentView = viewRunDetail
+		// Trigger a background re-fetch to populate Plan/Apply/VCS fields.
+		return m, loadRunDetail(m.c, sel.ID)
 	case "d":
 		m.wsDetScroll = 0
 		m.wsDetPrevView = viewRuns
@@ -992,6 +1132,13 @@ func (m Model) handleVariablesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	case "/":
 		m.varFiltering = true
+	case "enter":
+		if n == 0 || m.varCursor >= n {
+			break
+		}
+		m.selectedVar = filtered[m.varCursor]
+		m.varDetScroll = 0
+		m.currentView = viewVariableDetail
 	case "left":
 		return m.switchWsTab(viewRuns)
 	case "right":
@@ -1053,6 +1200,13 @@ func (m Model) handleConfigVersionsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd)
 		}
 	case "/":
 		m.cvFiltering = true
+	case "enter":
+		if n == 0 || m.cvCursor >= n {
+			break
+		}
+		m.selectedCV = filtered[m.cvCursor]
+		m.cvDetScroll = 0
+		m.currentView = viewConfigVersionDetail
 	case "left":
 		return m.switchWsTab(viewVariables)
 	case "right":
@@ -1114,6 +1268,13 @@ func (m Model) handleStateVersionsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) 
 		}
 	case "/":
 		m.svFiltering = true
+	case "enter":
+		if n == 0 || m.svCursor >= n {
+			break
+		}
+		m.selectedSV = filtered[m.svCursor]
+		m.svDetScroll = 0
+		m.currentView = viewStateVersionDetail
 	case "left":
 		return m.switchWsTab(viewConfigVersions)
 	case "right":
@@ -1287,6 +1448,26 @@ func (m Model) currentCliCmd() string {
 			return fmt.Sprintf("tfx project show --project-id %s", m.selectedProj.ID)
 		}
 		return "tfx project show"
+	case viewRunDetail:
+		if m.selectedRun != nil {
+			return fmt.Sprintf("tfx workspace run show --run-id %s", m.selectedRun.ID)
+		}
+		return "tfx workspace run show"
+	case viewVariableDetail:
+		if m.selectedVar != nil {
+			return fmt.Sprintf("tfx workspace variable show --variable-id %s", m.selectedVar.ID)
+		}
+		return "tfx workspace variable show"
+	case viewStateVersionDetail:
+		if m.selectedSV != nil {
+			return fmt.Sprintf("tfx workspace sv show --state-version-id %s", m.selectedSV.ID)
+		}
+		return "tfx workspace sv show"
+	case viewConfigVersionDetail:
+		if m.selectedCV != nil {
+			return fmt.Sprintf("tfx workspace cv show --config-version-id %s", m.selectedCV.ID)
+		}
+		return "tfx workspace cv show"
 	default:
 		return "tfx"
 	}
@@ -1349,6 +1530,14 @@ func (m Model) projURL() string {
 	return fmt.Sprintf("https://%s/app/%s/projects/%s/workspaces", m.hostname, m.org, m.selectedProj.ID)
 }
 
+// runURL returns the HCP Terraform / TFE web URL for the currently selected run.
+func (m Model) runURL() string {
+	if m.selectedRun == nil || m.selectedWS == nil {
+		return ""
+	}
+	return fmt.Sprintf("https://%s/app/%s/workspaces/%s/runs/%s", m.hostname, m.org, m.selectedWS.Name, m.selectedRun.ID)
+}
+
 // ── Content routing ───────────────────────────────────────────────────────────
 
 func (m Model) renderContent() string {
@@ -1384,6 +1573,14 @@ func (m Model) renderContent() string {
 		return m.renderOrgDetailContent()
 	case viewProjectDetail:
 		return m.renderProjectDetailContent()
+	case viewRunDetail:
+		return m.renderRunDetailContent()
+	case viewVariableDetail:
+		return m.renderVariableDetailContent()
+	case viewStateVersionDetail:
+		return m.renderStateVersionDetailContent()
+	case viewConfigVersionDetail:
+		return m.renderConfigVersionDetailContent()
 	}
 	return m.renderLoadingContent()
 }
@@ -1536,6 +1733,54 @@ func (m Model) renderBreadcrumb() string {
 		line = orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projDetailName)) +
 			sep + breadcrumbActiveStyle.Render("detail ")
+	case viewRunDetail:
+		runID := ""
+		if m.selectedRun != nil {
+			runID = m.selectedRun.ID
+		}
+		line = orgPart + sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
+			sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep +
+			breadcrumbBarStyle.Render("runs") +
+			sep + breadcrumbActiveStyle.Render(fmt.Sprintf("run: %s ", runID))
+	case viewVariableDetail:
+		varKey := ""
+		if m.selectedVar != nil {
+			varKey = m.selectedVar.Key
+		}
+		line = orgPart + sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
+			sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep +
+			breadcrumbBarStyle.Render("variables") +
+			sep + breadcrumbActiveStyle.Render(fmt.Sprintf("var: %s ", varKey))
+	case viewStateVersionDetail:
+		svSerial := ""
+		if m.selectedSV != nil {
+			svSerial = fmt.Sprintf("%d", m.selectedSV.Serial)
+		}
+		line = orgPart + sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
+			sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep +
+			breadcrumbBarStyle.Render("state versions") +
+			sep + breadcrumbActiveStyle.Render(fmt.Sprintf("sv: %s ", svSerial))
+	case viewConfigVersionDetail:
+		cvID := ""
+		if m.selectedCV != nil {
+			cvID = m.selectedCV.ID
+		}
+		line = orgPart + sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
+			sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep +
+			breadcrumbBarStyle.Render("config versions") +
+			sep + breadcrumbActiveStyle.Render(fmt.Sprintf("cv: %s ", cvID))
 	default:
 		line = orgPart
 	}
@@ -1617,6 +1862,22 @@ func (m Model) renderStatusBar() string {
 		if m.selectedProj != nil {
 			msg = fmt.Sprintf("  project: %s  •  ↑ ↓ to scroll", m.selectedProj.Name)
 		}
+	case viewRunDetail:
+		if m.selectedRun != nil {
+			msg = fmt.Sprintf("  run: %s  •  ↑ ↓ to scroll", m.selectedRun.ID)
+		}
+	case viewVariableDetail:
+		if m.selectedVar != nil {
+			msg = fmt.Sprintf("  variable: %s  •  ↑ ↓ to scroll", m.selectedVar.Key)
+		}
+	case viewStateVersionDetail:
+		if m.selectedSV != nil {
+			msg = fmt.Sprintf("  state version serial: %d  •  ↑ ↓ to scroll", m.selectedSV.Serial)
+		}
+	case viewConfigVersionDetail:
+		if m.selectedCV != nil {
+			msg = fmt.Sprintf("  config version: %s  •  ↑ ↓ to scroll", m.selectedCV.ID)
+		}
 	default:
 		msg = "  Ready"
 	}
@@ -1637,8 +1898,12 @@ func (m Model) renderCliHint() string {
 		hints = cliHintBarStyle.Render("   •   enter runs   v vars   f cvs   s svs   d detail   •   c copy   •   ? help   •   q quit")
 	case m.currentView == viewOrgDetail, m.currentView == viewProjectDetail, m.currentView == viewWorkspaceDetail:
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   u url   U browser   •   ? help   •   q quit")
+	case m.currentView == viewRunDetail:
+		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   u url   U browser   •   ? help   •   q quit")
+	case m.currentView == viewVariableDetail, m.currentView == viewStateVersionDetail, m.currentView == viewConfigVersionDetail:
+		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   ? help   •   q quit")
 	case m.isWorkspaceSubView():
-		hints = cliHintBarStyle.Render("   •   ← → switch tabs   •   d detail   •   u url   U browser   •   c copy   •   ? help   •   q quit")
+		hints = cliHintBarStyle.Render("   •   enter detail   •   ← → switch tabs   •   d ws detail   •   u url   U browser   •   c copy   •   ? help   •   q quit")
 	default:
 		hints = cliHintBarStyle.Render("   •   c copy   •   ? help   •   q quit")
 	}
@@ -1674,13 +1939,14 @@ func (m Model) renderHelpOverlay() string {
 		{"[ws] s", "view state versions tab"},
 		{"[ws] d", "view workspace detail"},
 		{"[ws tab] ← →", "switch tabs"},
+		{"[ws tab] enter", "view item detail"},
 		{"[ws tab] d", "view workspace detail"},
 		{"[ws tab] u", "copy workspace URL"},
 		{"[ws tab] U", "open workspace in browser"},
 		// Detail views
 		{"", ""},
 		{"[detail] ↑ ↓", "scroll"},
-		{"[detail] u", "copy URL"},
+		{"[detail] u", "copy URL (run, ws, org, proj)"},
 		{"[detail] U", "open in browser"},
 	}
 

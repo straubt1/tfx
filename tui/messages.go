@@ -13,6 +13,11 @@ import (
 	"github.com/straubt1/tfx/data"
 )
 
+// ── Phase 7 detail message types ──────────────────────────────────────────────
+
+// runDetailLoadedMsg carries a fully-fetched run (with Plan, Apply, CV + ingress includes).
+type runDetailLoadedMsg *tfe.Run
+
 // ── Spinner ───────────────────────────────────────────────────────────────────
 
 // spinnerTickMsg advances the animated loading spinner by one frame.
@@ -123,5 +128,25 @@ func loadStateVersions(c *client.TfxClient, orgName, wsName string) tea.Cmd {
 			return fetchErrMsg{err}
 		}
 		return stateVersionsLoadedMsg(svs)
+	}
+}
+
+// loadRunDetail fetches a run with full includes (Plan, Apply, ConfigurationVersion + ingress).
+// The result silently updates selectedRun without changing the current view or loading state.
+func loadRunDetail(c *client.TfxClient, runID string) tea.Cmd {
+	return func() tea.Msg {
+		run, err := c.Client.Runs.ReadWithOptions(c.Context, runID, &tfe.RunReadOptions{
+			Include: []tfe.RunIncludeOpt{
+				tfe.RunPlan,
+				tfe.RunApply,
+				tfe.RunConfigVer,
+				tfe.RunConfigVerIngress,
+			},
+		})
+		if err != nil {
+			// Swallow the error silently — partial data from the list is still shown.
+			return nil
+		}
+		return runDetailLoadedMsg(run)
 	}
 }

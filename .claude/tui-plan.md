@@ -1,6 +1,6 @@
 # TFx TUI — Planning Document
 
-> Status: Phases 1–6 complete.
+> Status: Phases 1–6 complete. Phase 7 planned (item detail views + file viewers).
 > Last updated: 2026-03-06
 
 ---
@@ -88,11 +88,17 @@ Mirrors the TFE/HCP Terraform object model. Navigation is hierarchical (drill-do
 └── Organizations   ← Phase 6: navigable list of orgs accessible to the token
     └── Projects    ← MVP entry point (org resolved from config, not yet a list)
         └── Workspaces
-            ├── Runs             ← enter (default drill-in from workspace list)
-            │   └── Plan / Apply details
-            ├── Variables        ← v key from workspace list
-            ├── Config Versions  ← f key from workspace list ("files")
-            └── State Versions   ← s key from workspace list
+            ├── Runs                         ← enter (default drill-in from workspace list)
+            │   └── Run Detail               ← enter from run list (Phase 7)
+            ├── Variables                    ← v key from workspace list
+            │   └── Variable Detail          ← enter from variable list (Phase 7)
+            ├── Config Versions              ← f key from workspace list ("files")
+            │   └── CV Detail                ← enter from CV list (Phase 7)
+            │       └── Archive File Browser ← x from CV detail (Phase 7)
+            │           └── File Content Viewer ← enter from file browser (Phase 7)
+            └── State Versions               ← s key from workspace list
+                └── SV Detail                ← enter from SV list (Phase 7)
+                    └── JSON Viewer          ← j from SV detail (Phase 7)
 [Org-level views — future]
     ├── Variable Sets
     ├── Teams
@@ -402,6 +408,16 @@ MVP = enough to demo the concept and gather feedback. Scope:
 - [x] Pre-highlight configured org on load (`TFE_ORGANIZATION` match)
 - [x] `Esc` from project list returns to org list (no re-fetch)
 
+**Phase 7 — Workspace Item Detail Views & File Viewers:**
+- [ ] Run detail view (`enter` from run list) — Status, ID, Message, Source, Trigger, Created, Plan/Apply resource change counts, config version, commit info
+- [ ] Variable detail view (`enter` from variable list) — Key, Value (masked if sensitive), Category, HCL, Description, ID
+- [ ] State Version detail view (`enter` from SV list) — Serial, Status, TF version, Resources, Created, VCS SHA; `j` shortcut → JSON Viewer
+- [ ] Config Version detail view (`enter` from CV list) — ID, Status, Source, Speculative, AutoQueueRuns, Created, ingress commit info; `x` shortcut → Archive Browser
+- [ ] State Version JSON Viewer — download raw state JSON, cache to `~/.tfx/cache/state/<id>.json`, scrollable line viewer with dim line numbers
+- [ ] Config Version Archive Browser — download `.tar.gz`, extract to `~/.tfx/cache/cv/<id>/`, navigable file tree, `enter` opens File Content Viewer
+- [ ] File Content Viewer — scrollable raw file content with dim line numbers, `esc` returns to file browser
+- [ ] Disk cache strategy: `~/.tfx/cache/` base dir, cached by resource ID (no re-download on repeat visits; `r` forces refresh)
+
 **Post-MVP (future iterations):**
 - [ ] Profile system (named profiles in `.tfx.hcl` with hostname + org + token)
 - [ ] Profile picker as TUI entry point (level above org list)
@@ -541,6 +557,362 @@ Goal: add organizations as a top-level navigable construct so users can switch o
 10. Update breadcrumb: show `[orgs]` at org list level; show org name when inside
 11. Update CLI hint: `tfx organization list` at org list level
 12. If `TFE_ORGANIZATION` env/config is set, highlight that row in the list on load (user can press enter to confirm or pick a different one)
+
+### Phase 7 — Workspace Item Detail Views & File Viewers
+
+Goal: pressing `enter` on any item in the four workspace sub-view lists opens a full detail view for that item. State version and config version detail views add dedicated sub-views for downloading and inspecting their associated files in-TUI.
+
+---
+
+#### 7a. Individual Item Detail Views
+
+All four follow the same pattern as the existing workspace/org/project detail views: `wsDetailSection` + `wsDetailRow` flat list, scrollable viewport, `esc` returns to the originating list.
+
+**New view types (add to `viewType` enum):**
+```go
+viewRunDetail
+viewVariableDetail
+viewStateVersionDetail
+viewConfigVersionDetail
+```
+
+**Entry key:** `enter` on the selected row in each list (currently `enter` from runs list triggers nothing — now it drills into the run detail).
+
+**New state fields in `Model`:**
+```go
+selectedRun *tfe.Run       // populated on enter from runs list
+runDetScroll int
+
+selectedVar *tfe.Variable  // populated on enter from variables list
+varDetScroll int
+
+selectedSV  *tfe.StateVersion  // populated on enter from SV list
+svDetScroll int
+
+selectedCV  *tfe.ConfigurationVersion  // populated on enter from CV list
+cvDetScroll int
+```
+
+---
+
+**Run Detail (`tui/rundetail.go`):**
+
+Sections:
+- **General**: ID, Status (colored), Message, Source, Trigger Reason, Created, Terraform Version
+- **Plan**: Plan ID, Status, Has Changes, Additions, Changes, Destructions, Imports (from `run.Plan`)
+- **Apply**: Apply ID, Status (from `run.Apply`; omit section if `run.Apply == nil`)
+- **Flags**: Auto Apply (yes/no), Is Destroy (yes/no), Plan Only (yes/no), Allow Empty Apply (yes/no), Refresh Only (yes/no)
+- **VCS** (if `run.ConfigurationVersion.IngressAttributes != nil`): Commit SHA, Branch, Commit Message, Sender, Commit URL
+
+Data: `data.FetchRun(c, runID)` already exists. The run from the list has partial data; the detail view calls `FetchRun` to get the full object including related resources (Plan, Apply, ConfigurationVersion with ingress).
+
+New message type: `runDetailLoadedMsg *tfe.Run` (or reuse `runDetailErrMsg error`)
+
+Key handler `handleRunDetailKey()`:
+- `↑`/`↓`/`k`/`j` — scroll
+- `g`/`G` — jump top/bottom
+- `u`/`U` — copy/open run URL (`https://{host}/app/{org}/workspaces/{ws}/runs/{runID}`)
+- `esc` — return to runs list
+
+CLI hint: `tfx workspace run show --run-id <id>`
+
+---
+
+**Variable Detail (`tui/vardetail.go`):**
+
+The variable struct from the list is already complete (no additional API call needed).
+
+Sections:
+- **General**: Key, ID, Category (`terraform` or `env`), HCL (yes/no), Sensitive (yes/no)
+- **Value**: if `sensitive == true`, show `***** (sensitive)`; otherwise show full value
+- **Description** (if non-empty): Description text
+
+Key handler `handleVariableDetailKey()`:
+- `↑`/`↓`/`k`/`j` — scroll
+- `g`/`G` — jump top/bottom
+- `esc` — return to variables list
+
+CLI hint: `tfx workspace variable show --variable-id <id>`
+
+No URL helper (variables don't have a direct browser URL in HCP Terraform).
+
+---
+
+**State Version Detail (`tui/svdetail.go`):**
+
+Data: `data.FetchStateVersion(c, svID)` already exists — returns `*tfe.StateVersion` with full fields.
+
+Sections:
+- **General**: ID, Serial, Status, State Version (schema version), Created
+- **Terraform**: Terraform Version, Resources Processed (yes/no)
+- **VCS** (if VCSCommitSHA != ""): Commit SHA, Commit URL
+- **Downloads**: shows `j` shortcut hint text "Press j to view state JSON"
+
+Key handler `handleStateVersionDetailKey()`:
+- `↑`/`↓`/`k`/`j` — scroll (note: `j` also scrolls — use `J` or a different key for JSON? → use `o` for "open JSON")
+- Actually: use standard scroll keys `↑`/`↓`/`k`/`j`, and `o` to open JSON viewer (avoids conflict)
+- `g`/`G` — jump top/bottom
+- `o` — open State Version JSON Viewer (Phase 7b)
+- `esc` — return to state versions list
+
+CLI hint: `tfx workspace sv show --state-version-id <id>`
+
+---
+
+**Config Version Detail (`tui/cvdetail.go`):**
+
+Data: `data.FetchConfigurationVersion(c, cvID)` already exists — re-fetch with include options to get `IngressAttributes`.
+
+Note: the CV returned from the list fetch may not include `IngressAttributes`. The detail view should call `FetchConfigurationVersion` to get a full object. May need to update `FetchConfigurationVersion` to include `ConfigVerIngressAttributes` in the read options.
+
+Sections:
+- **General**: ID, Status, Source, Created
+- **Settings**: Speculative (yes/no), Auto Queue Runs (yes/no), Provisional (yes/no)
+- **Timestamps** (from `StatusTimestamps`, show only non-zero): Queued At, Started At, Finished At
+- **VCS** (if `IngressAttributes != nil`): Branch, Commit SHA, Commit Message, Sender, Is Pull Request, PR Number/URL (if PR)
+- **Downloads**: shows `x` shortcut hint text "Press x to browse archive files"
+
+Key handler `handleConfigVersionDetailKey()`:
+- `↑`/`↓`/`k`/`j` — scroll
+- `g`/`G` — jump top/bottom
+- `x` — open Archive File Browser (Phase 7c)
+- `esc` — return to config versions list
+
+CLI hint: `tfx workspace cv show --config-version-id <id>`
+
+---
+
+#### 7b. State Version JSON Viewer (`viewStateVersionJson`)
+
+**Entry:** `o` from the State Version detail view.
+
+**Flow:**
+1. On entry, check if `~/.tfx/cache/state/<svID>.json` exists on disk
+2. If cached, load from disk immediately
+3. If not cached, download via `data.DownloadStateVersion(c, svID)` (already exists — returns `[]byte`)
+4. Write to `~/.tfx/cache/state/<svID>.json` (create dirs with `os.MkdirAll`)
+5. Split content into lines and store in `Model`
+6. Display scrollable line viewer
+
+**New view type:**
+```go
+viewStateVersionJson
+```
+
+**New state fields:**
+```go
+svJsonLines   []string  // raw JSON lines
+svJsonScroll  int
+svJsonLoading bool
+svJsonErr     error
+svJsonID      string    // which SV the viewer is showing (for breadcrumb)
+```
+
+**New message types:**
+```go
+type svJsonLoadedMsg struct{ lines []string }
+type svJsonErrMsg    struct{ err error }
+```
+
+**New file:** `tui/svjson.go`
+- `func (m Model) renderStateVersionJsonContent() string`
+- Renders lines with dim right-aligned line numbers: `  123 │ actual content here`
+- Line number width determined by `len(fmt.Sprintf("%d", len(m.svJsonLines)))`
+- Long lines truncated with `…` at `m.width - lineNumWidth - 4`
+- No external syntax highlighting for MVP
+
+**Key handler `handleStateVersionJsonKey()`:**
+- `↑`/`↓`/`k`/`j` — scroll by 1 line
+- `ctrl+u`/`ctrl+d` — scroll by half-page (`contentHeight()/2`)
+- `g`/`G` — jump to top/bottom
+- `r` — force re-download (delete cached file, re-fetch)
+- `esc` — return to state version detail
+- `q` — quit TUI
+
+**Status bar:** `state JSON  •  line N of M  (X KB)`
+
+**CLI hint:** `tfx workspace sv download -n <ws>`
+
+**Breadcrumb:** `… > sv: <serial> > json`
+
+**Disk path:** `~/.tfx/cache/state/<stateVersionID>.json`
+- Use `os.UserHomeDir()` to resolve `~`
+- `os.MkdirAll(dir, 0700)` to create dirs
+- Re-download (`r`) overwrites the cached file
+
+---
+
+#### 7c. Config Version Archive Browser & File Content Viewer
+
+**Two new views:**
+```go
+viewConfigVersionFiles       // file tree browser
+viewConfigVersionFileContent // single-file content viewer
+```
+
+**Entry:** `x` from Config Version detail view.
+
+**Download + extraction flow:**
+1. On entry, check if `~/.tfx/cache/cv/<cvID>/` directory exists and is non-empty
+2. If cached, load file list from disk
+3. If not cached:
+   a. Call `data.DownloadConfigurationVersion(c, cvID)` (already exists — returns `[]byte` of the `.tar.gz`)
+   b. Write archive to `~/.tfx/cache/cv/<cvID>.tar.gz`
+   c. Extract to `~/.tfx/cache/cv/<cvID>/` using Go's `archive/tar` + `compress/gzip` (stdlib — no new deps)
+   d. Walk extracted directory to build file list
+4. Display file tree browser
+
+**File tree model:**
+```go
+type cvFile struct {
+    relPath string  // relative to extraction root
+    size    int64
+    isDir   bool
+}
+```
+
+Files are walked with `filepath.WalkDir`, stored as flat list sorted by path. Directories shown with trailing `/` and no size. Indentation: one `  ` (2 spaces) per path depth level.
+
+**New state fields:**
+```go
+cvFiles       []cvFile  // flat sorted file list
+cvFileCursor  int
+cvFileOffset  int
+cvFileLines   []string  // content of selected file
+cvFileScroll  int
+cvFileLoading bool
+cvFileErr     error
+cvFileID      string    // which CV the browser is showing
+```
+
+**New message types:**
+```go
+type cvFilesLoadedMsg struct{ files []cvFile }
+type cvFileContentLoadedMsg struct{ lines []string }
+type cvFileErrMsg struct{ err error }
+```
+
+**New file:** `tui/cvfiles.go`
+- `func (m Model) renderConfigVersionFilesContent() string` — file tree list
+- `func (m Model) renderConfigVersionFileContent() string` — scrollable file content with dim line numbers
+
+**Key handler `handleConfigVersionFilesKey()`:**
+- `↑`/`↓`/`k`/`j` — navigate file list cursor
+- `enter` — if dir, do nothing (or expand — MVP: skip dirs); if file, load content → `viewConfigVersionFileContent`
+- `r` — force re-download and re-extract
+- `esc` — return to config version detail
+- `q` — quit TUI
+
+**Key handler `handleConfigVersionFileContentKey()`:**
+- `↑`/`↓`/`k`/`j` — scroll by 1 line
+- `ctrl+u`/`ctrl+d` — scroll by half-page
+- `g`/`G` — jump to top/bottom
+- `esc` — return to file browser
+- `q` — quit TUI
+
+**Status bar (file browser):** `config version files  •  <cvID>`
+**Status bar (file content):** `<filename>  •  line N of M  (X KB)`
+
+**CLI hint (file browser):** `tfx workspace cv download -n <ws>`
+**CLI hint (file content):** `tfx workspace cv download -n <ws>`
+
+**Breadcrumb (file browser):** `… > cv: <cvID> > files`
+**Breadcrumb (file content):** `… > cv: <cvID> > files > <filename>`
+
+**Disk layout:**
+```
+~/.tfx/
+  cache/
+    state/
+      <stateVersionID>.json     ← raw state JSON
+    cv/
+      <cvID>.tar.gz             ← raw archive (kept for reference; delete on re-download)
+      <cvID>/                   ← extracted config version
+        main.tf
+        variables.tf
+        modules/
+          ...
+```
+
+---
+
+#### 7d. Disk Cache Strategy
+
+**Base directory:** `~/.tfx/cache/`
+
+**Subdirectory layout:**
+- `state/` — state version JSON files, named `<stateVersionID>.json`
+- `cv/` — config version archives and extracted directories, named `<cvID>.tar.gz` and `<cvID>/`
+
+**Cache hit logic:**
+- State JSON: file exists at path → load from disk (skip API call)
+- CV files: directory `<cvID>/` exists and `filepath.WalkDir` returns ≥1 file → load from disk
+
+**Force refresh (`r` key):**
+- Delete existing cached file/directory, re-download, re-write
+
+**Permissions:** `0700` on cache dirs, `0600` on cached files
+
+**No automatic cleanup for MVP.** Users manage `~/.tfx/cache/` manually. Future work: `tfx cache clean` command or LRU eviction policy.
+
+**Helper functions (shared, put in `tui/cache.go`):**
+```go
+func cacheDir() (string, error)                   // returns ~/.tfx/cache, creates if absent
+func stateJSONPath(svID string) (string, error)   // ~/.tfx/cache/state/<svID>.json
+func cvArchivePath(cvID string) (string, error)   // ~/.tfx/cache/cv/<cvID>.tar.gz
+func cvExtractDir(cvID string) (string, error)    // ~/.tfx/cache/cv/<cvID>/
+func extractTarGz(src, destDir string) error      // stdlib archive/tar + compress/gzip
+```
+
+---
+
+#### 7e. In-TUI Content Viewer Design
+
+Used by both the JSON Viewer and File Content Viewer. Same approach as existing detail views: flat `[]string` of pre-rendered lines + scroll offset.
+
+**Line rendering pattern:**
+```
+  123 │ {                                        ← content line
+  124 │   "version": 4,
+  999 │   ...
+```
+- Line number column: right-aligned to width of `len(strconv.Itoa(len(lines)))` + 1 padding, styled with `dimStyle`
+- Separator `│` styled with `dimStyle`
+- Content after `│ `: truncated to `m.width - lineNumWidth - 3` if too long (appended `…`)
+- No word wrap (MVP)
+
+**Scroll half-page keys:**
+- `ctrl+u` → scroll up `contentHeight()/2` lines
+- `ctrl+d` → scroll down `contentHeight()/2` lines
+
+**No external syntax highlighting for MVP.** Plain text only. If future syntax highlighting is desired, evaluate `chroma` (pure Go, no CGO) at that time.
+
+---
+
+#### 7f. New Files Summary
+
+| File | Purpose |
+|---|---|
+| `tui/rundetail.go` | `buildRunDetailSections()`, `renderRunDetailContent()` |
+| `tui/vardetail.go` | `buildVariableDetailSections()`, `renderVariableDetailContent()` |
+| `tui/svdetail.go` | `buildSVDetailSections()`, `renderSVDetailContent()` |
+| `tui/cvdetail.go` | `buildCVDetailSections()`, `renderCVDetailContent()` |
+| `tui/svjson.go` | `renderStateVersionJsonContent()`, JSON load/cache logic |
+| `tui/cvfiles.go` | `renderConfigVersionFilesContent()`, `renderConfigVersionFileContent()`, extract logic |
+| `tui/cache.go` | `cacheDir()`, path helpers, `extractTarGz()` |
+
+**`tui/model.go` changes:**
+- 4 new `viewType` enum values (run/var/sv/cv detail) + 3 more (svJson, cvFiles, cvFileContent) = 7 new view types
+- New selected item fields + scroll fields for each
+- New key handlers: `handleRunDetailKey`, `handleVariableDetailKey`, `handleSVDetailKey`, `handleCVDetailKey`, `handleStateVersionJsonKey`, `handleConfigVersionFilesKey`, `handleConfigVersionFileContentKey`
+- Updated: `navigateBack()`, `refresh()`, `renderContent()`, `renderBreadcrumb()`, `renderStatusBar()`, `renderCliHint()`, `currentCliCmd()`, `renderHelpOverlay()`
+- `enter` in `handleRunsKey` now navigates to `viewRunDetail` (currently `enter` in runs view does nothing)
+- `enter` in `handleVariablesKey`, `handleConfigVersionsKey`, `handleStateVersionsKey` similarly wired
+
+**`tui/messages.go` changes:**
+- `runDetailLoadedMsg`, `svDetailLoadedMsg`, `cvDetailLoadedMsg` (for API re-fetch of full detail objects)
+- `svJsonLoadedMsg`, `svJsonErrMsg`
+- `cvFilesLoadedMsg`, `cvFileContentLoadedMsg`, `cvFileErrMsg`
 
 ---
 
