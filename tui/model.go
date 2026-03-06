@@ -2410,3 +2410,17 @@ func truncateStr(s string, n int) string {
 	}
 	return string(r[:n])
 }
+
+// truncateStrLeft truncates s from the LEFT to at most n runes, prepending "…"
+// if shortened.  This keeps the tail of the string visible — ideal for paths
+// where the deepest directory is the most meaningful part (à la superfile).
+func truncateStrLeft(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	if n > 1 {
+		return "…" + string(r[len(r)-(n-1):])
+	}
+	return string(r[len(r)-n:])
+}

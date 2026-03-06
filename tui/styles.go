@@ -178,5 +178,4 @@ var (
 
 	// HCL/Terraform viewer syntax highlighting
 	hclBlockKeyStyle = lipgloss.NewStyle().Background(colorBg).Foreground(colorPurple) // block type keywords → purple
-	hclFileStyle     = lipgloss.NewStyle().Background(colorBg).Foreground(colorPurple) // .tf file icon/name in browser → purple
 )

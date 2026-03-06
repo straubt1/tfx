@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	lipgloss "charm.land/lipgloss/v2"
+	devicons "github.com/epilande/go-devicons"
 )
 
 // cvFile represents a single entry (file or directory) in an extracted config version.
@@ -82,18 +85,28 @@ func isLastChild(files []cvFile, i, level int) bool {
 
 // buildTreeConnector returns the box-drawing connector prefix for file i, e.g.:
 //
-//	"├── "        (top-level, non-last)
-//	"│   └── "   (depth 1, last child, parent has siblings)
-//	"    ├── "   (depth 1, non-last child, parent was last)
+//	""            (depth 0 — root items have no connector)
+//	"├── "        (depth 1, non-last child)
+//	"└── "        (depth 1, last child)
+//	"    ├── "   (depth 2, non-last child, depth-1 parent was last)
+//	"│   └── "   (depth 2, last child, depth-1 parent has siblings)
+//
+// Root-level (depth 0) items return an empty string — the icon alone signals
+// the entry; connectors are only drawn for nested children.
+// When computing continuation lines, depth-0 ancestors are treated as if they
+// always have no vertical bar (since they carry no connector of their own).
 //
 // Inspired by the charm.land/lipgloss/v2/tree DefaultEnumerator style.
 func buildTreeConnector(files []cvFile, i int) string {
 	d := files[i].depth()
+	if d == 0 {
+		return "" // root items: no connector
+	}
 	var sb strings.Builder
 	// Continuation lines for each ancestor level.
 	for level := 0; level < d; level++ {
-		if isLastChild(files, i, level) {
-			sb.WriteString("    ") // ancestor was last child — no vertical line needed
+		if level == 0 || isLastChild(files, i, level) {
+			sb.WriteString("    ") // depth-0 ancestors never draw │; last-child ancestors also clear
 		} else {
 			sb.WriteString("│   ") // ancestor has siblings below — draw continuation
 		}
@@ -107,11 +120,90 @@ func buildTreeConnector(files []cvFile, i int) string {
 	return sb.String()
 }
 
+// cvFileIcon returns the Nerd Font icon glyph and its hex colour for a file entry.
+// For directories the standard Nerd Font folder icon is used (matches go-devicons DirStyle).
+// For files, go-devicons performs an extension/name lookup; os.Lstat is called with just the
+// display name so it always falls back to the name-based lookup path, which is what we want.
+func cvFileIcon(f cvFile) (string, string) {
+	if f.isDir {
+		return "\uf07b", "#61AFEF" // Nerd Font folder icon (matches devicons.DirStyle)
+	}
+	s := devicons.IconForPath(f.displayName()) // Lstat fails → name/ext lookup
+	return s.Icon, s.Color
+}
+
 // ── File browser rendering ─────────────────────────────────────────────────────
+
+// cvFilesPathBar renders the context bar shown above the column headers,
+// inspired by superfile's top-bar + position counter design.
+//
+// Left side  — "▸  <parent-dir-of-selected-item>"  (left-truncated so the
+//              deepest directory is always visible, à la superfile)
+// Right side — "<cursor+1>/<total>" position indicator
+func (m Model) cvFilesPathBar() string {
+	// Determine the parent directory of the currently selected item.
+	pathText := "/"
+	if m.cvFileCursor >= 0 && m.cvFileCursor < len(m.cvFiles) {
+		sel := m.cvFiles[m.cvFileCursor]
+		dir := filepath.ToSlash(filepath.Dir(sel.relPath))
+		if dir != "" && dir != "." {
+			pathText = dir + "/"
+		}
+	}
+
+	// Position indicator (right side).
+	total := len(m.cvFiles)
+	posText := ""
+	if total > 0 {
+		cur := m.cvFileCursor + 1
+		if cur > total {
+			cur = total
+		}
+		posText = fmt.Sprintf("%d/%d", cur, total)
+	}
+
+	// Render the position label (fixed width, right-aligned).
+	posRendered := detailLabelStyle.Render("  " + posText + "  ")
+	posW := lipgloss.Width(posRendered)
+
+	// Available rune-width for the left path portion.
+	leftAvailW := m.width - posW - 2 // 2 for "  " left margin
+
+	// Build the glyph + path text, then left-truncate so the tail is always visible.
+	// Styled: ▸ in accent blue, path text in default fg.
+	glyphStr := "▸  "
+	fullPath := glyphStr + pathText
+	truncated := truncateStrLeft(fullPath, leftAvailW)
+
+	// Re-split at the glyph boundary for independent colouring.
+	// If truncation ate into the glyph, just render the whole thing in accent.
+	var pathRendered string
+	glyphRunes := []rune(glyphStr)
+	truncRunes := []rune(truncated)
+	if len(truncRunes) >= len(glyphRunes) && string(truncRunes[:len(glyphRunes)]) == glyphStr {
+		// Glyph survived truncation — colour separately.
+		pathRendered = contentStyle.Render("  ") +
+			breadcrumbActiveStyle.Render(glyphStr) +
+			contentStyle.Render(string(truncRunes[len(glyphRunes):]))
+	} else {
+		// Glyph was truncated away (very narrow terminal) — just render in accent.
+		pathRendered = contentStyle.Render("  ") +
+			breadcrumbActiveStyle.Render(truncated)
+	}
+
+	// Fill the gap between the path and the position indicator.
+	pathW := lipgloss.Width(pathRendered)
+	gapW := m.width - pathW - posW
+	if gapW < 0 {
+		gapW = 0
+	}
+
+	return pathRendered + contentStyle.Width(gapW).Render("") + posRendered
+}
 
 // cvFilesVisibleRows returns the number of file-browser rows that fit on screen.
 func (m Model) cvFilesVisibleRows() int {
-	h := m.contentHeight() - 2 // header + divider
+	h := m.contentHeight() - 3 // path bar + header + divider
 	if h < 1 {
 		return 1
 	}
@@ -163,10 +255,12 @@ func (m Model) renderConfigVersionFilesContent() string {
 
 	var lines []string
 
-	// Header + divider (indent header label to align with non-connector depth-0 prefix).
+	// Path context bar (superfile-inspired: current dir + position indicator).
+	lines = append(lines, m.cvFilesPathBar())
+
+	// Header + divider. NAME spans the full name column (root items have no connector prefix).
 	hdr := m.pad(
-		tableHeaderStyle.Render("    ")+ // 4-char indent to align with "├── " / "└── "
-			tableHeaderStyle.Width(nameColW-4).Render("NAME")+
+		tableHeaderStyle.Width(nameColW).Render("NAME")+
 			tableHeaderStyle.Render("  ")+
 			tableHeaderStyle.Width(sizeColW).Render("SIZE"),
 		tableHeaderStyle,
@@ -185,60 +279,55 @@ func (m Model) renderConfigVersionFilesContent() string {
 		for i := m.cvFileOffset; i < end; i++ {
 			f := m.cvFiles[i]
 			selected := i == m.cvFileCursor
-			tfFile := !f.isDir && isHCLFile(f.displayName())
 
 			// Build connector string and measure its width (all ASCII → byte len).
 			connStr := buildTreeConnector(m.cvFiles, i)
 			connW := len(connStr)
 
-			// Available width for the name portion after the connector.
-			availW := nameColW - connW
+			// Icon lookup (Nerd Font glyph + hex color for this file/dir type).
+			iconGlyph, iconColor := cvFileIcon(f)
+			iconStyle := lipgloss.NewStyle().Background(colorBg).Foreground(lipgloss.Color(iconColor))
+			iconRendered := iconStyle.Render(iconGlyph + " ") // glyph + 1 trailing space
+			iconW := lipgloss.Width(iconRendered)             // typically 2
+
+			// Available width for the name portion after connector + icon.
+			availW := nameColW - connW - iconW
 			if availW < 0 {
 				availW = 0
-				connStr = connStr[:nameColW] // truncate connector on very narrow terminals
-				connW = nameColW
+				if connW > nameColW {
+					connStr = connStr[:nameColW] // truncate connector on very narrow terminals
+					connW = nameColW
+				}
 			}
 
 			displayN := f.displayName()
 			size := f.sizeStr()
-
-			// Compute name portion (with optional ◆ icon for HCL files).
-			var namePart string
-			switch {
-			case !selected && tfFile:
-				namePart = truncateStr("◆ "+displayN, availW)
-			default:
-				namePart = truncateStr(displayN, availW)
-			}
+			namePart := truncateStr(displayN, availW)
 
 			// Build the row from separately-styled segments.
-			// Connectors are always dim; item text colour depends on type & selection.
+			// Connectors are always dim; icon carries the file-type colour; name depends on
+			// type (dir = bold, selected = selection highlight, file = default fg).
 			var row string
 			switch {
 			case selected:
-				// Entire row in selection style.
-				row = tableRowSelectedStyle.Render(connStr) +
+				// Entire row in selection style — icon loses its type colour on highlight.
+				row = tableRowSelectedStyle.Render(connStr+iconGlyph+" ") +
 					tableRowSelectedStyle.Width(availW).Render(namePart) +
 					tableRowSelectedStyle.Render("  ") +
 					tableRowSelectedStyle.Width(sizeColW).Render(size)
 				lines = append(lines, m.pad(row, tableRowSelectedStyle))
-			case tfFile:
-				// Connectors dim, name/icon purple.
-				row = jsonPunctStyle.Render(connStr) +
-					hclFileStyle.Width(availW).Render(namePart) +
-					tableRowStyle.Render("  ") +
-					tableRowStyle.Width(sizeColW).Render(size)
-				lines = append(lines, m.pad(row, tableRowStyle))
 			case f.isDir:
-				// Connectors dim, directory name bold/bright.
+				// Connector dim, icon its colour, directory name bold/bright.
 				row = jsonPunctStyle.Render(connStr) +
+					iconRendered +
 					contentTitleStyle.Width(availW).Render(namePart) +
 					tableRowStyle.Render("  ") +
 					tableRowStyle.Width(sizeColW).Render(size)
 				lines = append(lines, m.pad(row, tableRowStyle))
 			default:
-				// Connectors dim, regular file name in default fg.
+				// Connector dim, icon its colour, file name in default fg.
 				row = jsonPunctStyle.Render(connStr) +
+					iconRendered +
 					tableRowStyle.Width(availW).Render(namePart) +
 					tableRowStyle.Render("  ") +
 					tableRowStyle.Width(sizeColW).Render(size)
