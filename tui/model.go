@@ -54,7 +54,9 @@ const (
 	viewVariableDetail     // variable detail (enter from variable list) — Phase 7
 	viewStateVersionDetail // state version detail (enter from SV list) — Phase 7
 	viewConfigVersionDetail // config version detail (enter from CV list) — Phase 7
-	viewStateVersionJson   // state version JSON viewer (o from SV detail) — Phase 7b
+	viewStateVersionJson        // state version JSON viewer (o from SV detail) — Phase 7b
+	viewConfigVersionFiles      // CV file tree browser (x from CV detail) — Phase 7c
+	viewConfigVersionFileContent // CV file content viewer (enter from file browser) — Phase 7c
 )
 
 // Model is the root TUI model. All state lives here per the ELM architecture.
@@ -164,6 +166,18 @@ type Model struct {
 	// Config version detail state (Phase 7)
 	selectedCV  *tfe.ConfigurationVersion
 	cvDetScroll int
+
+	// Config version file browser state (Phase 7c)
+	cvFiles       []cvFile
+	cvFileCursor  int
+	cvFileOffset  int
+	cvFileLoading bool
+	cvFileErr     string
+
+	// Config version file content viewer state (Phase 7c)
+	cvFileLines []string
+	cvFileScroll int
+	cvFileName  string // base name of the currently viewed file
 }
 
 func newModel(c *client.TfxClient) Model {
@@ -191,7 +205,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// ── Spinner ───────────────────────────────────────────────────────────────
 	case spinnerTickMsg:
 		m.spinnerIdx = (m.spinnerIdx + 1) % len(spinnerFrames)
-		if m.loading || m.svJsonLoading {
+		if m.loading || m.svJsonLoading || m.cvFileLoading {
 			return m, tickSpinner()
 		}
 
@@ -270,6 +284,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.svJsonErr = msg.err.Error()
 		m.svJsonLoading = false
 
+	case cvFilesLoadedMsg:
+		m.cvFiles = msg.files
+		m.cvFileLoading = false
+
+	case cvFileContentLoadedMsg:
+		m.cvFileLines = msg.lines
+		m.cvFileName = msg.name
+		m.cvFileScroll = 0
+
+	case cvFileErrMsg:
+		m.cvFileErr = msg.err.Error()
+		m.cvFileLoading = false
+
 	case fetchErrMsg:
 		m.loading = false
 		m.errMsg = msg.err.Error()
@@ -346,6 +373,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.handleCVDetailKey(msg)
 			case viewStateVersionJson:
 				return m.handleSVJsonKey(msg)
+			case viewConfigVersionFiles:
+				return m.handleCVFilesKey(msg)
+			case viewConfigVersionFileContent:
+				return m.handleCVFileContentKey(msg)
 			}
 		}
 	}
@@ -443,6 +474,18 @@ func (m Model) navigateBack() (tea.Model, tea.Cmd) {
 		m.svJsonScroll = 0
 		m.svJsonLoading = false
 		m.svJsonErr = ""
+	case viewConfigVersionFiles:
+		m.currentView = viewConfigVersionDetail
+		m.cvFiles = nil
+		m.cvFileCursor = 0
+		m.cvFileOffset = 0
+		m.cvFileLoading = false
+		m.cvFileErr = ""
+	case viewConfigVersionFileContent:
+		m.currentView = viewConfigVersionFiles
+		m.cvFileLines = nil
+		m.cvFileScroll = 0
+		m.cvFileName = ""
 	case viewConfigVersionDetail:
 		m.currentView = viewConfigVersions
 		m.cvDetScroll = 0
@@ -505,6 +548,20 @@ func (m Model) refresh() (tea.Model, tea.Cmd) {
 			m.svJsonErr = ""
 			return m, tea.Batch(loadStateVersionJson(m.c, m.selectedSV.ID, true), tickSpinner())
 		}
+		return m, nil
+	case viewConfigVersionFiles:
+		// Force re-download: delete cached archive + extracted dir.
+		m.loading = false
+		if m.selectedCV != nil {
+			m.cvFiles = nil
+			m.cvFileLoading = true
+			m.cvFileErr = ""
+			return m, tea.Batch(loadCVFiles(m.c, m.selectedCV.ID, true), tickSpinner())
+		}
+		return m, nil
+	case viewConfigVersionFileContent:
+		// File is already on disk; no-op (re-read not needed for MVP).
+		m.loading = false
 		return m, nil
 	case viewWorkspaceDetail, viewOrgDetail, viewProjectDetail,
 		viewRunDetail, viewVariableDetail, viewStateVersionDetail, viewConfigVersionDetail:
@@ -978,6 +1035,83 @@ func (m Model) handleCVDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.cvDetScroll = 0
 	case "G":
 		m.cvDetScroll = 9999
+	case "x":
+		if m.selectedCV != nil {
+			m.cvFiles = nil
+			m.cvFileCursor = 0
+			m.cvFileOffset = 0
+			m.cvFileLoading = true
+			m.cvFileErr = ""
+			m.currentView = viewConfigVersionFiles
+			return m, tea.Batch(loadCVFiles(m.c, m.selectedCV.ID, false), tickSpinner())
+		}
+	}
+	return m, nil
+}
+
+func (m Model) handleCVFilesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	n := len(m.cvFiles)
+	vis := m.cvFilesVisibleRows()
+	switch msg.String() {
+	case "up", "k":
+		if m.cvFileCursor > 0 {
+			m.cvFileCursor--
+			if m.cvFileCursor < m.cvFileOffset {
+				m.cvFileOffset = m.cvFileCursor
+			}
+		}
+	case "down", "j":
+		if m.cvFileCursor < n-1 {
+			m.cvFileCursor++
+			if m.cvFileCursor >= m.cvFileOffset+vis {
+				m.cvFileOffset = m.cvFileCursor - vis + 1
+			}
+		}
+	case "g":
+		m.cvFileCursor, m.cvFileOffset = 0, 0
+	case "G":
+		m.cvFileCursor = n - 1
+		if n > vis {
+			m.cvFileOffset = n - vis
+		}
+	case "enter":
+		if n == 0 || m.cvFileCursor >= n {
+			break
+		}
+		sel := m.cvFiles[m.cvFileCursor]
+		if sel.isDir {
+			break // directories are not openable in MVP
+		}
+		m.cvFileLines = nil
+		m.cvFileScroll = 0
+		m.cvFileName = sel.displayName()
+		m.currentView = viewConfigVersionFileContent
+		return m, loadCVFileContent(m.selectedCV.ID, sel)
+	}
+	return m, nil
+}
+
+func (m Model) handleCVFileContentKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if m.cvFileScroll > 0 {
+			m.cvFileScroll--
+		}
+	case "down", "j":
+		m.cvFileScroll++
+	case "shift+up":
+		half := m.contentHeight() / 2
+		if m.cvFileScroll > half {
+			m.cvFileScroll -= half
+		} else {
+			m.cvFileScroll = 0
+		}
+	case "shift+down":
+		m.cvFileScroll += m.contentHeight() / 2
+	case "g":
+		m.cvFileScroll = 0
+	case "G":
+		m.cvFileScroll = 9999
 	}
 	return m, nil
 }
@@ -1535,6 +1669,11 @@ func (m Model) currentCliCmd() string {
 			return fmt.Sprintf("tfx workspace sv download -n %s", m.selectedWS.Name)
 		}
 		return "tfx workspace sv download"
+	case viewConfigVersionFiles, viewConfigVersionFileContent:
+		if m.selectedWS != nil {
+			return fmt.Sprintf("tfx workspace cv download -n %s", m.selectedWS.Name)
+		}
+		return "tfx workspace cv download"
 	case viewConfigVersionDetail:
 		if m.selectedCV != nil {
 			return fmt.Sprintf("tfx workspace cv show --config-version-id %s", m.selectedCV.ID)
@@ -1655,6 +1794,10 @@ func (m Model) renderContent() string {
 		return m.renderConfigVersionDetailContent()
 	case viewStateVersionJson:
 		return m.renderStateVersionJsonContent()
+	case viewConfigVersionFiles:
+		return m.renderConfigVersionFilesContent()
+	case viewConfigVersionFileContent:
+		return m.renderConfigVersionFileContent()
 	}
 	return m.renderLoadingContent()
 }
@@ -1869,6 +2012,36 @@ func (m Model) renderBreadcrumb() string {
 			sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("sv: %s", svSerial)) +
 			sep + breadcrumbActiveStyle.Render("json ")
+	case viewConfigVersionFiles:
+		cvID := ""
+		if m.selectedCV != nil {
+			cvID = m.selectedCV.ID
+		}
+		line = orgPart + sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
+			sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep +
+			breadcrumbBarStyle.Render("config versions") +
+			sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("cv: %s", cvID)) +
+			sep + breadcrumbActiveStyle.Render("files ")
+	case viewConfigVersionFileContent:
+		cvID := ""
+		if m.selectedCV != nil {
+			cvID = m.selectedCV.ID
+		}
+		line = orgPart + sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
+			sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep +
+			breadcrumbBarStyle.Render("config versions") +
+			sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("cv: %s", cvID)) +
+			sep +
+			breadcrumbBarStyle.Render("files") +
+			sep + breadcrumbActiveStyle.Render(m.cvFileName+" ")
 	default:
 		line = orgPart
 	}
@@ -1990,6 +2163,40 @@ func (m Model) renderStatusBar() string {
 			sizeStr = fmt.Sprintf("%d KB", totalBytes/1024)
 		}
 		msg = fmt.Sprintf("  state JSON  •  line %d of %d  (%s)", cur, numLines, sizeStr)
+	case viewConfigVersionFiles:
+		if m.cvFileLoading {
+			frame := spinnerFrames[m.spinnerIdx]
+			return m.pad(statusLoadingStyle.Render("  "+frame+"  Downloading config version archive…"), statusLoadingStyle)
+		}
+		if m.cvFileErr != "" {
+			return m.pad(statusErrorStyle.Render(fmt.Sprintf("  ✗  %s", m.cvFileErr)), statusErrorStyle)
+		}
+		cvID := ""
+		if m.selectedCV != nil {
+			cvID = m.selectedCV.ID
+		}
+		msg = fmt.Sprintf("  config version files  •  %s  •  %d files", cvID, len(m.cvFiles))
+	case viewConfigVersionFileContent:
+		numLines := len(m.cvFileLines)
+		cur := m.cvFileScroll + 1
+		if cur > numLines {
+			cur = numLines
+		}
+		totalBytes := 0
+		for _, l := range m.cvFileLines {
+			totalBytes += len(l) + 1
+		}
+		var sizeStr string
+		if totalBytes < 1024 {
+			sizeStr = fmt.Sprintf("%d B", totalBytes)
+		} else {
+			sizeStr = fmt.Sprintf("%d KB", totalBytes/1024)
+		}
+		name := m.cvFileName
+		if name == "" {
+			name = "file"
+		}
+		msg = fmt.Sprintf("  %s  •  line %d of %d  (%s)", name, cur, numLines, sizeStr)
 	default:
 		msg = "  Ready"
 	}
@@ -2012,12 +2219,18 @@ func (m Model) renderCliHint() string {
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   u url   U browser   •   ? help   •   q quit")
 	case m.currentView == viewRunDetail:
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   u url   U browser   •   ? help   •   q quit")
-	case m.currentView == viewVariableDetail, m.currentView == viewConfigVersionDetail:
+	case m.currentView == viewVariableDetail:
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   ? help   •   q quit")
 	case m.currentView == viewStateVersionDetail:
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   o json viewer   •   ? help   •   q quit")
 	case m.currentView == viewStateVersionJson:
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   shift+↑↓ half page   •   r re-fetch   •   ? help   •   q quit")
+	case m.currentView == viewConfigVersionDetail:
+		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   x archive browser   •   ? help   •   q quit")
+	case m.currentView == viewConfigVersionFiles:
+		hints = cliHintBarStyle.Render("   •   ↑ ↓ navigate   •   enter open   •   r re-fetch   •   ? help   •   q quit")
+	case m.currentView == viewConfigVersionFileContent:
+		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   shift+↑↓ half page   •   ? help   •   q quit")
 	case m.isWorkspaceSubView():
 		hints = cliHintBarStyle.Render("   •   enter detail   •   ← → switch tabs   •   d ws detail   •   u url   U browser   •   c copy   •   ? help   •   q quit")
 	default:
@@ -2057,6 +2270,7 @@ func (m Model) renderHelpOverlay() string {
 		{"[ws tab] ← →", "switch tabs"},
 		{"[ws tab] enter", "view item detail"},
 		{"[sv detail] o", "open state JSON viewer"},
+		{"[cv detail] x", "open archive browser"},
 		{"[ws tab] d", "view workspace detail"},
 		{"[ws tab] u", "copy workspace URL"},
 		{"[ws tab] U", "open workspace in browser"},

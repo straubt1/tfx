@@ -18,6 +18,20 @@ import (
 	"github.com/straubt1/tfx/data"
 )
 
+// ── Phase 7c CV file message types ───────────────────────────────────────────
+
+// cvFilesLoadedMsg carries the flat sorted file list for a config version.
+type cvFilesLoadedMsg struct{ files []cvFile }
+
+// cvFileContentLoadedMsg carries the lines and base name of a file read from disk.
+type cvFileContentLoadedMsg struct {
+	lines []string
+	name  string
+}
+
+// cvFileErrMsg carries an error from a CV archive download or file read.
+type cvFileErrMsg struct{ err error }
+
 // ── Phase 7 detail message types ──────────────────────────────────────────────
 
 // runDetailLoadedMsg carries a fully-fetched run (with Plan, Apply, CV + ingress includes).
@@ -163,10 +177,16 @@ func loadRunDetail(c *client.TfxClient, runID string) tea.Cmd {
 }
 
 // svJsonCachePath returns the on-disk cache path for a state version's JSON.
-// Path: ~/.tfx/cache/state/<svID>.json
+// Kept as a simple path helper (does not use the cacheDir() helper to avoid
+// creating directories on every call).
 func svJsonCachePath(svID string) string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".tfx", "cache", "state", svID+".json")
+	p, err := stateJSONPath(svID)
+	if err != nil {
+		// Fallback using home dir directly.
+		home, _ := os.UserHomeDir()
+		return filepath.Join(home, ".tfx", "cache", "state", svID+".json")
+	}
+	return p
 }
 
 // loadStateVersionJson downloads (or loads from cache) the state JSON for svID.
@@ -204,5 +224,103 @@ func loadStateVersionJson(c *client.TfxClient, svID string, force bool) tea.Cmd 
 
 		lines := strings.Split(string(b), "\n")
 		return svJsonLoadedMsg{lines: lines}
+	}
+}
+
+// ── CV archive commands ───────────────────────────────────────────────────────
+
+// walkCVExtractDir walks the extracted directory and returns a flat sorted list
+// of cvFile entries (filepath.WalkDir visits in lexicographic order).
+func walkCVExtractDir(dir string) ([]cvFile, error) {
+	var files []cvFile
+	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil // skip unreadable entries
+		}
+		rel, err := filepath.Rel(dir, path)
+		if err != nil || rel == "." {
+			return nil // skip root itself
+		}
+		info, err := d.Info()
+		if err != nil {
+			return nil
+		}
+		files = append(files, cvFile{
+			relPath: rel,
+			size:    info.Size(),
+			isDir:   d.IsDir(),
+		})
+		return nil
+	})
+	return files, err
+}
+
+// loadCVFiles downloads (or loads from cache) the config version archive and
+// returns its file list. Set force=true to bypass the on-disk cache.
+func loadCVFiles(c *client.TfxClient, cvID string, force bool) tea.Cmd {
+	return func() tea.Msg {
+		archivePath, err := cvArchivePath(cvID)
+		if err != nil {
+			return cvFileErrMsg{err: err}
+		}
+		extractDir, err := cvExtractDir(cvID)
+		if err != nil {
+			return cvFileErrMsg{err: err}
+		}
+
+		// Cache hit: extract dir exists and has content.
+		if !force {
+			if files, err := walkCVExtractDir(extractDir); err == nil && len(files) > 0 {
+				return cvFilesLoadedMsg{files: files}
+			}
+		}
+
+		// Force re-download: remove existing cache entries.
+		if force {
+			_ = os.RemoveAll(extractDir)
+			_ = os.Remove(archivePath)
+			if err := os.MkdirAll(extractDir, 0700); err != nil {
+				return cvFileErrMsg{err: err}
+			}
+		}
+
+		// Download the archive.
+		b, err := data.DownloadConfigurationVersion(c, cvID)
+		if err != nil {
+			return cvFileErrMsg{err: err}
+		}
+
+		// Write archive to disk.
+		if err := os.WriteFile(archivePath, b, 0600); err != nil {
+			return cvFileErrMsg{err: err}
+		}
+
+		// Extract.
+		if err := extractTarGz(archivePath, extractDir); err != nil {
+			return cvFileErrMsg{err: err}
+		}
+
+		// Walk and return file list.
+		files, err := walkCVExtractDir(extractDir)
+		if err != nil {
+			return cvFileErrMsg{err: err}
+		}
+		return cvFilesLoadedMsg{files: files}
+	}
+}
+
+// loadCVFileContent reads a single file from the already-extracted CV directory.
+func loadCVFileContent(cvID string, f cvFile) tea.Cmd {
+	return func() tea.Msg {
+		extractDir, err := cvExtractDir(cvID)
+		if err != nil {
+			return cvFileErrMsg{err: err}
+		}
+		b, err := os.ReadFile(filepath.Join(extractDir, f.relPath))
+		if err != nil {
+			return cvFileErrMsg{err: err}
+		}
+		lines := strings.Split(string(b), "\n")
+		return cvFileContentLoadedMsg{lines: lines, name: filepath.Base(f.relPath)}
 	}
 }
