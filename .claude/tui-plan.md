@@ -1,7 +1,7 @@
 # TFx TUI — Planning Document
 
-> Status: Phase 1 complete.
-> Last updated: 2026-03-05 (Phase 1 implemented)
+> Status: Phases 1–4 complete (MVP delivered).
+> Last updated: 2026-03-05
 
 ---
 

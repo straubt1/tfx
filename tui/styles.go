@@ -18,6 +18,7 @@ var (
 	colorSelected  = lipgloss.Color("#1C2128") // slightly lighter than bg for selected row
 	colorError     = lipgloss.Color("#F85149")
 	colorLoading   = lipgloss.Color("#D29922")
+	colorSuccess   = lipgloss.Color("#3FB950") // GitHub dark green
 )
 
 var (
@@ -117,6 +118,10 @@ var (
 	statusErrorStyle = lipgloss.NewStyle().
 			Background(colorHeaderBg).
 			Foreground(colorError)
+
+	statusSuccessStyle = lipgloss.NewStyle().
+				Background(colorHeaderBg).
+				Foreground(colorSuccess)
 
 	// Table
 	tableHeaderStyle = lipgloss.NewStyle().

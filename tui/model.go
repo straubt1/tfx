@@ -5,6 +5,9 @@ package tui
 
 import (
 	"fmt"
+	"image/color"
+	"os/exec"
+	"runtime"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -25,6 +28,7 @@ type viewType int
 const (
 	viewProjects   viewType = iota
 	viewWorkspaces
+	viewRuns
 )
 
 // Model is the root TUI model. All state lives here per the ELM architecture.
@@ -43,9 +47,10 @@ type Model struct {
 	currentView viewType
 	showHelp    bool
 
-	// Loading / error state
-	loading bool
-	errMsg  string
+	// Loading / error / transient state
+	loading      bool
+	errMsg       string
+	clipFeedback string // cleared on next keypress
 
 	// Project list state
 	projects      []*tfe.Project
@@ -61,6 +66,14 @@ type Model struct {
 	wsFilter     string
 	wsFiltering  bool
 	selectedProj *tfe.Project
+
+	// Run list state
+	runs         []*tfe.Run
+	runCursor    int
+	runOffset    int
+	runFilter    string
+	runFiltering bool
+	selectedWS   *tfe.Workspace
 }
 
 func newModel(c *client.TfxClient) Model {
@@ -96,11 +109,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.wsOffset = 0
 		m.errMsg = ""
 
+	case runsLoadedMsg:
+		m.runs = []*tfe.Run(msg)
+		m.loading = false
+		m.currentView = viewRuns
+		m.runOffset = 0
+		m.errMsg = ""
+
 	case fetchErrMsg:
 		m.loading = false
 		m.errMsg = msg.err.Error()
 
 	case tea.KeyPressMsg:
+		// Clear transient clipboard feedback on next key.
+		m.clipFeedback = ""
+
 		// Help overlay consumes all keys.
 		if m.showHelp {
 			if msg.String() == "esc" || msg.String() == "?" {
@@ -125,6 +148,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.navigateBack()
 		case "r":
 			return m.refresh()
+		case "c":
+			cmd := m.currentCliCmd()
+			if err := copyToClipboard(cmd); err == nil {
+				m.clipFeedback = "✓ copied to clipboard"
+			} else {
+				m.clipFeedback = "clipboard unavailable"
+			}
+			return m, nil
 		}
 
 		// View-specific navigation (only when not loading).
@@ -134,6 +165,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.handleProjectsKey(msg)
 			case viewWorkspaces:
 				return m.handleWorkspacesKey(msg)
+			case viewRuns:
+				return m.handleRunsKey(msg)
 			}
 		}
 	}
@@ -178,6 +211,14 @@ func (m Model) navigateBack() (tea.Model, tea.Cmd) {
 		m.wsFilter = ""
 		m.wsFiltering = false
 		m.selectedProj = nil
+	case viewRuns:
+		m.currentView = viewWorkspaces
+		m.runs = nil
+		m.runCursor = 0
+		m.runOffset = 0
+		m.runFilter = ""
+		m.runFiltering = false
+		m.selectedWS = nil
 	}
 	return m, nil
 }
@@ -200,6 +241,13 @@ func (m Model) refresh() (tea.Model, tea.Cmd) {
 			projectID = m.selectedProj.ID
 		}
 		return m, loadWorkspaces(m.c, m.org, projectID)
+	case viewRuns:
+		m.runs = nil
+		m.runCursor = 0
+		m.runOffset = 0
+		if m.selectedWS != nil {
+			return m, loadRuns(m.c, m.selectedWS.ID)
+		}
 	}
 	return m, nil
 }
@@ -208,56 +256,63 @@ func (m Model) refresh() (tea.Model, tea.Cmd) {
 
 func (m Model) isFiltering() bool {
 	return (m.currentView == viewProjects && m.projFiltering) ||
-		(m.currentView == viewWorkspaces && m.wsFiltering)
+		(m.currentView == viewWorkspaces && m.wsFiltering) ||
+		(m.currentView == viewRuns && m.runFiltering)
 }
 
 func (m Model) handleFilterKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
-		if m.currentView == viewProjects {
-			m.projFilter = ""
-			m.projFiltering = false
-			m.projCursor = 0
-			m.projOffset = 0
-		} else {
-			m.wsFilter = ""
-			m.wsFiltering = false
-			m.wsCursor = 0
-			m.wsOffset = 0
+		switch m.currentView {
+		case viewProjects:
+			m.projFilter, m.projFiltering = "", false
+			m.projCursor, m.projOffset = 0, 0
+		case viewWorkspaces:
+			m.wsFilter, m.wsFiltering = "", false
+			m.wsCursor, m.wsOffset = 0, 0
+		case viewRuns:
+			m.runFilter, m.runFiltering = "", false
+			m.runCursor, m.runOffset = 0, 0
 		}
 	case "enter":
-		if m.currentView == viewProjects {
+		switch m.currentView {
+		case viewProjects:
 			m.projFiltering = false
-		} else {
+		case viewWorkspaces:
 			m.wsFiltering = false
+		case viewRuns:
+			m.runFiltering = false
 		}
 	case "backspace":
-		if m.currentView == viewProjects {
-			r := []rune(m.projFilter)
-			if len(r) > 0 {
+		switch m.currentView {
+		case viewProjects:
+			if r := []rune(m.projFilter); len(r) > 0 {
 				m.projFilter = string(r[:len(r)-1])
-				m.projCursor = 0
-				m.projOffset = 0
+				m.projCursor, m.projOffset = 0, 0
 			}
-		} else {
-			r := []rune(m.wsFilter)
-			if len(r) > 0 {
+		case viewWorkspaces:
+			if r := []rune(m.wsFilter); len(r) > 0 {
 				m.wsFilter = string(r[:len(r)-1])
-				m.wsCursor = 0
-				m.wsOffset = 0
+				m.wsCursor, m.wsOffset = 0, 0
+			}
+		case viewRuns:
+			if r := []rune(m.runFilter); len(r) > 0 {
+				m.runFilter = string(r[:len(r)-1])
+				m.runCursor, m.runOffset = 0, 0
 			}
 		}
 	default:
-		r := []rune(msg.String())
-		if len(r) == 1 && r[0] >= 32 {
-			if m.currentView == viewProjects {
+		if r := []rune(msg.String()); len(r) == 1 && r[0] >= 32 {
+			switch m.currentView {
+			case viewProjects:
 				m.projFilter += string(r)
-				m.projCursor = 0
-				m.projOffset = 0
-			} else {
+				m.projCursor, m.projOffset = 0, 0
+			case viewWorkspaces:
 				m.wsFilter += string(r)
-				m.wsCursor = 0
-				m.wsOffset = 0
+				m.wsCursor, m.wsOffset = 0, 0
+			case viewRuns:
+				m.runFilter += string(r)
+				m.runCursor, m.runOffset = 0, 0
 			}
 		}
 	}
@@ -285,8 +340,7 @@ func (m Model) handleProjectsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case "g":
-		m.projCursor = 0
-		m.projOffset = 0
+		m.projCursor, m.projOffset = 0, 0
 	case "G":
 		if n > 0 {
 			m.projCursor = n - 1
@@ -304,9 +358,7 @@ func (m Model) handleProjectsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.selectedProj = sel
 		m.loading = true
 		m.errMsg = ""
-		m.wsCursor = 0
-		m.wsOffset = 0
-		m.wsFilter = ""
+		m.wsCursor, m.wsOffset, m.wsFilter = 0, 0, ""
 		return m, loadWorkspaces(m.c, m.org, sel.ID)
 	}
 	return m, nil
@@ -333,8 +385,7 @@ func (m Model) handleWorkspacesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case "g":
-		m.wsCursor = 0
-		m.wsOffset = 0
+		m.wsCursor, m.wsOffset = 0, 0
 	case "G":
 		if n > 0 {
 			m.wsCursor = n - 1
@@ -345,7 +396,52 @@ func (m Model) handleWorkspacesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "/":
 		m.wsFiltering = true
 	case "enter":
-		// Phase 3: drill into runs.
+		if n == 0 || m.wsCursor >= n {
+			break
+		}
+		sel := filtered[m.wsCursor]
+		m.selectedWS = sel
+		m.loading = true
+		m.errMsg = ""
+		m.runCursor, m.runOffset, m.runFilter = 0, 0, ""
+		return m, loadRuns(m.c, sel.ID)
+	}
+	return m, nil
+}
+
+func (m Model) handleRunsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	filtered := filteredRuns(m)
+	n := len(filtered)
+	vis := m.runVisibleRows()
+
+	switch msg.String() {
+	case "up", "k":
+		if m.runCursor > 0 {
+			m.runCursor--
+			if m.runCursor < m.runOffset {
+				m.runOffset = m.runCursor
+			}
+		}
+	case "down", "j":
+		if m.runCursor < n-1 {
+			m.runCursor++
+			if m.runCursor >= m.runOffset+vis {
+				m.runOffset = m.runCursor - vis + 1
+			}
+		}
+	case "g":
+		m.runCursor, m.runOffset = 0, 0
+	case "G":
+		if n > 0 {
+			m.runCursor = n - 1
+			if n > vis {
+				m.runOffset = n - vis
+			}
+		}
+	case "/":
+		m.runFiltering = true
+	case "enter":
+		// Phase 5: drill into run detail.
 	}
 	return m, nil
 }
@@ -361,9 +457,9 @@ func (m Model) contentHeight() int {
 }
 
 func (m Model) projVisibleRows() int {
-	h := m.contentHeight() - 2 // header + divider
+	h := m.contentHeight() - 2 // table header + divider
 	if m.projFilter != "" || m.projFiltering {
-		h--
+		h-- // filter bar
 	}
 	if h < 1 {
 		return 1
@@ -382,6 +478,17 @@ func (m Model) wsVisibleRows() int {
 	return h
 }
 
+func (m Model) runVisibleRows() int {
+	h := m.contentHeight() - 2
+	if m.runFilter != "" || m.runFiltering {
+		h--
+	}
+	if h < 1 {
+		return 1
+	}
+	return h
+}
+
 // pad fills a rendered string to the full terminal width using the given style.
 func (m Model) pad(rendered string, style lipgloss.Style) string {
 	w := m.width - lipgloss.Width(rendered)
@@ -389,6 +496,43 @@ func (m Model) pad(rendered string, style lipgloss.Style) string {
 		w = 0
 	}
 	return rendered + style.Width(w).Render("")
+}
+
+// currentCliCmd returns the equivalent tfx CLI command for the active view.
+func (m Model) currentCliCmd() string {
+	switch m.currentView {
+	case viewProjects:
+		return "tfx project list"
+	case viewWorkspaces:
+		if m.selectedProj != nil {
+			return fmt.Sprintf("tfx workspace list --project-id %s", m.selectedProj.ID)
+		}
+		return "tfx workspace list"
+	case viewRuns:
+		if m.selectedWS != nil {
+			return fmt.Sprintf("tfx workspace run list -n %s", m.selectedWS.Name)
+		}
+		return "tfx workspace run list"
+	default:
+		return "tfx"
+	}
+}
+
+// copyToClipboard writes text to the system clipboard via a platform-native command.
+func copyToClipboard(text string) error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("pbcopy")
+	case "linux":
+		cmd = exec.Command("xclip", "-selection", "clipboard")
+	case "windows":
+		cmd = exec.Command("clip")
+	default:
+		return fmt.Errorf("clipboard not supported on %s", runtime.GOOS)
+	}
+	cmd.Stdin = strings.NewReader(text)
+	return cmd.Run()
 }
 
 // ── Content routing ───────────────────────────────────────────────────────────
@@ -405,6 +549,8 @@ func (m Model) renderContent() string {
 		return m.renderProjectsContent()
 	case viewWorkspaces:
 		return m.renderWorkspacesContent()
+	case viewRuns:
+		return m.renderRunsContent()
 	}
 	return m.renderLoadingContent()
 }
@@ -468,6 +614,20 @@ func (m Model) renderBreadcrumb() string {
 		line = orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
 			sep + breadcrumbActiveStyle.Render("workspaces ")
+	case viewRuns:
+		projName := ""
+		if m.selectedProj != nil {
+			projName = m.selectedProj.Name
+		}
+		wsName := ""
+		if m.selectedWS != nil {
+			wsName = m.selectedWS.Name
+		}
+		line = orgPart + sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
+			sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbActiveStyle.Render("runs ")
 	default:
 		line = orgPart
 	}
@@ -480,6 +640,9 @@ func (m Model) renderStatusBar() string {
 	}
 	if m.errMsg != "" {
 		return m.pad(statusErrorStyle.Render(fmt.Sprintf("  ✗  %s", m.errMsg)), statusErrorStyle)
+	}
+	if m.clipFeedback != "" {
+		return m.pad(statusSuccessStyle.Render("  "+m.clipFeedback), statusSuccessStyle)
 	}
 
 	var msg string
@@ -498,6 +661,13 @@ func (m Model) renderStatusBar() string {
 		} else {
 			msg = fmt.Sprintf("  %d workspaces", len(m.workspaces))
 		}
+	case viewRuns:
+		fr := filteredRuns(m)
+		if m.runFilter != "" {
+			msg = fmt.Sprintf("  %d / %d runs  •  filter: %s", len(fr), len(m.runs), m.runFilter)
+		} else {
+			msg = fmt.Sprintf("  %d runs", len(m.runs))
+		}
 	default:
 		msg = "  Ready"
 	}
@@ -505,23 +675,9 @@ func (m Model) renderStatusBar() string {
 }
 
 func (m Model) renderCliHint() string {
-	var cliCmd string
-	switch m.currentView {
-	case viewProjects:
-		cliCmd = "tfx project list"
-	case viewWorkspaces:
-		if m.selectedProj != nil {
-			cliCmd = fmt.Sprintf("tfx workspace list --project-id %s", m.selectedProj.ID)
-		} else {
-			cliCmd = "tfx workspace list"
-		}
-	default:
-		cliCmd = "tfx"
-	}
-
 	label := cliHintBarStyle.Render("  cmd: ")
-	cmd := cliHintCmdStyle.Render(cliCmd)
-	hints := cliHintBarStyle.Render("   •   ? help   •   q quit")
+	cmd := cliHintCmdStyle.Render(m.currentCliCmd())
+	hints := cliHintBarStyle.Render("   •   c copy   •   ? help   •   q quit")
 	return m.pad(label+cmd+hints, cliHintBarStyle)
 }
 
@@ -540,6 +696,7 @@ func (m Model) renderHelpOverlay() string {
 		{"r", "refresh"},
 		{"/", "filter"},
 		{"g / G", "jump to top / bottom"},
+		{"c", "copy CLI command"},
 		{"?", "toggle help"},
 		{"q", "quit"},
 	}
@@ -565,7 +722,7 @@ func (m Model) renderHelpOverlay() string {
 	return strings.Join(lines[:m.height], "\n")
 }
 
-// ── Table rendering (shared by projects + workspaces) ────────────────────────
+// ── Table rendering (shared by all list views) ────────────────────────────────
 
 // column defines a table column's display name and character width.
 type column struct {
@@ -603,8 +760,34 @@ func (m Model) renderTableRow(selected bool, cells []string, cols []column) stri
 		parts = append(parts, style.Width(col.width).Render(val))
 		parts = append(parts, style.Render("  "))
 	}
-
 	return m.pad(strings.Join(parts, ""), style)
+}
+
+// renderTableRowWithCellStyles renders a row where individual cells can have
+// a custom foreground color. cellFgs[i] overrides the fg for column i when
+// the row is not selected (selection style always takes precedence).
+func (m Model) renderTableRowWithCellStyles(selected bool, cells []string, cols []column, cellFgs []color.Color) string {
+	base := tableRowStyle
+	cursor := "  "
+	if selected {
+		base = tableRowSelectedStyle
+		cursor = "> "
+	}
+
+	parts := []string{base.Render(cursor)}
+	for i, col := range cols {
+		val := ""
+		if i < len(cells) {
+			val = truncateStr(cells[i], col.width)
+		}
+		cellStyle := base.Width(col.width)
+		if !selected && i < len(cellFgs) && cellFgs[i] != nil {
+			cellStyle = cellStyle.Foreground(cellFgs[i])
+		}
+		parts = append(parts, cellStyle.Render(val))
+		parts = append(parts, base.Render("  "))
+	}
+	return m.pad(strings.Join(parts, ""), base)
 }
 
 func (m Model) renderFilterBar(filter string, active bool) string {
