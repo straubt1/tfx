@@ -4,6 +4,11 @@
 package tui
 
 import (
+	"bytes"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -17,6 +22,12 @@ import (
 
 // runDetailLoadedMsg carries a fully-fetched run (with Plan, Apply, CV + ingress includes).
 type runDetailLoadedMsg *tfe.Run
+
+// svJsonLoadedMsg carries the lines of a downloaded (and pretty-printed) state JSON.
+type svJsonLoadedMsg struct{ lines []string }
+
+// svJsonErrMsg carries an error from the state JSON download.
+type svJsonErrMsg struct{ err error }
 
 // ── Spinner ───────────────────────────────────────────────────────────────────
 
@@ -148,5 +159,50 @@ func loadRunDetail(c *client.TfxClient, runID string) tea.Cmd {
 			return nil
 		}
 		return runDetailLoadedMsg(run)
+	}
+}
+
+// svJsonCachePath returns the on-disk cache path for a state version's JSON.
+// Path: ~/.tfx/cache/state/<svID>.json
+func svJsonCachePath(svID string) string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".tfx", "cache", "state", svID+".json")
+}
+
+// loadStateVersionJson downloads (or loads from cache) the state JSON for svID.
+// If force is true the cached file is ignored and a fresh download is performed.
+func loadStateVersionJson(c *client.TfxClient, svID string, force bool) tea.Cmd {
+	return func() tea.Msg {
+		cacheFile := svJsonCachePath(svID)
+
+		// Try cache first (unless force re-download requested).
+		if !force {
+			if b, err := os.ReadFile(cacheFile); err == nil {
+				lines := strings.Split(string(b), "\n")
+				return svJsonLoadedMsg{lines: lines}
+			}
+		}
+
+		// Download via the data layer.
+		b, err := data.DownloadStateVersion(c, svID)
+		if err != nil {
+			return svJsonErrMsg{err: err}
+		}
+
+		// Pretty-print the JSON for readability.
+		var pretty bytes.Buffer
+		if jerr := json.Indent(&pretty, b, "", "  "); jerr == nil {
+			b = pretty.Bytes()
+		}
+
+		// Write to cache (best-effort; ignore errors).
+		if dir := filepath.Dir(cacheFile); dir != "" {
+			if merr := os.MkdirAll(dir, 0755); merr == nil {
+				_ = os.WriteFile(cacheFile, b, 0644)
+			}
+		}
+
+		lines := strings.Split(string(b), "\n")
+		return svJsonLoadedMsg{lines: lines}
 	}
 }

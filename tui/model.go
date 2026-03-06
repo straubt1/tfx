@@ -50,10 +50,11 @@ const (
 	viewWorkspaceDetail   // workspace settings detail (d key from workspace list)
 	viewOrgDetail         // organization detail (d key from org list)
 	viewProjectDetail     // project detail (d key from project list)
-	viewRunDetail         // run detail (enter from run list) — Phase 7
-	viewVariableDetail    // variable detail (enter from variable list) — Phase 7
+	viewRunDetail          // run detail (enter from run list) — Phase 7
+	viewVariableDetail     // variable detail (enter from variable list) — Phase 7
 	viewStateVersionDetail // state version detail (enter from SV list) — Phase 7
 	viewConfigVersionDetail // config version detail (enter from CV list) — Phase 7
+	viewStateVersionJson   // state version JSON viewer (o from SV detail) — Phase 7b
 )
 
 // Model is the root TUI model. All state lives here per the ELM architecture.
@@ -154,6 +155,12 @@ type Model struct {
 	selectedSV  *tfe.StateVersion
 	svDetScroll int
 
+	// State version JSON viewer state (Phase 7b)
+	svJsonLines   []string
+	svJsonScroll  int
+	svJsonLoading bool
+	svJsonErr     string
+
 	// Config version detail state (Phase 7)
 	selectedCV  *tfe.ConfigurationVersion
 	cvDetScroll int
@@ -184,7 +191,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// ── Spinner ───────────────────────────────────────────────────────────────
 	case spinnerTickMsg:
 		m.spinnerIdx = (m.spinnerIdx + 1) % len(spinnerFrames)
-		if m.loading {
+		if m.loading || m.svJsonLoading {
 			return m, tickSpinner()
 		}
 
@@ -254,6 +261,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg != nil {
 			m.selectedRun = (*tfe.Run)(msg)
 		}
+
+	case svJsonLoadedMsg:
+		m.svJsonLines = msg.lines
+		m.svJsonLoading = false
+
+	case svJsonErrMsg:
+		m.svJsonErr = msg.err.Error()
+		m.svJsonLoading = false
 
 	case fetchErrMsg:
 		m.loading = false
@@ -329,6 +344,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.handleSVDetailKey(msg)
 			case viewConfigVersionDetail:
 				return m.handleCVDetailKey(msg)
+			case viewStateVersionJson:
+				return m.handleSVJsonKey(msg)
 			}
 		}
 	}
@@ -420,6 +437,12 @@ func (m Model) navigateBack() (tea.Model, tea.Cmd) {
 		m.currentView = viewStateVersions
 		m.svDetScroll = 0
 		m.selectedSV = nil
+	case viewStateVersionJson:
+		m.currentView = viewStateVersionDetail
+		m.svJsonLines = nil
+		m.svJsonScroll = 0
+		m.svJsonLoading = false
+		m.svJsonErr = ""
 	case viewConfigVersionDetail:
 		m.currentView = viewConfigVersions
 		m.cvDetScroll = 0
@@ -473,6 +496,16 @@ func (m Model) refresh() (tea.Model, tea.Cmd) {
 		if m.selectedWS != nil {
 			cmd = loadStateVersions(m.c, m.org, m.selectedWS.Name)
 		}
+	case viewStateVersionJson:
+		// Force re-download: bypass cache and restart the JSON load.
+		m.loading = false
+		if m.selectedSV != nil {
+			m.svJsonLines = nil
+			m.svJsonLoading = true
+			m.svJsonErr = ""
+			return m, tea.Batch(loadStateVersionJson(m.c, m.selectedSV.ID, true), tickSpinner())
+		}
+		return m, nil
 	case viewWorkspaceDetail, viewOrgDetail, viewProjectDetail,
 		viewRunDetail, viewVariableDetail, viewStateVersionDetail, viewConfigVersionDetail:
 		// Detail views show already-loaded data; nothing to refresh.
@@ -895,6 +928,40 @@ func (m Model) handleSVDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.svDetScroll = 0
 	case "G":
 		m.svDetScroll = 9999
+	case "o":
+		if m.selectedSV != nil {
+			m.svJsonLines = nil
+			m.svJsonScroll = 0
+			m.svJsonLoading = true
+			m.svJsonErr = ""
+			m.currentView = viewStateVersionJson
+			return m, tea.Batch(loadStateVersionJson(m.c, m.selectedSV.ID, false), tickSpinner())
+		}
+	}
+	return m, nil
+}
+
+func (m Model) handleSVJsonKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if m.svJsonScroll > 0 {
+			m.svJsonScroll--
+		}
+	case "down", "j":
+		m.svJsonScroll++
+	case "shift+up":
+		half := m.contentHeight() / 2
+		if m.svJsonScroll > half {
+			m.svJsonScroll -= half
+		} else {
+			m.svJsonScroll = 0
+		}
+	case "shift+down":
+		m.svJsonScroll += m.contentHeight() / 2
+	case "g":
+		m.svJsonScroll = 0
+	case "G":
+		m.svJsonScroll = 9999
 	}
 	return m, nil
 }
@@ -1463,6 +1530,11 @@ func (m Model) currentCliCmd() string {
 			return fmt.Sprintf("tfx workspace sv show --state-version-id %s", m.selectedSV.ID)
 		}
 		return "tfx workspace sv show"
+	case viewStateVersionJson:
+		if m.selectedWS != nil {
+			return fmt.Sprintf("tfx workspace sv download -n %s", m.selectedWS.Name)
+		}
+		return "tfx workspace sv download"
 	case viewConfigVersionDetail:
 		if m.selectedCV != nil {
 			return fmt.Sprintf("tfx workspace cv show --config-version-id %s", m.selectedCV.ID)
@@ -1581,6 +1653,8 @@ func (m Model) renderContent() string {
 		return m.renderStateVersionDetailContent()
 	case viewConfigVersionDetail:
 		return m.renderConfigVersionDetailContent()
+	case viewStateVersionJson:
+		return m.renderStateVersionJsonContent()
 	}
 	return m.renderLoadingContent()
 }
@@ -1781,6 +1855,20 @@ func (m Model) renderBreadcrumb() string {
 			sep +
 			breadcrumbBarStyle.Render("config versions") +
 			sep + breadcrumbActiveStyle.Render(fmt.Sprintf("cv: %s ", cvID))
+	case viewStateVersionJson:
+		svSerial := ""
+		if m.selectedSV != nil {
+			svSerial = fmt.Sprintf("%d", m.selectedSV.Serial)
+		}
+		line = orgPart + sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
+			sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep +
+			breadcrumbBarStyle.Render("state versions") +
+			sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("sv: %s", svSerial)) +
+			sep + breadcrumbActiveStyle.Render("json ")
 	default:
 		line = orgPart
 	}
@@ -1878,6 +1966,30 @@ func (m Model) renderStatusBar() string {
 		if m.selectedCV != nil {
 			msg = fmt.Sprintf("  config version: %s  •  ↑ ↓ to scroll", m.selectedCV.ID)
 		}
+	case viewStateVersionJson:
+		if m.svJsonLoading {
+			frame := spinnerFrames[m.spinnerIdx]
+			return m.pad(statusLoadingStyle.Render("  "+frame+"  Loading state JSON…"), statusLoadingStyle)
+		}
+		if m.svJsonErr != "" {
+			return m.pad(statusErrorStyle.Render(fmt.Sprintf("  ✗  %s", m.svJsonErr)), statusErrorStyle)
+		}
+		numLines := len(m.svJsonLines)
+		cur := m.svJsonScroll + 1
+		if cur > numLines {
+			cur = numLines
+		}
+		totalBytes := 0
+		for _, l := range m.svJsonLines {
+			totalBytes += len(l) + 1
+		}
+		var sizeStr string
+		if totalBytes < 1024 {
+			sizeStr = fmt.Sprintf("%d B", totalBytes)
+		} else {
+			sizeStr = fmt.Sprintf("%d KB", totalBytes/1024)
+		}
+		msg = fmt.Sprintf("  state JSON  •  line %d of %d  (%s)", cur, numLines, sizeStr)
 	default:
 		msg = "  Ready"
 	}
@@ -1900,8 +2012,12 @@ func (m Model) renderCliHint() string {
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   u url   U browser   •   ? help   •   q quit")
 	case m.currentView == viewRunDetail:
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   u url   U browser   •   ? help   •   q quit")
-	case m.currentView == viewVariableDetail, m.currentView == viewStateVersionDetail, m.currentView == viewConfigVersionDetail:
+	case m.currentView == viewVariableDetail, m.currentView == viewConfigVersionDetail:
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   ? help   •   q quit")
+	case m.currentView == viewStateVersionDetail:
+		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   o json viewer   •   ? help   •   q quit")
+	case m.currentView == viewStateVersionJson:
+		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   shift+↑↓ half page   •   r re-fetch   •   ? help   •   q quit")
 	case m.isWorkspaceSubView():
 		hints = cliHintBarStyle.Render("   •   enter detail   •   ← → switch tabs   •   d ws detail   •   u url   U browser   •   c copy   •   ? help   •   q quit")
 	default:
@@ -1940,6 +2056,7 @@ func (m Model) renderHelpOverlay() string {
 		{"[ws] d", "view workspace detail"},
 		{"[ws tab] ← →", "switch tabs"},
 		{"[ws tab] enter", "view item detail"},
+		{"[sv detail] o", "open state JSON viewer"},
 		{"[ws tab] d", "view workspace detail"},
 		{"[ws tab] u", "copy workspace URL"},
 		{"[ws tab] U", "open workspace in browser"},

@@ -168,4 +168,11 @@ var (
 				Background(colorHeaderBg).
 				Foreground(colorDim).
 				Padding(0, 1)
+
+	// JSON viewer syntax highlighting
+	jsonKeyStyle     = lipgloss.NewStyle().Background(colorBg).Foreground(colorAccent)  // keys → blue
+	jsonStringStyle  = lipgloss.NewStyle().Background(colorBg).Foreground(colorSuccess) // strings → green
+	jsonNumberStyle  = lipgloss.NewStyle().Background(colorBg).Foreground(colorPurple)  // numbers → purple
+	jsonKeywordStyle = lipgloss.NewStyle().Background(colorBg).Foreground(colorLoading) // true/false/null → amber
+	jsonPunctStyle   = lipgloss.NewStyle().Background(colorBg).Foreground(colorDim)     // braces/colons/commas → dim
 )
