@@ -23,12 +23,19 @@ const (
 	minHeight  = 10
 )
 
+// spinnerFrames is the braille-sweep animation sequence for the loading indicator.
+var spinnerFrames = []string{"⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"}
+
 type viewType int
 
 const (
-	viewProjects   viewType = iota
+	viewOrganizations viewType = iota // Phase 6: top-level org list (entry point)
+	viewProjects
 	viewWorkspaces
 	viewRuns
+	viewVariables      // Phase 5
+	viewConfigVersions // Phase 5
+	viewStateVersions  // Phase 5
 )
 
 // Model is the root TUI model. All state lives here per the ELM architecture.
@@ -41,7 +48,7 @@ type Model struct {
 	// Connection
 	c        *client.TfxClient
 	hostname string
-	org      string
+	org      string // active org name (may change when user selects from org list)
 
 	// View routing
 	currentView viewType
@@ -51,6 +58,17 @@ type Model struct {
 	loading      bool
 	errMsg       string
 	clipFeedback string // cleared on next keypress
+
+	// Spinner state (Phase 5.5)
+	spinnerIdx int
+
+	// Organization list state (Phase 6)
+	orgs        []*tfe.Organization
+	orgCursor   int
+	orgOffset   int
+	orgFilter   string
+	orgFiltering bool
+	selectedOrg *tfe.Organization
 
 	// Project list state
 	projects      []*tfe.Project
@@ -74,6 +92,27 @@ type Model struct {
 	runFilter    string
 	runFiltering bool
 	selectedWS   *tfe.Workspace
+
+	// Variable list state (Phase 5)
+	variables    []*tfe.Variable
+	varCursor    int
+	varOffset    int
+	varFilter    string
+	varFiltering bool
+
+	// Configuration version list state (Phase 5)
+	configVersions []*tfe.ConfigurationVersion
+	cvCursor       int
+	cvOffset       int
+	cvFilter       string
+	cvFiltering    bool
+
+	// State version list state (Phase 5)
+	stateVersions []*tfe.StateVersion
+	svCursor      int
+	svOffset      int
+	svFilter      string
+	svFiltering   bool
 }
 
 func newModel(c *client.TfxClient) Model {
@@ -86,15 +125,43 @@ func newModel(c *client.TfxClient) Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	return loadProjects(m.c, m.org)
+	// Start the org fetch and the spinner simultaneously.
+	return tea.Batch(loadOrganizations(m.c), tickSpinner())
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	// ── Layout ────────────────────────────────────────────────────────────────
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
 		m.ready = true
+
+	// ── Spinner ───────────────────────────────────────────────────────────────
+	case spinnerTickMsg:
+		m.spinnerIdx = (m.spinnerIdx + 1) % len(spinnerFrames)
+		if m.loading {
+			return m, tickSpinner()
+		}
+
+	// ── Data loads ────────────────────────────────────────────────────────────
+	case orgsLoadedMsg:
+		m.orgs = []*tfe.Organization(msg)
+		m.loading = false
+		m.currentView = viewOrganizations
+		m.errMsg = ""
+		// Pre-highlight the org that matches the configured org name.
+		if m.org != "" {
+			for i, o := range m.orgs {
+				if o.Name == m.org {
+					m.orgCursor = i
+					if i >= m.orgVisibleRows() {
+						m.orgOffset = i - m.orgVisibleRows() + 1
+					}
+					break
+				}
+			}
+		}
 
 	case projectsLoadedMsg:
 		m.projects = []*tfe.Project(msg)
@@ -116,10 +183,32 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.runOffset = 0
 		m.errMsg = ""
 
+	case variablesLoadedMsg:
+		m.variables = []*tfe.Variable(msg)
+		m.loading = false
+		m.currentView = viewVariables
+		m.varOffset = 0
+		m.errMsg = ""
+
+	case configVersionsLoadedMsg:
+		m.configVersions = []*tfe.ConfigurationVersion(msg)
+		m.loading = false
+		m.currentView = viewConfigVersions
+		m.cvOffset = 0
+		m.errMsg = ""
+
+	case stateVersionsLoadedMsg:
+		m.stateVersions = []*tfe.StateVersion(msg)
+		m.loading = false
+		m.currentView = viewStateVersions
+		m.svOffset = 0
+		m.errMsg = ""
+
 	case fetchErrMsg:
 		m.loading = false
 		m.errMsg = msg.err.Error()
 
+	// ── Key input ─────────────────────────────────────────────────────────────
 	case tea.KeyPressMsg:
 		// Clear transient clipboard feedback on next key.
 		m.clipFeedback = ""
@@ -161,12 +250,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// View-specific navigation (only when not loading).
 		if !m.loading {
 			switch m.currentView {
+			case viewOrganizations:
+				return m.handleOrgsKey(msg)
 			case viewProjects:
 				return m.handleProjectsKey(msg)
 			case viewWorkspaces:
 				return m.handleWorkspacesKey(msg)
 			case viewRuns:
 				return m.handleRunsKey(msg)
+			case viewVariables:
+				return m.handleVariablesKey(msg)
+			case viewConfigVersions:
+				return m.handleConfigVersionsKey(msg)
+			case viewStateVersions:
+				return m.handleStateVersionsKey(msg)
 			}
 		}
 	}
@@ -203,22 +300,35 @@ func (m Model) View() tea.View {
 
 func (m Model) navigateBack() (tea.Model, tea.Cmd) {
 	switch m.currentView {
+	case viewProjects:
+		// Return to org list (don't re-fetch — orgs are already loaded).
+		m.currentView = viewOrganizations
+		m.projects = nil
+		m.projCursor, m.projOffset = 0, 0
+		m.projFilter, m.projFiltering = "", false
+		m.selectedProj = nil
 	case viewWorkspaces:
 		m.currentView = viewProjects
 		m.workspaces = nil
-		m.wsCursor = 0
-		m.wsOffset = 0
-		m.wsFilter = ""
-		m.wsFiltering = false
+		m.wsCursor, m.wsOffset = 0, 0
+		m.wsFilter, m.wsFiltering = "", false
 		m.selectedProj = nil
 	case viewRuns:
 		m.currentView = viewWorkspaces
 		m.runs = nil
-		m.runCursor = 0
-		m.runOffset = 0
-		m.runFilter = ""
-		m.runFiltering = false
+		m.runCursor, m.runOffset = 0, 0
+		m.runFilter, m.runFiltering = "", false
 		m.selectedWS = nil
+	case viewVariables, viewConfigVersions, viewStateVersions:
+		// All workspace sub-views return to the workspace list.
+		m.currentView = viewWorkspaces
+		m.variables = nil
+		m.varCursor, m.varOffset, m.varFilter, m.varFiltering = 0, 0, "", false
+		m.configVersions = nil
+		m.cvCursor, m.cvOffset, m.cvFilter, m.cvFiltering = 0, 0, "", false
+		m.stateVersions = nil
+		m.svCursor, m.svOffset, m.svFilter, m.svFiltering = 0, 0, "", false
+		// selectedWS is preserved — the workspace list stays showing the same workspace.
 	}
 	return m, nil
 }
@@ -226,44 +336,81 @@ func (m Model) navigateBack() (tea.Model, tea.Cmd) {
 func (m Model) refresh() (tea.Model, tea.Cmd) {
 	m.loading = true
 	m.errMsg = ""
+	var cmd tea.Cmd
 	switch m.currentView {
+	case viewOrganizations:
+		m.orgs = nil
+		m.orgCursor, m.orgOffset = 0, 0
+		cmd = loadOrganizations(m.c)
 	case viewProjects:
 		m.projects = nil
-		m.projCursor = 0
-		m.projOffset = 0
-		return m, loadProjects(m.c, m.org)
+		m.projCursor, m.projOffset = 0, 0
+		cmd = loadProjects(m.c, m.org)
 	case viewWorkspaces:
 		m.workspaces = nil
-		m.wsCursor = 0
-		m.wsOffset = 0
+		m.wsCursor, m.wsOffset = 0, 0
 		projectID := ""
 		if m.selectedProj != nil {
 			projectID = m.selectedProj.ID
 		}
-		return m, loadWorkspaces(m.c, m.org, projectID)
+		cmd = loadWorkspaces(m.c, m.org, projectID)
 	case viewRuns:
 		m.runs = nil
-		m.runCursor = 0
-		m.runOffset = 0
+		m.runCursor, m.runOffset = 0, 0
 		if m.selectedWS != nil {
-			return m, loadRuns(m.c, m.selectedWS.ID)
+			cmd = loadRuns(m.c, m.selectedWS.ID)
+		}
+	case viewVariables:
+		m.variables = nil
+		m.varCursor, m.varOffset = 0, 0
+		if m.selectedWS != nil {
+			cmd = loadVariables(m.c, m.selectedWS.ID)
+		}
+	case viewConfigVersions:
+		m.configVersions = nil
+		m.cvCursor, m.cvOffset = 0, 0
+		if m.selectedWS != nil {
+			cmd = loadConfigVersions(m.c, m.org, m.selectedWS.Name)
+		}
+	case viewStateVersions:
+		m.stateVersions = nil
+		m.svCursor, m.svOffset = 0, 0
+		if m.selectedWS != nil {
+			cmd = loadStateVersions(m.c, m.org, m.selectedWS.Name)
 		}
 	}
-	return m, nil
+	return m, tea.Batch(cmd, tickSpinner())
 }
 
 // ── Key handlers ──────────────────────────────────────────────────────────────
 
 func (m Model) isFiltering() bool {
-	return (m.currentView == viewProjects && m.projFiltering) ||
-		(m.currentView == viewWorkspaces && m.wsFiltering) ||
-		(m.currentView == viewRuns && m.runFiltering)
+	switch m.currentView {
+	case viewOrganizations:
+		return m.orgFiltering
+	case viewProjects:
+		return m.projFiltering
+	case viewWorkspaces:
+		return m.wsFiltering
+	case viewRuns:
+		return m.runFiltering
+	case viewVariables:
+		return m.varFiltering
+	case viewConfigVersions:
+		return m.cvFiltering
+	case viewStateVersions:
+		return m.svFiltering
+	}
+	return false
 }
 
 func (m Model) handleFilterKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
 		switch m.currentView {
+		case viewOrganizations:
+			m.orgFilter, m.orgFiltering = "", false
+			m.orgCursor, m.orgOffset = 0, 0
 		case viewProjects:
 			m.projFilter, m.projFiltering = "", false
 			m.projCursor, m.projOffset = 0, 0
@@ -273,18 +420,40 @@ func (m Model) handleFilterKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		case viewRuns:
 			m.runFilter, m.runFiltering = "", false
 			m.runCursor, m.runOffset = 0, 0
+		case viewVariables:
+			m.varFilter, m.varFiltering = "", false
+			m.varCursor, m.varOffset = 0, 0
+		case viewConfigVersions:
+			m.cvFilter, m.cvFiltering = "", false
+			m.cvCursor, m.cvOffset = 0, 0
+		case viewStateVersions:
+			m.svFilter, m.svFiltering = "", false
+			m.svCursor, m.svOffset = 0, 0
 		}
 	case "enter":
 		switch m.currentView {
+		case viewOrganizations:
+			m.orgFiltering = false
 		case viewProjects:
 			m.projFiltering = false
 		case viewWorkspaces:
 			m.wsFiltering = false
 		case viewRuns:
 			m.runFiltering = false
+		case viewVariables:
+			m.varFiltering = false
+		case viewConfigVersions:
+			m.cvFiltering = false
+		case viewStateVersions:
+			m.svFiltering = false
 		}
 	case "backspace":
 		switch m.currentView {
+		case viewOrganizations:
+			if r := []rune(m.orgFilter); len(r) > 0 {
+				m.orgFilter = string(r[:len(r)-1])
+				m.orgCursor, m.orgOffset = 0, 0
+			}
 		case viewProjects:
 			if r := []rune(m.projFilter); len(r) > 0 {
 				m.projFilter = string(r[:len(r)-1])
@@ -300,10 +469,28 @@ func (m Model) handleFilterKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				m.runFilter = string(r[:len(r)-1])
 				m.runCursor, m.runOffset = 0, 0
 			}
+		case viewVariables:
+			if r := []rune(m.varFilter); len(r) > 0 {
+				m.varFilter = string(r[:len(r)-1])
+				m.varCursor, m.varOffset = 0, 0
+			}
+		case viewConfigVersions:
+			if r := []rune(m.cvFilter); len(r) > 0 {
+				m.cvFilter = string(r[:len(r)-1])
+				m.cvCursor, m.cvOffset = 0, 0
+			}
+		case viewStateVersions:
+			if r := []rune(m.svFilter); len(r) > 0 {
+				m.svFilter = string(r[:len(r)-1])
+				m.svCursor, m.svOffset = 0, 0
+			}
 		}
 	default:
 		if r := []rune(msg.String()); len(r) == 1 && r[0] >= 32 {
 			switch m.currentView {
+			case viewOrganizations:
+				m.orgFilter += string(r)
+				m.orgCursor, m.orgOffset = 0, 0
 			case viewProjects:
 				m.projFilter += string(r)
 				m.projCursor, m.projOffset = 0, 0
@@ -313,8 +500,63 @@ func (m Model) handleFilterKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			case viewRuns:
 				m.runFilter += string(r)
 				m.runCursor, m.runOffset = 0, 0
+			case viewVariables:
+				m.varFilter += string(r)
+				m.varCursor, m.varOffset = 0, 0
+			case viewConfigVersions:
+				m.cvFilter += string(r)
+				m.cvCursor, m.cvOffset = 0, 0
+			case viewStateVersions:
+				m.svFilter += string(r)
+				m.svCursor, m.svOffset = 0, 0
 			}
 		}
+	}
+	return m, nil
+}
+
+func (m Model) handleOrgsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	filtered := filteredOrgs(m)
+	n := len(filtered)
+	vis := m.orgVisibleRows()
+
+	switch msg.String() {
+	case "up", "k":
+		if m.orgCursor > 0 {
+			m.orgCursor--
+			if m.orgCursor < m.orgOffset {
+				m.orgOffset = m.orgCursor
+			}
+		}
+	case "down", "j":
+		if m.orgCursor < n-1 {
+			m.orgCursor++
+			if m.orgCursor >= m.orgOffset+vis {
+				m.orgOffset = m.orgCursor - vis + 1
+			}
+		}
+	case "g":
+		m.orgCursor, m.orgOffset = 0, 0
+	case "G":
+		if n > 0 {
+			m.orgCursor = n - 1
+			if n > vis {
+				m.orgOffset = n - vis
+			}
+		}
+	case "/":
+		m.orgFiltering = true
+	case "enter":
+		if n == 0 || m.orgCursor >= n {
+			break
+		}
+		sel := filtered[m.orgCursor]
+		m.selectedOrg = sel
+		m.org = sel.Name
+		m.loading = true
+		m.errMsg = ""
+		m.projCursor, m.projOffset, m.projFilter = 0, 0, ""
+		return m, tea.Batch(loadProjects(m.c, sel.Name), tickSpinner())
 	}
 	return m, nil
 }
@@ -359,7 +601,7 @@ func (m Model) handleProjectsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.loading = true
 		m.errMsg = ""
 		m.wsCursor, m.wsOffset, m.wsFilter = 0, 0, ""
-		return m, loadWorkspaces(m.c, m.org, sel.ID)
+		return m, tea.Batch(loadWorkspaces(m.c, m.org, sel.ID), tickSpinner())
 	}
 	return m, nil
 }
@@ -404,7 +646,37 @@ func (m Model) handleWorkspacesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.loading = true
 		m.errMsg = ""
 		m.runCursor, m.runOffset, m.runFilter = 0, 0, ""
-		return m, loadRuns(m.c, sel.ID)
+		return m, tea.Batch(loadRuns(m.c, sel.ID), tickSpinner())
+	case "v":
+		if n == 0 || m.wsCursor >= n {
+			break
+		}
+		sel := filtered[m.wsCursor]
+		m.selectedWS = sel
+		m.loading = true
+		m.errMsg = ""
+		m.varCursor, m.varOffset, m.varFilter = 0, 0, ""
+		return m, tea.Batch(loadVariables(m.c, sel.ID), tickSpinner())
+	case "f":
+		if n == 0 || m.wsCursor >= n {
+			break
+		}
+		sel := filtered[m.wsCursor]
+		m.selectedWS = sel
+		m.loading = true
+		m.errMsg = ""
+		m.cvCursor, m.cvOffset, m.cvFilter = 0, 0, ""
+		return m, tea.Batch(loadConfigVersions(m.c, m.org, sel.Name), tickSpinner())
+	case "s":
+		if n == 0 || m.wsCursor >= n {
+			break
+		}
+		sel := filtered[m.wsCursor]
+		m.selectedWS = sel
+		m.loading = true
+		m.errMsg = ""
+		m.svCursor, m.svOffset, m.svFilter = 0, 0, ""
+		return m, tea.Batch(loadStateVersions(m.c, m.org, sel.Name), tickSpinner())
 	}
 	return m, nil
 }
@@ -441,7 +713,112 @@ func (m Model) handleRunsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "/":
 		m.runFiltering = true
 	case "enter":
-		// Phase 5: drill into run detail.
+		// Phase 5+: drill into run detail.
+	}
+	return m, nil
+}
+
+func (m Model) handleVariablesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	filtered := filteredVariables(m)
+	n := len(filtered)
+	vis := m.varVisibleRows()
+
+	switch msg.String() {
+	case "up", "k":
+		if m.varCursor > 0 {
+			m.varCursor--
+			if m.varCursor < m.varOffset {
+				m.varOffset = m.varCursor
+			}
+		}
+	case "down", "j":
+		if m.varCursor < n-1 {
+			m.varCursor++
+			if m.varCursor >= m.varOffset+vis {
+				m.varOffset = m.varCursor - vis + 1
+			}
+		}
+	case "g":
+		m.varCursor, m.varOffset = 0, 0
+	case "G":
+		if n > 0 {
+			m.varCursor = n - 1
+			if n > vis {
+				m.varOffset = n - vis
+			}
+		}
+	case "/":
+		m.varFiltering = true
+	}
+	return m, nil
+}
+
+func (m Model) handleConfigVersionsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	filtered := filteredConfigVersions(m)
+	n := len(filtered)
+	vis := m.cvVisibleRows()
+
+	switch msg.String() {
+	case "up", "k":
+		if m.cvCursor > 0 {
+			m.cvCursor--
+			if m.cvCursor < m.cvOffset {
+				m.cvOffset = m.cvCursor
+			}
+		}
+	case "down", "j":
+		if m.cvCursor < n-1 {
+			m.cvCursor++
+			if m.cvCursor >= m.cvOffset+vis {
+				m.cvOffset = m.cvCursor - vis + 1
+			}
+		}
+	case "g":
+		m.cvCursor, m.cvOffset = 0, 0
+	case "G":
+		if n > 0 {
+			m.cvCursor = n - 1
+			if n > vis {
+				m.cvOffset = n - vis
+			}
+		}
+	case "/":
+		m.cvFiltering = true
+	}
+	return m, nil
+}
+
+func (m Model) handleStateVersionsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	filtered := filteredStateVersions(m)
+	n := len(filtered)
+	vis := m.svVisibleRows()
+
+	switch msg.String() {
+	case "up", "k":
+		if m.svCursor > 0 {
+			m.svCursor--
+			if m.svCursor < m.svOffset {
+				m.svOffset = m.svCursor
+			}
+		}
+	case "down", "j":
+		if m.svCursor < n-1 {
+			m.svCursor++
+			if m.svCursor >= m.svOffset+vis {
+				m.svOffset = m.svCursor - vis + 1
+			}
+		}
+	case "g":
+		m.svCursor, m.svOffset = 0, 0
+	case "G":
+		if n > 0 {
+			m.svCursor = n - 1
+			if n > vis {
+				m.svOffset = n - vis
+			}
+		}
+	case "/":
+		m.svFiltering = true
 	}
 	return m, nil
 }
@@ -456,10 +833,21 @@ func (m Model) contentHeight() int {
 	return h
 }
 
-func (m Model) projVisibleRows() int {
+func (m Model) orgVisibleRows() int {
 	h := m.contentHeight() - 2 // table header + divider
+	if m.orgFilter != "" || m.orgFiltering {
+		h--
+	}
+	if h < 1 {
+		return 1
+	}
+	return h
+}
+
+func (m Model) projVisibleRows() int {
+	h := m.contentHeight() - 2
 	if m.projFilter != "" || m.projFiltering {
-		h-- // filter bar
+		h--
 	}
 	if h < 1 {
 		return 1
@@ -489,6 +877,39 @@ func (m Model) runVisibleRows() int {
 	return h
 }
 
+func (m Model) varVisibleRows() int {
+	h := m.contentHeight() - 2
+	if m.varFilter != "" || m.varFiltering {
+		h--
+	}
+	if h < 1 {
+		return 1
+	}
+	return h
+}
+
+func (m Model) cvVisibleRows() int {
+	h := m.contentHeight() - 2
+	if m.cvFilter != "" || m.cvFiltering {
+		h--
+	}
+	if h < 1 {
+		return 1
+	}
+	return h
+}
+
+func (m Model) svVisibleRows() int {
+	h := m.contentHeight() - 2
+	if m.svFilter != "" || m.svFiltering {
+		h--
+	}
+	if h < 1 {
+		return 1
+	}
+	return h
+}
+
 // pad fills a rendered string to the full terminal width using the given style.
 func (m Model) pad(rendered string, style lipgloss.Style) string {
 	w := m.width - lipgloss.Width(rendered)
@@ -501,6 +922,8 @@ func (m Model) pad(rendered string, style lipgloss.Style) string {
 // currentCliCmd returns the equivalent tfx CLI command for the active view.
 func (m Model) currentCliCmd() string {
 	switch m.currentView {
+	case viewOrganizations:
+		return "tfx organization list"
 	case viewProjects:
 		return "tfx project list"
 	case viewWorkspaces:
@@ -513,6 +936,21 @@ func (m Model) currentCliCmd() string {
 			return fmt.Sprintf("tfx workspace run list -n %s", m.selectedWS.Name)
 		}
 		return "tfx workspace run list"
+	case viewVariables:
+		if m.selectedWS != nil {
+			return fmt.Sprintf("tfx workspace variable list -n %s", m.selectedWS.Name)
+		}
+		return "tfx workspace variable list"
+	case viewConfigVersions:
+		if m.selectedWS != nil {
+			return fmt.Sprintf("tfx workspace cv list -n %s", m.selectedWS.Name)
+		}
+		return "tfx workspace cv list"
+	case viewStateVersions:
+		if m.selectedWS != nil {
+			return fmt.Sprintf("tfx workspace sv list -n %s", m.selectedWS.Name)
+		}
+		return "tfx workspace sv list"
 	default:
 		return "tfx"
 	}
@@ -545,12 +983,20 @@ func (m Model) renderContent() string {
 		return m.renderErrorContent()
 	}
 	switch m.currentView {
+	case viewOrganizations:
+		return m.renderOrgsContent()
 	case viewProjects:
 		return m.renderProjectsContent()
 	case viewWorkspaces:
 		return m.renderWorkspacesContent()
 	case viewRuns:
 		return m.renderRunsContent()
+	case viewVariables:
+		return m.renderVariablesContent()
+	case viewConfigVersions:
+		return m.renderConfigVersionsContent()
+	case viewStateVersions:
+		return m.renderStateVersionsContent()
 	}
 	return m.renderLoadingContent()
 }
@@ -559,9 +1005,10 @@ func (m Model) renderLoadingContent() string {
 	h := m.contentHeight()
 	lines := make([]string, h)
 	mid := h / 2
+	frame := spinnerFrames[m.spinnerIdx]
 	for i := range lines {
 		if i == mid {
-			lines[i] = contentPlaceholderStyle.Width(m.width).Render("  Loading…")
+			lines[i] = contentPlaceholderStyle.Width(m.width).Render("  " + frame + "  Loading…")
 		} else {
 			lines[i] = contentStyle.Width(m.width).Render("")
 		}
@@ -602,32 +1049,49 @@ func (m Model) renderBreadcrumb() string {
 	sep := breadcrumbSepStyle.Render("  /  ")
 	orgPart := breadcrumbBarStyle.Render(fmt.Sprintf(" org: %s", m.org))
 
+	projName := ""
+	if m.selectedProj != nil {
+		projName = m.selectedProj.Name
+	}
+	wsName := ""
+	if m.selectedWS != nil {
+		wsName = m.selectedWS.Name
+	}
+
 	var line string
 	switch m.currentView {
+	case viewOrganizations:
+		line = breadcrumbActiveStyle.Render(" organizations ")
 	case viewProjects:
 		line = orgPart + sep + breadcrumbActiveStyle.Render("projects ")
 	case viewWorkspaces:
-		projName := ""
-		if m.selectedProj != nil {
-			projName = m.selectedProj.Name
-		}
 		line = orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
 			sep + breadcrumbActiveStyle.Render("workspaces ")
 	case viewRuns:
-		projName := ""
-		if m.selectedProj != nil {
-			projName = m.selectedProj.Name
-		}
-		wsName := ""
-		if m.selectedWS != nil {
-			wsName = m.selectedWS.Name
-		}
 		line = orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
 			sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
 			sep + breadcrumbActiveStyle.Render("runs ")
+	case viewVariables:
+		line = orgPart + sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
+			sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbActiveStyle.Render("variables ")
+	case viewConfigVersions:
+		line = orgPart + sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
+			sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbActiveStyle.Render("config versions ")
+	case viewStateVersions:
+		line = orgPart + sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
+			sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbActiveStyle.Render("state versions ")
 	default:
 		line = orgPart
 	}
@@ -636,7 +1100,8 @@ func (m Model) renderBreadcrumb() string {
 
 func (m Model) renderStatusBar() string {
 	if m.loading {
-		return m.pad(statusLoadingStyle.Render("  Loading…"), statusLoadingStyle)
+		frame := spinnerFrames[m.spinnerIdx]
+		return m.pad(statusLoadingStyle.Render("  "+frame+"  Loading…"), statusLoadingStyle)
 	}
 	if m.errMsg != "" {
 		return m.pad(statusErrorStyle.Render(fmt.Sprintf("  ✗  %s", m.errMsg)), statusErrorStyle)
@@ -647,6 +1112,13 @@ func (m Model) renderStatusBar() string {
 
 	var msg string
 	switch m.currentView {
+	case viewOrganizations:
+		fo := filteredOrgs(m)
+		if m.orgFilter != "" {
+			msg = fmt.Sprintf("  %d / %d organizations  •  filter: %s", len(fo), len(m.orgs), m.orgFilter)
+		} else {
+			msg = fmt.Sprintf("  %d organizations", len(m.orgs))
+		}
 	case viewProjects:
 		fp := filteredProjects(m)
 		if m.projFilter != "" {
@@ -668,6 +1140,27 @@ func (m Model) renderStatusBar() string {
 		} else {
 			msg = fmt.Sprintf("  %d runs", len(m.runs))
 		}
+	case viewVariables:
+		fv := filteredVariables(m)
+		if m.varFilter != "" {
+			msg = fmt.Sprintf("  %d / %d variables  •  filter: %s", len(fv), len(m.variables), m.varFilter)
+		} else {
+			msg = fmt.Sprintf("  %d variables", len(m.variables))
+		}
+	case viewConfigVersions:
+		fc := filteredConfigVersions(m)
+		if m.cvFilter != "" {
+			msg = fmt.Sprintf("  %d / %d config versions  •  filter: %s", len(fc), len(m.configVersions), m.cvFilter)
+		} else {
+			msg = fmt.Sprintf("  %d config versions", len(m.configVersions))
+		}
+	case viewStateVersions:
+		fs := filteredStateVersions(m)
+		if m.svFilter != "" {
+			msg = fmt.Sprintf("  %d / %d state versions  •  filter: %s", len(fs), len(m.stateVersions), m.svFilter)
+		} else {
+			msg = fmt.Sprintf("  %d state versions", len(m.stateVersions))
+		}
 	default:
 		msg = "  Ready"
 	}
@@ -677,7 +1170,14 @@ func (m Model) renderStatusBar() string {
 func (m Model) renderCliHint() string {
 	label := cliHintBarStyle.Render("  cmd: ")
 	cmd := cliHintCmdStyle.Render(m.currentCliCmd())
-	hints := cliHintBarStyle.Render("   •   c copy   •   ? help   •   q quit")
+
+	// Workspace-level hint includes the shortcut keys for sub-views.
+	var hints string
+	if m.currentView == viewWorkspaces {
+		hints = cliHintBarStyle.Render("   •   enter runs   v vars   f cvs   s svs   •   c copy   •   ? help   •   q quit")
+	} else {
+		hints = cliHintBarStyle.Render("   •   c copy   •   ? help   •   q quit")
+	}
 	return m.pad(label+cmd+hints, cliHintBarStyle)
 }
 
@@ -689,6 +1189,7 @@ func (m Model) renderHelpOverlay() string {
 		desc string
 	}
 	bindings := []binding{
+		// Global
 		{"↑ / k", "move up"},
 		{"↓ / j", "move down"},
 		{"enter", "select / drill in"},
@@ -699,6 +1200,12 @@ func (m Model) renderHelpOverlay() string {
 		{"c", "copy CLI command"},
 		{"?", "toggle help"},
 		{"q", "quit"},
+		// Workspace-specific (visual separator then entries)
+		{"", ""},
+		{"[ws] enter", "view runs"},
+		{"[ws] v", "view variables"},
+		{"[ws] f", "view config versions"},
+		{"[ws] s", "view state versions"},
 	}
 
 	lines := make([]string, 0, m.height)

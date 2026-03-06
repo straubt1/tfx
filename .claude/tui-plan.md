@@ -1,7 +1,7 @@
 # TFx TUI — Planning Document
 
-> Status: Phases 1–4 complete (MVP delivered).
-> Last updated: 2026-03-05
+> Status: Phases 1–6 complete.
+> Last updated: 2026-03-06
 
 ---
 
@@ -84,35 +84,78 @@ if tuiMode {
 Mirrors the TFE/HCP Terraform object model. Navigation is hierarchical (drill-down):
 
 ```
-[Profile List]  ← future only; requires profile system
-└── Organization  ← MVP: resolved from config, shown in header (not navigable)
-    ├── Projects
-    │   └── Workspaces
-    │       ├── Runs
-    │       │   └── Plan / Apply details
-    │       ├── Configuration Versions
-    │       ├── State Versions
-    │       └── Variables
+[Profile List]      ← future only; requires profile system
+└── Organizations   ← Phase 6: navigable list of orgs accessible to the token
+    └── Projects    ← MVP entry point (org resolved from config, not yet a list)
+        └── Workspaces
+            ├── Runs             ← enter (default drill-in from workspace list)
+            │   └── Plan / Apply details
+            ├── Variables        ← v key from workspace list
+            ├── Config Versions  ← f key from workspace list ("files")
+            └── State Versions   ← s key from workspace list
+[Org-level views — future]
     ├── Variable Sets
     ├── Teams
     │   └── Team Members
-    └── (future) Registry Modules, Registry Providers
+    └── Registry Modules, Registry Providers
 ```
 
-### MVP: Config-resolved Organization
+### Workspace navigation keys
 
-In the MVP, the organization is read from the existing config/env mechanism (Viper: `tfeOrganization` / `TFE_ORGANIZATION`), exactly as the CLI does today. The org is displayed in the header but is **not** a navigable level — the TUI drops directly into the project list.
+From the workspace list, multiple shortcut keys drill into different workspace sub-views. This avoids a sub-menu screen and keeps navigation direct (k9s-style):
+
+| Key | Destination |
+|---|---|
+| `enter` | Runs (most common — the default drill-in) |
+| `v` | Variables |
+| `f` | Configuration Versions ("files") |
+| `s` | State Versions |
+
+### Current: Config-resolved Organization (Phases 1–4)
+
+In the current implementation, the organization is read from the existing config/env mechanism (Viper: `tfeOrganization` / `TFE_ORGANIZATION`), exactly as the CLI does today. The org is displayed in the header but is **not** a navigable level — the TUI drops directly into the project list.
 
 ```
-tfx --tui
+tfx tui
 # → reads org from config/env → opens project list for that org
 ```
 
 This requires no changes to how credentials work. The TUI entry point (`tui.Run()`) calls `client.NewFromViper()` and reads `viper.GetString("tfeOrganization")` just as every CLI command does.
 
+### Phase 6: Organization List View
+
+Add organizations as a navigable top-level construct. The TUI will call `client.Organizations.List()` to enumerate all orgs accessible to the configured token, then present them as a selectable list. Selecting an org drills into its project list.
+
+**Behavior:**
+- If `TFE_ORGANIZATION` (or equivalent) is configured, the TUI still opens at the org list but pre-selects / highlights that org — giving the user the choice to enter or switch.
+- If no org is configured, the org list is the mandatory entry screen.
+- `Enter` on an org selects it and navigates to the project list for that org.
+- `Esc` from the project list returns to the org list.
+
+**Breadcrumb evolution:**
+```
+# Phase 6 (org list as entry)
+org: my-org  >  project: platform-team  >  workspace: prod-app
+
+# With org list visible
+[orgs]  >  my-org  >  project: platform-team  >  workspace: prod-app
+```
+
+**Implementation sketch:**
+- `viewOrganizations` added to `viewType` enum
+- `orgs []*tfe.Organization`, `orgCursor`, `orgOffset`, `orgFilter`, `orgFiltering` added to `Model`
+- `orgsLoadedMsg` and `loadOrganizations(c)` in `messages.go`
+- `tui/organizations.go` — `orgColumns()`, `filteredOrgs()`, `renderOrgsContent()`
+- `handleOrgsKey()` — `enter` → set `m.selectedOrg`, `loadProjects` for that org, transition to `viewProjects`
+- Initial `Init()` dispatches `loadOrganizations` instead of `loadProjects`
+- CLI hint: `tfx organization list` at org-list level
+
+**Data function needed:**
+`data.FetchOrganizations(c *client.TfxClient) ([]*tfe.Organization, error)` — wraps `c.Client.Organizations.List()` with pagination. Check if this already exists in `data/` before creating.
+
 ### Future: Profile System
 
-A profile system will allow users to configure multiple named profiles (hostname + org + token combinations), enabling the TUI to start at the **organization list level** and let the user select which org to enter.
+A profile system will allow users to configure multiple named profiles (hostname + org + token combinations) as a higher level above the org list.
 
 Profiles would live in the config file (`.tfx.hcl`) under a `profile` block:
 
@@ -130,19 +173,20 @@ profile "staging" {
 }
 ```
 
-With profiles configured, `tfx --tui` (no explicit org) would open a **profile/org picker** as the entry screen. If a `--tfeOrganization` flag or env var is set, it bypasses the picker and drops straight into the project list (consistent with current CLI behavior).
+With profiles configured, `tfx tui` (no explicit org) would open a **profile picker** as the entry screen, then the org list for the selected profile's token.
 
 Navigation with profiles:
 ```
-Profile/Org Picker  (future)
-└── Projects        (MVP entry point)
-    └── Workspaces
-        └── ...
+Profile Picker  (future)
+└── Organizations  (Phase 6 entry point)
+    └── Projects
+        └── Workspaces
+            └── ...
 ```
 
 The breadcrumb bar reflects whichever level is active:
 ```
-# MVP (org from config)
+# Phase 6 (org list as entry)
 org: my-org  >  project: platform-team  >  workspace: prod-app
 
 # Future (with profiles)
@@ -174,6 +218,9 @@ Navigation pattern: Enter drills in, Esc goes up one level.
 └─────────────────────────────────────────────────────────┘
 ```
 
+> **Why does the header show `vdev`?**
+> The header renders `v{version.Version}`. The `version.Version` variable (in `version/version.go`) defaults to the string `"dev"` in source. Goreleaser injects the real git tag at release time via ldflags (`-X github.com/straubt1/tfx/version.Version=v1.2.3`). In local development builds (`task go-build`), goreleaser is not invoked, so the version stays as `"dev"` and the header shows `vdev`. This is expected and correct — no action needed.
+
 **CLI hint bar** (bottom): always shows the equivalent `tfx` CLI command for the current view. This is a core UX requirement — users who want to script or automate can easily discover the right command.
 
 ### Content area layouts (per view type)
@@ -198,11 +245,12 @@ Navigation pattern: Enter drills in, Esc goes up one level.
 
 ## 6. Keyboard Shortcuts
 
+**Global (all views):**
+
 | Key | Action |
 |---|---|
 | `↑` / `↓` or `j` / `k` | Navigate rows |
-| `Enter` | Drill into selected resource |
-| `Esc` | Go up one level |
+| `Esc` | Go up one level / clear filter |
 | `r` | Refresh current view |
 | `/` | Filter / search |
 | `?` | Show keybinding help overlay |
@@ -211,7 +259,16 @@ Navigation pattern: Enter drills in, Esc goes up one level.
 | `g` | Jump to top |
 | `G` | Jump to bottom |
 
-Additional context-specific shortcuts (e.g., `l` for logs on a Run) defined per view.
+**Workspace list (context-specific):**
+
+| Key | Action |
+|---|---|
+| `enter` | Drill into runs (default) |
+| `v` | Drill into variables |
+| `f` | Drill into configuration versions |
+| `s` | Drill into state versions |
+
+Additional context-specific shortcuts (e.g., `a` to apply a planned run) defined per view.
 
 Keybindings will use the Bubbles `key` package to define and auto-render help.
 
@@ -232,6 +289,47 @@ Keybindings will use the Bubbles `key` package to define and auto-render help.
 - CLI hint bar: italic, subdued
 
 Lip Gloss `AdaptiveColor` for light/dark terminal auto-adaptation.
+
+### Loading Animation
+
+The current "Loading…" static text in the status bar is boring. Replace it with an animated spinner using the **`charm.land/x/bubbles/v2` spinner component** — no new external dependency, since Bubbles v2 is already in the tech stack.
+
+**How the Bubbles spinner works (BT v2):**
+
+The `bubbles/spinner` package provides a `spinner.Model` that holds a frame index and a `Tick` command. Each `Tick` produces a `spinner.TickMsg` that advances the frame. In your `Update()`:
+
+```go
+case spinner.TickMsg:
+    if m.loading {
+        m.spinner, cmd = m.spinner.Update(msg)
+        return m, cmd
+    }
+```
+
+The spinner is only ticked while loading is in progress; once data arrives, ticking stops naturally (no more `Tick` commands are dispatched).
+
+**Built-in spinner styles (choose one):**
+
+| Name | Frames | Look |
+|---|---|---|
+| `spinner.Dot` | ⣾⣽⣻⢿⡿⣟⣯⣷ | Braille dot sweep (default) |
+| `spinner.Line` | \|/-\ | Classic ASCII line |
+| `spinner.MiniDot` | ⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏ | Smaller braille |
+| `spinner.Jump` | ⢄⢂⢁⡁⡈⡐⡠ | Jumping dot |
+| `spinner.Pulse` | █▓▒░ | Pulsing blocks |
+| `spinner.Points` | ∙∙∙ / •∙∙ etc | Three dots |
+| `spinner.Globe` | 🌍🌎🌏 | Rotating globe emoji |
+| `spinner.Moon` | 🌑🌒🌓🌔🌕🌖🌗🌘 | Moon phases emoji |
+
+**Recommended:** `spinner.Dot` (braille sweep) or `spinner.MiniDot` — looks modern, no emoji dependency, works in all terminals.
+
+**Implementation plan:**
+
+1. Add `charm.land/x/bubbles/v2` to `go.mod` (run `go get charm.land/x/bubbles/v2`)
+2. Add `spinner spinner.Model` to `Model` struct; initialize in `newModel()` with preferred style and accent color
+3. In `Init()`, return `m.spinner.Tick` alongside any initial fetch command
+4. In `Update()`, handle `spinner.TickMsg` → only propagate tick when `m.loading == true`
+5. In the status bar render, replace `"Loading…"` with `m.spinner.View() + " Loading…"` when loading
 
 ---
 
@@ -266,30 +364,51 @@ tui/
 
 MVP = enough to demo the concept and gather feedback. Scope:
 
-**In MVP:**
-- [ ] `tfx --tui` flag wired into root command
-- [ ] App shell: header, breadcrumb, status bar, CLI hint bar
-- [ ] Workspace list view (projects → workspaces as the entry point)
-- [ ] Run list view (drill into workspace → runs)
-- [ ] Keyboard navigation (up/down/enter/esc/q/r/?)
-- [ ] Filter (`/`) on workspace list
-- [ ] CLI hint bar updates per view
-- [ ] Terminal resize handling
-- [ ] Basic Lip Gloss styling (header, selected row, status bar)
-- [ ] Error display in status bar
+**Delivered (Phases 1–4):** ✅
+- [x] `tfx tui` subcommand wired into cobra
+- [x] App shell: header, breadcrumb, status bar, CLI hint bar
+- [x] Project list view (entry point)
+- [x] Workspace list view (drill from project)
+- [x] Run list view (drill from workspace via `enter`) with colored status
+- [x] Keyboard navigation (up/down/enter/esc/q/r/g/G/?)
+- [x] Filter (`/`) on all list views
+- [x] CLI hint bar updates per view
+- [x] `c` key copies CLI hint to clipboard
+- [x] Terminal resize handling + min-size guard
+- [x] GitHub Dark palette styling
+- [x] Loading and error states in status bar
+
+**Phase 5 — Workspace sub-views:** ✅
+- [x] Variables list (`v` key from workspace list) — `tfx workspace variable list -n <ws>`
+- [x] Configuration Versions list (`f` key) — `tfx workspace cv list -n <ws>`
+- [x] State Versions list (`s` key) — `tfx workspace sv list -n <ws>`
+- [x] Breadcrumb and CLI hint update for each sub-view
+- [x] Esc from any sub-view returns to workspace list
+
+**Phase 5.5 — Loading Animation:** ✅
+- [x] Manual spinner (no extra dependency) — `spinnerFrames []string` braille sweep, driven by `spinnerTickMsg` / `tickSpinner()` command chain
+- [x] Spinner animates in status bar and loading content area while `m.loading == true`
+- [x] Stops cleanly when data arrives (chain terminates when `m.loading` is false)
+
+**Phase 6 — Organization List View:** ✅
+- [x] `viewOrganizations` added to `viewType` enum (entry point iota = 0)
+- [x] Org state fields added to `Model`
+- [x] `orgsLoadedMsg` and `loadOrganizations(c)` in `messages.go`
+- [x] `tui/organizations.go` with `orgColumns()`, `filteredOrgs()`, `renderOrgsContent()`
+- [x] `Init()` dispatches `loadOrganizations` + `tickSpinner()` via `tea.Batch`
+- [x] `handleOrgsKey()`: enter selects org, sets `m.org`, triggers `loadProjects`
+- [x] Breadcrumb: `organizations` active at org level
+- [x] CLI hint: `tfx organization list` at org list level
+- [x] Pre-highlight configured org on load (`TFE_ORGANIZATION` match)
+- [x] `Esc` from project list returns to org list (no re-fetch)
 
 **Post-MVP (future iterations):**
 - [ ] Profile system (named profiles in `.tfx.hcl` with hostname + org + token)
-- [ ] Profile/org picker as TUI entry point (when no org in config)
-- [ ] Organization list view (list orgs accessible to the token)
-- [ ] State versions view
-- [ ] Variables view
-- [ ] Variable sets view
+- [ ] Profile picker as TUI entry point (level above org list)
+- [ ] Variable sets view (org-level)
 - [ ] Teams / users view
-- [ ] Configuration versions view
 - [ ] Split panel (list + detail pane)
 - [ ] Run detail / plan output viewport
-- [ ] Clipboard copy of CLI hint (`c` key)
 - [ ] Run actions (queue run, cancel run — write operations)
 - [ ] Mouse click support
 - [ ] Custom theme / color scheme config
@@ -326,30 +445,115 @@ MVP = enough to demo the concept and gather feedback. Scope:
 6. CLI hint bar shows `tfx workspace list` / `tfx workspace show -n <name>`
 7. Navigate rows, press Enter → placeholder "drill" message
 
-### Phase 3 — Run List View (second level)
-1. Create `tui/views/runs.go`
-2. Wire `data.FetchRuns()` with workspace context
-3. Breadcrumb updates to show `org > workspace`
-4. Esc returns to workspace list
+### Phase 3 — Run List View (second level) ✅ COMPLETE
+1. Created `tui/runs.go` with run list, colored status, relative timestamps
+2. Wired `data.FetchRunsForWorkspace()` (max 50 runs) via async `tea.Cmd`
+3. Breadcrumb: `org / project: X / workspace: Y / runs`
+4. Esc returns to workspace list; `r` refreshes
 5. CLI hint: `tfx workspace run list -n <workspace>`
 
-### Phase 4 — Polish & Release
-1. Refine styling (colors, borders, spacing)
-2. Keyboard shortcut help overlay (`?`)
-3. Ensure all terminal sizes work (min width/height guards)
-4. README entry and `tfx --help` description
-5. Integration test for TUI launch (basic smoke test)
+### Phase 4 — Polish & Release ✅ COMPLETE
+1. Run status colors: green=applied, amber=in-progress, blue=planned, red=errored, dim=canceled
+2. `c` key copies current CLI command to clipboard (pbcopy/xclip/clip); green status bar feedback
+3. `renderTableRowWithCellStyles` for per-cell foreground overrides
+4. `colorSuccess` / `statusSuccessStyle` added to palette
+5. Help overlay updated with all current keybindings
+
+### Phase 5 — Workspace Sub-Views
+Goal: from the workspace list, navigate directly into Variables, Config Versions, or State Versions via shortcut keys.
+
+**Navigation keys from workspace list:**
+- `v` → Variables list for selected workspace
+- `f` → Configuration Versions list
+- `s` → State Versions list
+- `enter` → Runs (existing, unchanged)
+
+**New files needed:**
+- `tui/variables.go` — `renderVariablesContent()`, `filteredVariables()`, `variableColumns()`
+- `tui/configversions.go` — `renderConfigVersionsContent()`, `filteredConfigVersions()`, `cvColumns()`
+- `tui/stateversions.go` — `renderStateVersionsContent()`, `filteredStateVersions()`, `svColumns()`
+
+**model.go changes:**
+- Add `viewVariables`, `viewConfigVersions`, `viewStateVersions` to the `viewType` enum
+- Add state fields for each (data slice, cursor, offset, filter, filtering flag)
+- Add `v`, `f`, `s` key handling in `handleWorkspacesKey()`
+- Update `navigateBack()`, `refresh()`, `isFiltering()`, `handleFilterKey()`
+- Update breadcrumb, status bar, CLI hint for each new view
+
+**messages.go changes:**
+- Add `variablesLoadedMsg`, `configVersionsLoadedMsg`, `stateVersionsLoadedMsg`
+- Add `loadVariables()`, `loadConfigVersions()`, `loadStateVersions()` fetch commands
+
+**Data functions to use:**
+- `data.FetchVariables(c, orgName, workspaceName)` for Variables
+- `data.FetchConfigurationVersions(c, workspaceID)` for Config Versions
+- `data.FetchStateVersions(c, workspaceID)` for State Versions
+
+### Phase 5.5 — Animated Loading Spinner
+Goal: replace the static "Loading…" text with a Bubble Tea–native animated spinner.
+
+1. `go get charm.land/x/bubbles/v2` to pull in the spinner package (it may already be indirect)
+2. Add `spinner spinner.Model` field to `Model`; initialize in `newModel()`:
+   ```go
+   s := spinner.New()
+   s.Spinner = spinner.Dot
+   s.Style = lipgloss.NewStyle().Foreground(colorAccent)
+   m.spinner = s
+   ```
+3. In `Init()`, add `m.spinner.Tick` to the batch of initial commands
+4. In `Update()`, add a case for `spinner.TickMsg`:
+   ```go
+   case spinner.TickMsg:
+       if m.loading {
+           m.spinner, cmd = m.spinner.Update(msg)
+           cmds = append(cmds, cmd)
+       }
+   ```
+5. In `renderStatusBar()`, replace `"Loading…"` with `m.spinner.View() + " Loading…"` when `m.loading`
+6. Spinner stops automatically when loading transitions to false (no more Tick dispatched)
+
+### Phase 6 — Organization List View
+Goal: add organizations as a top-level navigable construct so users can switch orgs without restarting.
+
+1. Add `data.FetchOrganizations(c *client.TfxClient) ([]*tfe.Organization, error)` to `data/` (check if it already exists)
+2. Add `orgsLoadedMsg []*tfe.Organization` and `loadOrganizations(c)` cmd to `messages.go`
+3. Create `tui/organizations.go`:
+   - `orgColumns(width int)` — columns: Name, Email, Created, Plan
+   - `filteredOrgs(m Model) []*tfe.Organization`
+   - `renderOrgsContent() string`
+4. Add `viewOrganizations` to the `viewType` enum (insert before `viewProjects` — it's the new root)
+5. Add org state fields to `Model`:
+   ```go
+   orgs        []*tfe.Organization
+   orgCursor   int
+   orgOffset   int
+   orgFilter   string
+   orgFiltering bool
+   selectedOrg *tfe.Organization
+   ```
+6. In `newModel()`, set initial view to `viewOrganizations` and dispatch `loadOrganizations`
+7. Add `handleOrgsKey()` method:
+   - `enter` → set `m.selectedOrg`, clear projects, dispatch `loadProjects(c, org.Name)`, transition to `viewProjects`
+   - `/` → start filtering; `esc` → clear filter / return to org list (no level above)
+   - `q` → quit
+8. Update `navigateBack()`: from `viewProjects` → `viewOrganizations` (reset project list)
+9. Update `refresh()`: when `viewOrganizations`, dispatch `loadOrganizations`
+10. Update breadcrumb: show `[orgs]` at org list level; show org name when inside
+11. Update CLI hint: `tfx organization list` at org list level
+12. If `TFE_ORGANIZATION` env/config is set, highlight that row in the list on load (user can press enter to confirm or pick a different one)
 
 ---
 
 ## 11. Open Questions
 
-- [x] **Resolved:** `tfx tui` subcommand. Flag-on-rootCmd approach was rejected because cobra's required-flag check runs before `PersistentPreRun`, preventing viper from satisfying the required org/token flags in time. Subcommand goes through `postInitCommands`/`presetRequiredFlags` normally.
-- [ ] MVP entry point is project list (not workspace list) — confirm this is right. Workspace list is one more click but more directly useful day-to-day.
-- [ ] `bubble-table` (Evertras) vs core Bubbles `table`? Evaluate during Phase 2 — core table may be sufficient.
+- [x] **Resolved:** `tfx tui` subcommand (not `--tui` flag). Cobra's required-flag check runs before `PersistentPreRun`; subcommand goes through `postInitCommands`/`presetRequiredFlags` normally.
+- [x] **Resolved:** Entry point is project list → workspaces (confirmed correct; org from config).
+- [x] **Resolved:** Hand-rolled table renderer (no external library). `bubble-table` is BT v1 only; `bubbles/table` v2 lacks filtering and row-metadata association needed for drill-in navigation.
+- [x] **Resolved:** Clipboard via platform-native exec (pbcopy/xclip/clip) — no external dependency needed.
+- [ ] **Phase 6:** Does `data.FetchOrganizations` already exist? Check `data/` before implementing. If the token only has access to one org (common in single-org TFE installs), consider auto-advancing past the org list.
+- [ ] **Phase 6:** When `TFE_ORGANIZATION` is set and Phase 6 lands, should the TUI skip the org list entirely and go straight to projects (matching current CLI behavior), or always show the org list with the configured org pre-highlighted? Pre-highlighted is friendlier but slightly slower (requires an API call). Leaning toward pre-highlighted.
 - [ ] Profile system config format: HCL `profile` blocks in `.tfx.hcl` (see section 4)? Or a separate `~/.tfx-profiles.hcl`? To decide when we get there.
-- [ ] When profile system lands, should `tfx --tui` with no org configured show the profile picker or error? Likely picker — but org-required flag on rootCmd will need to be relaxed for TUI mode.
-- [ ] Clipboard support for CLI hint: `golang.design/x/clipboard` or `atotto/clipboard` — cross-platform, evaluate during Phase 4.
+- [ ] When profile system lands, should `tfx tui` with no org configured show the profile picker or error? Likely picker — but org-required flag on rootCmd will need to be relaxed for TUI mode.
 
 ---
 
