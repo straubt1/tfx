@@ -13,11 +13,11 @@ import (
 func variableColumns(width int) []column {
 	idW := 30
 	catW := 12  // "terraform" or "env"
-	valW := 20
 	senW := 9   // "SENSITIVE" header; values are "yes" / "no"
-	keyW := width - idW - catW - valW - senW - 12 // 2(cursor) + 5×2(col padding)
-	if keyW < 15 {
-		keyW = 15
+	keyW := 30  // variable names are identifiers — cap at 30, rarely longer
+	valW := width - idW - catW - senW - keyW - 12 // 2(cursor) + 5×2(col padding)
+	if valW < 15 {
+		valW = 15
 	}
 	return []column{
 		{name: "KEY", width: keyW},
