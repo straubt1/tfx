@@ -57,6 +57,7 @@ const (
 	viewStateVersionJson        // state version JSON viewer (o from SV detail) — Phase 7b
 	viewConfigVersionFiles      // CV file tree browser (x from CV detail) — Phase 7c
 	viewConfigVersionFileContent // CV file content viewer (enter from file browser) — Phase 7c
+	viewInstanceInfo             // instance info / health check (i key)
 )
 
 // Model is the root TUI model. All state lives here per the ELM architecture.
@@ -188,6 +189,13 @@ type Model struct {
 	debugBodyScroll int               // scroll offset in the detail view
 	debugFilter     string            // case-insensitive method+path filter
 	debugFiltering  bool              // filter input is active
+
+	// Instance info view state (i key)
+	infoPrevView    viewType
+	infoScroll      int
+	healthCheck     map[string]string // nil until loaded
+	healthCheckLoad bool
+	healthCheckErr  string
 }
 
 func newModel(c *client.TfxClient) Model {
@@ -229,7 +237,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// ── Spinner ───────────────────────────────────────────────────────────────
 	case spinnerTickMsg:
 		m.spinnerIdx = (m.spinnerIdx + 1) % len(spinnerFrames)
-		if m.loading || m.svJsonLoading || m.cvFileLoading {
+		if m.loading || m.svJsonLoading || m.cvFileLoading || m.healthCheckLoad {
 			return m, tickSpinner()
 		}
 
@@ -322,6 +330,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.svJsonErr = msg.err.Error()
 		m.svJsonLoading = false
 
+	case healthCheckLoadedMsg:
+		m.healthCheck = map[string]string(msg)
+		m.healthCheckLoad = false
+
+	case healthCheckErrMsg:
+		m.healthCheckErr = msg.err.Error()
+		m.healthCheckLoad = false
+
 	case cvFilesLoadedMsg:
 		m.cvFiles = msg.files
 		m.cvFileLoading = false
@@ -401,6 +417,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.clipFeedback = "clipboard unavailable"
 			}
 			return m, nil
+		case "i":
+			// Toggle instance info / health check view.
+			if m.currentView == viewInstanceInfo {
+				m.currentView = m.infoPrevView
+			} else {
+				m.infoPrevView = m.currentView
+				m.currentView = viewInstanceInfo
+				m.infoScroll = 0
+				m.healthCheck = nil
+				m.healthCheckLoad = true
+				m.healthCheckErr = ""
+				return m, tea.Batch(loadHealthCheck(m.c), tickSpinner())
+			}
+			return m, nil
 		}
 
 		// View-specific navigation (only when not loading).
@@ -440,6 +470,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.handleCVFilesKey(msg)
 			case viewConfigVersionFileContent:
 				return m.handleCVFileContentKey(msg)
+			case viewInstanceInfo:
+				return m.handleInstanceInfoKey(msg)
 			}
 		}
 	}
@@ -565,6 +597,9 @@ func (m Model) navigateBack() (tea.Model, tea.Cmd) {
 		m.currentView = viewConfigVersions
 		m.cvDetScroll = 0
 		m.selectedCV = nil
+	case viewInstanceInfo:
+		m.currentView = m.infoPrevView
+		m.infoScroll = 0
 	}
 	return m, nil
 }
@@ -1909,6 +1944,8 @@ func (m Model) renderContent() string {
 		return m.renderConfigVersionFilesContent()
 	case viewConfigVersionFileContent:
 		return m.renderConfigVersionFileContent()
+	case viewInstanceInfo:
+		return m.renderInstanceInfoContent()
 	}
 	return m.renderLoadingContent()
 }
@@ -1985,12 +2022,26 @@ func (m Model) renderHeader() string {
 	info := headerInfoStyle.Render(fmt.Sprintf(" %s  ⬥  %s ", m.hostname, m.org))
 	ver := headerVersionStyle.Render(fmt.Sprintf(" v%s ", version.Version))
 
-	used := lipgloss.Width(app) + lipgloss.Width(info) + lipgloss.Width(ver)
+	// Remote app name + TFE version — populated from ping response headers on
+	// client init, so no extra API call is needed. Empty for HCP Terraform
+	// (no version) or if the client isn't yet initialized.
+	remoteInfo := ""
+	if m.c != nil {
+		if appName := m.c.Client.AppName(); appName != "" {
+			s := appName
+			if tfeVer := m.c.Client.RemoteTFEVersion(); tfeVer != "" {
+				s += "  " + tfeVer
+			}
+			remoteInfo = headerRemoteStyle.Render("  ⬥  " + s + " ")
+		}
+	}
+
+	used := lipgloss.Width(app) + lipgloss.Width(info) + lipgloss.Width(remoteInfo) + lipgloss.Width(ver)
 	gap := m.width - used
 	if gap < 0 {
 		gap = 0
 	}
-	return app + info + headerStyle.Width(gap).Render("") + ver
+	return app + info + remoteInfo + headerStyle.Width(gap).Render("") + ver
 }
 
 func (m Model) renderBreadcrumb() string {
@@ -2153,6 +2204,8 @@ func (m Model) renderBreadcrumb() string {
 			sep +
 			breadcrumbBarStyle.Render("files") +
 			sep + breadcrumbActiveStyle.Render(m.cvFileName+" ")
+	case viewInstanceInfo:
+		line = breadcrumbActiveStyle.Render(" instance info ")
 	default:
 		line = orgPart
 	}
@@ -2390,6 +2443,7 @@ func (m Model) renderHelpOverlay() string {
 		{"/", "filter"},
 		{"g / G", "jump to top / bottom"},
 		{"c", "copy CLI command"},
+		{"i", "toggle instance info / health"},
 		{"l", "toggle API inspector"},
 		{"?", "toggle help"},
 		{"q", "quit"},

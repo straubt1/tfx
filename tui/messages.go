@@ -6,6 +6,8 @@ package tui
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -322,5 +324,49 @@ func loadCVFileContent(cvID string, f cvFile) tea.Cmd {
 		}
 		lines := strings.Split(string(b), "\n")
 		return cvFileContentLoadedMsg{lines: lines, name: filepath.Base(f.relPath)}
+	}
+}
+
+// ── Instance info / health check messages ────────────────────────────────────
+
+// healthCheckLoadedMsg carries the health check response as a flat string map.
+type healthCheckLoadedMsg map[string]string
+
+// healthCheckErrMsg carries an error from the health check fetch.
+type healthCheckErrMsg struct{ err error }
+
+// loadHealthCheck fetches /_health_check?full=1 from the configured host.
+// The endpoint returns a JSON object whose values may be strings (e.g. "UP")
+// or booleans; all values are coerced to strings for display.
+func loadHealthCheck(c *client.TfxClient) tea.Cmd {
+	return func() tea.Msg {
+		url := fmt.Sprintf("https://%s/_health_check?full=1", c.Hostname)
+		req, err := http.NewRequestWithContext(c.Context, http.MethodGet, url, nil)
+		if err != nil {
+			return healthCheckErrMsg{err}
+		}
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return healthCheckErrMsg{err}
+		}
+		defer resp.Body.Close()
+
+		// Decode into interface{} to handle any JSON shape (string, bool, etc.).
+		var raw map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+			return healthCheckErrMsg{err}
+		}
+		result := make(map[string]string, len(raw))
+		for k, v := range raw {
+			switch val := v.(type) {
+			case string:
+				result[k] = val
+			default:
+				b, _ := json.Marshal(val)
+				result[k] = string(b)
+			}
+		}
+		return healthCheckLoadedMsg(result)
 	}
 }

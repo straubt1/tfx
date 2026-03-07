@@ -43,6 +43,12 @@ var (
 				Foreground(colorPurple).
 				Padding(0, 1)
 
+	// headerRemoteStyle renders the remote app name / TFE version in the header.
+	// No padding -- spacing is baked into the rendered string for tight layout.
+	headerRemoteStyle = lipgloss.NewStyle().
+				Background(colorHeaderBg).
+				Foreground(colorDim)
+
 	// Breadcrumb bar
 	breadcrumbBarStyle = lipgloss.NewStyle().
 				Background(colorBg).
