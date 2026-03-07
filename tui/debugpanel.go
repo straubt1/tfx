@@ -5,6 +5,7 @@ package tui
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 	"time"
 
@@ -152,20 +153,59 @@ func isPrintable(s string) bool {
 	return r >= 32 && r != 127
 }
 
+// ── Panel-wide style set ──────────────────────────────────────────────────────
+
+// debugPanelStyles holds every style used inside the debug panel so that the
+// entire viewport background can be switched as a unit when focus changes.
+// Focused state uses colorHeaderBg (slightly lighter) to make the active panel
+// immediately visually distinct from the left content panel.
+type debugPanelStyles struct {
+	bg          lipgloss.Style // base background + default foreground
+	punct       lipgloss.Style // dim decorative text (section headers, timestamps, hints)
+	row         lipgloss.Style // non-selected list rows
+	divider     lipgloss.Style // horizontal ─── divider line
+	placeholder lipgloss.Style // empty-state italic placeholder text
+	panelBg     color.Color // raw background colour (for method/status helpers)
+}
+
+// newDebugStyles returns the style set that matches the current focus state.
+func (m Model) newDebugStyles() debugPanelStyles {
+	if m.debugFocused {
+		bg := colorHeaderBg
+		return debugPanelStyles{
+			bg:          lipgloss.NewStyle().Background(bg).Foreground(colorFg),
+			punct:       lipgloss.NewStyle().Background(bg).Foreground(colorDim),
+			row:         lipgloss.NewStyle().Background(bg).Foreground(colorFg),
+			divider:     lipgloss.NewStyle().Background(bg).Foreground(colorBorder),
+			placeholder: lipgloss.NewStyle().Background(bg).Foreground(colorDim).Italic(true),
+			panelBg:     bg,
+		}
+	}
+	return debugPanelStyles{
+		bg:          contentStyle,
+		punct:       jsonPunctStyle,
+		row:         tableRowStyle,
+		divider:     contentDividerStyle,
+		placeholder: contentPlaceholderStyle,
+		panelBg:     colorBg,
+	}
+}
+
 // ── Panel dispatcher ──────────────────────────────────────────────────────────
 
 // renderDebugPanel dispatches to the list or detail renderer.
 func (m Model) renderDebugPanel() string {
+	ds := m.newDebugStyles()
 	if m.debugDetailMode {
-		return m.renderDebugDetail()
+		return m.renderDebugDetail(ds)
 	}
-	return m.renderDebugList()
+	return m.renderDebugList(ds)
 }
 
 // ── List view ─────────────────────────────────────────────────────────────────
 
 // renderDebugList renders the full-height scrollable call list.
-func (m Model) renderDebugList() string {
+func (m Model) renderDebugList(ds debugPanelStyles) string {
 	pw := m.debugPanelWidth()
 	h := m.contentHeight()
 	events := m.filteredDebugEvents()
@@ -220,7 +260,7 @@ func (m Model) renderDebugList() string {
 	}
 
 	// ── Divider ───────────────────────────────────────────────────────────
-	lines = append(lines, contentDividerStyle.Width(pw).Render(strings.Repeat("─", pw)))
+	lines = append(lines, ds.divider.Width(pw).Render(strings.Repeat("─", pw)))
 
 	// ── Call list rows ────────────────────────────────────────────────────
 	listH := h - len(lines) // remaining rows for the list
@@ -237,17 +277,17 @@ func (m Model) renderDebugList() string {
 	for i := 0; i < listH; i++ {
 		idx := listOffset + i
 		if idx >= n {
-			lines = append(lines, tableRowStyle.Width(pw).Render(""))
+			lines = append(lines, ds.row.Width(pw).Render(""))
 			continue
 		}
 		e := events[idx]
 		selected := idx == cursor
-		lines = append(lines, m.renderDebugCallRow(e, pw, selected))
+		lines = append(lines, m.renderDebugCallRow(e, pw, selected, ds))
 	}
 
 	// Pad to exactly h lines.
 	for len(lines) < h {
-		lines = append(lines, contentStyle.Width(pw).Render(""))
+		lines = append(lines, ds.bg.Width(pw).Render(""))
 	}
 	return strings.Join(lines[:h], "\n")
 }
@@ -255,7 +295,7 @@ func (m Model) renderDebugList() string {
 // ── Detail view ───────────────────────────────────────────────────────────────
 
 // renderDebugDetail renders the full request/response detail for the selected call.
-func (m Model) renderDebugDetail() string {
+func (m Model) renderDebugDetail(ds debugPanelStyles) string {
 	pw := m.debugPanelWidth()
 	h := m.contentHeight()
 	events := m.filteredDebugEvents()
@@ -277,11 +317,11 @@ func (m Model) renderDebugDetail() string {
 	lines = append(lines, titleLeft+debugTitleFocusedStyle.Width(gap).Render("")+escHint)
 
 	// ── Divider ───────────────────────────────────────────────────────────
-	lines = append(lines, contentDividerStyle.Width(pw).Render(strings.Repeat("─", pw)))
+	lines = append(lines, ds.divider.Width(pw).Render(strings.Repeat("─", pw)))
 
 	// ── Body ──────────────────────────────────────────────────────────────
 	bodyH := h - len(lines)
-	bodyLines := m.buildDebugBody(events, cursor, pw)
+	bodyLines := m.buildDebugBody(events, cursor, pw, ds)
 
 	// Clamp scroll.
 	scroll := m.debugBodyScroll
@@ -296,13 +336,13 @@ func (m Model) renderDebugDetail() string {
 		if i < len(bodyLines) {
 			lines = append(lines, bodyLines[i])
 		} else {
-			lines = append(lines, contentStyle.Width(pw).Render(""))
+			lines = append(lines, ds.bg.Width(pw).Render(""))
 		}
 	}
 
 	// Pad to exactly h lines.
 	for len(lines) < h {
-		lines = append(lines, contentStyle.Width(pw).Render(""))
+		lines = append(lines, ds.bg.Width(pw).Render(""))
 	}
 	return strings.Join(lines[:h], "\n")
 }
@@ -311,7 +351,7 @@ func (m Model) renderDebugDetail() string {
 
 // renderDebugCallRow renders one row in the call list.
 // Layout: [cursor] [METHOD] [path…] [status] [duration]
-func (m Model) renderDebugCallRow(e client.APIEvent, pw int, selected bool) string {
+func (m Model) renderDebugCallRow(e client.APIEvent, pw int, selected bool, ds debugPanelStyles) string {
 	methodStr := debugMethodLabel(e.Method) // fixed 7 chars
 
 	var statusStr string
@@ -338,7 +378,7 @@ func (m Model) renderDebugCallRow(e client.APIEvent, pw int, selected bool) stri
 	}
 	pathStr := truncateStr(e.Path, pathW)
 
-	base := tableRowStyle
+	base := ds.row
 	cursorMark := "  "
 	if selected {
 		base = tableRowSelectedStyle
@@ -352,8 +392,8 @@ func (m Model) renderDebugCallRow(e client.APIEvent, pw int, selected bool) stri
 			base.Width(pathW-lipgloss.Width(pathStr)).Render("") +
 			base.Render(rightFixed)
 	} else {
-		statusStyled := debugStatusStyle(e.StatusCode, e.Err).Render(statusStr)
-		durStyled := jsonPunctStyle.Render(durStr)
+		statusStyled := debugStatusStyle(e.StatusCode, e.Err, ds.panelBg).Render(statusStr)
+		durStyled := ds.punct.Render(durStr)
 		rightStyled := base.Render("  ") + statusStyled + base.Render("  ") + durStyled + base.Render("  ")
 
 		gap := pathW - lipgloss.Width(pathStr)
@@ -361,7 +401,7 @@ func (m Model) renderDebugCallRow(e client.APIEvent, pw int, selected bool) stri
 			gap = 0
 		}
 		row = base.Render(cursorMark) +
-			debugMethodStyle(e.Method).Render(methodStr) +
+			debugMethodStyle(e.Method, ds.panelBg).Render(methodStr) +
 			base.Render("  "+pathStr) +
 			base.Width(gap).Render("") +
 			rightStyled
@@ -380,11 +420,11 @@ func (m Model) renderDebugCallRow(e client.APIEvent, pw int, selected bool) stri
 // buildDebugBody returns request+response viewer lines for the selected event.
 // Layout mirrors curl -v: method+path → timestamp → request headers → body →
 // status+duration → response headers → response body.
-func (m Model) buildDebugBody(events []client.APIEvent, cursor int, pw int) []string {
+func (m Model) buildDebugBody(events []client.APIEvent, cursor int, pw int, ds debugPanelStyles) []string {
 	var lines []string
 
 	if len(events) == 0 {
-		lines = append(lines, contentPlaceholderStyle.Width(pw).Render("  No API calls yet."))
+		lines = append(lines, ds.placeholder.Width(pw).Render("  No API calls yet."))
 		return lines
 	}
 	if cursor < 0 || cursor >= len(events) {
@@ -394,19 +434,19 @@ func (m Model) buildDebugBody(events []client.APIEvent, cursor int, pw int) []st
 
 	// addSection renders a dim "── LABEL ─────" divider line.
 	addSection := func(label string) {
-		lbl := jsonPunctStyle.Render("  ── " + label + " ")
+		lbl := ds.punct.Render("  ── " + label + " ")
 		rem := pw - lipgloss.Width(lbl)
 		if rem < 0 {
 			rem = 0
 		}
-		lines = append(lines, lbl+jsonPunctStyle.Width(rem).Render(strings.Repeat("─", rem)))
+		lines = append(lines, lbl+ds.punct.Width(rem).Render(strings.Repeat("─", rem)))
 	}
 
 	// addHeaders renders each "Name: value" header line, dim-styled.
 	addHeaders := func(headers []string) {
 		for _, h := range headers {
 			line := truncateStr(h, pw-2)
-			lines = append(lines, jsonPunctStyle.Render("  "+line))
+			lines = append(lines, ds.punct.Render("  "+line))
 		}
 	}
 
@@ -417,7 +457,7 @@ func (m Model) buildDebugBody(events []client.APIEvent, cursor int, pw int) []st
 	// Continuation lines are indented to align under the path start.
 	//   GET  /api/v2/organizations/org/workspaces/ws-longid/runs?page_number=1
 	//        &filter[...]=...
-	methodStyled := debugMethodStyle(e.Method).Render(e.Method)
+	methodStyled := debugMethodStyle(e.Method, ds.panelBg).Render(e.Method)
 	chunkW := pw - len(e.Method) - 2 // width per line (same for first and continuations)
 	if chunkW < 1 {
 		chunkW = 1
@@ -431,7 +471,7 @@ func (m Model) buildDebugBody(events []client.APIEvent, cursor int, pw int) []st
 	} else {
 		remaining = ""
 	}
-	lines = append(lines, methodStyled+contentStyle.Render("  "+first))
+	lines = append(lines, methodStyled+ds.bg.Render("  "+first))
 	for len(remaining) > 0 {
 		chunk := remaining
 		if len(chunk) > chunkW {
@@ -440,27 +480,27 @@ func (m Model) buildDebugBody(events []client.APIEvent, cursor int, pw int) []st
 		} else {
 			remaining = ""
 		}
-		lines = append(lines, contentStyle.Render(indent+chunk))
+		lines = append(lines, ds.bg.Render(indent+chunk))
 	}
 
 	// Timestamp
-	lines = append(lines, jsonPunctStyle.Render("  "+e.Timestamp.Format(time.RFC3339)))
+	lines = append(lines, ds.punct.Render("  "+e.Timestamp.Format(time.RFC3339)))
 
 	// Request headers
 	if len(e.ReqHeaders) > 0 {
-		lines = append(lines, contentStyle.Width(pw).Render(""))
+		lines = append(lines, ds.bg.Width(pw).Render(""))
 		addHeaders(e.ReqHeaders)
 	}
 
 	// Request body (POST/PATCH/PUT)
 	if e.ReqBody != "" {
-		lines = append(lines, contentStyle.Width(pw).Render(""))
+		lines = append(lines, ds.bg.Width(pw).Render(""))
 		for _, bl := range strings.Split(e.ReqBody, "\n") {
-			lines = append(lines, contentStyle.Render("  ")+colorizeJSONLine(truncateStr(bl, pw-2)))
+			lines = append(lines, ds.bg.Render("  ")+colorizeJSONLine(truncateStr(bl, pw-2)))
 		}
 	}
 
-	lines = append(lines, contentStyle.Width(pw).Render(""))
+	lines = append(lines, ds.bg.Width(pw).Render(""))
 
 	// ── RESPONSE ──────────────────────────────────────────────────────────
 	addSection("RESPONSE")
@@ -472,24 +512,24 @@ func (m Model) buildDebugBody(events []client.APIEvent, cursor int, pw int) []st
 
 	// Status + duration
 	statusStr := fmt.Sprintf("%d", e.StatusCode)
-	statusStyled := debugStatusStyle(e.StatusCode, "").Render(statusStr)
-	durStyled := jsonPunctStyle.Render("  " + debugDurLabel(e.Duration))
+	statusStyled := debugStatusStyle(e.StatusCode, "", ds.panelBg).Render(statusStr)
+	durStyled := ds.punct.Render("  " + debugDurLabel(e.Duration))
 	lines = append(lines, statusStyled+durStyled)
 
 	// Response headers
 	if len(e.RespHeaders) > 0 {
-		lines = append(lines, contentStyle.Width(pw).Render(""))
+		lines = append(lines, ds.bg.Width(pw).Render(""))
 		addHeaders(e.RespHeaders)
 	}
 
 	// Response body
-	lines = append(lines, contentStyle.Width(pw).Render(""))
+	lines = append(lines, ds.bg.Width(pw).Render(""))
 	if e.RespBody != "" {
 		for _, bl := range strings.Split(e.RespBody, "\n") {
-			lines = append(lines, contentStyle.Render("  ")+colorizeJSONLine(truncateStr(bl, pw-2)))
+			lines = append(lines, ds.bg.Render("  ")+colorizeJSONLine(truncateStr(bl, pw-2)))
 		}
 	} else {
-		lines = append(lines, jsonPunctStyle.Render("  (empty body)"))
+		lines = append(lines, ds.punct.Render("  (empty body)"))
 	}
 
 	return lines
@@ -517,8 +557,11 @@ func debugMethodLabel(method string) string {
 	}
 }
 
-func debugMethodStyle(method string) lipgloss.Style {
-	base := lipgloss.NewStyle().Background(colorBg)
+// debugMethodStyle returns a coloured style for the HTTP method verb.
+// bg is the panel's current background colour so the glyph blends in correctly
+// regardless of whether the panel is focused (colorHeaderBg) or not (colorBg).
+func debugMethodStyle(method string, bg color.Color) lipgloss.Style {
+	base := lipgloss.NewStyle().Background(bg)
 	switch strings.ToUpper(method) {
 	case "GET":
 		return base.Foreground(colorAccent) // blue
@@ -533,8 +576,10 @@ func debugMethodStyle(method string) lipgloss.Style {
 	}
 }
 
-func debugStatusStyle(code int, errStr string) lipgloss.Style {
-	base := lipgloss.NewStyle().Background(colorBg)
+// debugStatusStyle returns a coloured style for the HTTP status code.
+// bg is the panel's current background colour (see debugMethodStyle).
+func debugStatusStyle(code int, errStr string, bg color.Color) lipgloss.Style {
+	base := lipgloss.NewStyle().Background(bg)
 	if errStr != "" {
 		return base.Foreground(colorError)
 	}
@@ -572,6 +617,11 @@ func (m Model) joinPanels(left, right string) string {
 	leftW := m.mainWidth()
 	rightW := m.debugPanelWidth()
 
+	// The right panel padding background matches the focused state so that
+	// any short lines in the right panel are filled with the same bg colour
+	// as the rest of the panel, not the left panel's colour.
+	ds := m.newDebugStyles()
+
 	leftLines := strings.Split(left, "\n")
 	rightLines := strings.Split(right, "\n")
 	maxLines := len(leftLines)
@@ -606,13 +656,14 @@ func (m Model) joinPanels(left, right string) string {
 			l += contentStyle.Width(leftW - lw).Render("")
 		}
 
-		// Enforce right panel width: same treatment.
+		// Enforce right panel width: pad short lines with the panel's own
+		// background (focused or not) so no left-panel colour bleeds through.
 		rw := lipgloss.Width(r)
 		switch {
 		case rw > rightW:
 			r = ansi.Truncate(r, rightW, "")
 		case rw < rightW:
-			r += contentStyle.Width(rightW - rw).Render("")
+			r += ds.bg.Width(rightW - rw).Render("")
 		}
 
 		out[i] = l + sep + r
