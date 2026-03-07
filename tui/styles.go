@@ -173,6 +173,16 @@ var (
 				Foreground(colorDim).
 				Padding(0, 1)
 
+	// Debug panel title — changes with focus to act as a visual "active tab" indicator.
+	debugTitleFocusedStyle = lipgloss.NewStyle().
+				Background(colorHeaderBg).
+				Foreground(colorAccent).
+				Bold(true)
+
+	debugTitleUnfocusedStyle = lipgloss.NewStyle().
+					Background(colorBg).
+					Foreground(colorDim)
+
 	// JSON viewer syntax highlighting
 	jsonKeyStyle     = lipgloss.NewStyle().Background(colorBg).Foreground(colorAccent)  // keys → blue
 	jsonStringStyle  = lipgloss.NewStyle().Background(colorBg).Foreground(colorSuccess) // strings → green

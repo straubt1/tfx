@@ -181,19 +181,27 @@ func (m Model) renderDebugList() string {
 
 	var lines []string
 
-	// ── Title bar ─────────────────────────────────────────────────────────
+	// ── Title bar — styled to show which panel is active ──────────────────
+	// Focused: accent bg + blue title text acts as a visible "active" tab.
+	// Unfocused: dim text on content bg recedes visually.
+	titleStyle := debugTitleUnfocusedStyle
+	hintStyle := jsonPunctStyle
+	if m.debugFocused {
+		titleStyle = debugTitleFocusedStyle
+		hintStyle = filterBarStyle // colorHeaderBg bg, colorDim fg — matches title bg
+	}
 	focusedHint := ""
 	if !m.debugFocused {
-		focusedHint = jsonPunctStyle.Render("  [Tab] focus  ")
+		focusedHint = hintStyle.Render("  [Tab] focus  ")
 	} else {
-		focusedHint = jsonPunctStyle.Render("  [Tab] main  [l] close  ")
+		focusedHint = hintStyle.Render("  [Tab] main  [l] close  ")
 	}
-	titleLeft := contentTitleStyle.Render("  API Inspector")
+	titleLeft := titleStyle.Render("  API Inspector")
 	gap := pw - lipgloss.Width(titleLeft) - lipgloss.Width(focusedHint)
 	if gap < 0 {
 		gap = 0
 	}
-	lines = append(lines, titleLeft+contentTitleStyle.Width(gap).Render("")+focusedHint)
+	lines = append(lines, titleLeft+titleStyle.Width(gap).Render("")+focusedHint)
 
 	// ── Filter bar (inline with title, shown when active) ─────────────────
 	if m.debugFiltering || m.debugFilter != "" {
@@ -259,14 +267,14 @@ func (m Model) renderDebugDetail() string {
 
 	var lines []string
 
-	// ── Title bar ─────────────────────────────────────────────────────────
-	titleLeft := contentTitleStyle.Render("  API Inspector › Detail")
-	escHint := jsonPunctStyle.Render("  [esc] list  [Tab] main  ")
+	// ── Title bar — always focused when in detail mode ────────────────────
+	escHint := filterBarStyle.Render("  [esc] list  [Tab] main  ")
+	titleLeft := debugTitleFocusedStyle.Render("  API Inspector › Detail")
 	gap := pw - lipgloss.Width(titleLeft) - lipgloss.Width(escHint)
 	if gap < 0 {
 		gap = 0
 	}
-	lines = append(lines, titleLeft+contentTitleStyle.Width(gap).Render("")+escHint)
+	lines = append(lines, titleLeft+debugTitleFocusedStyle.Width(gap).Render("")+escHint)
 
 	// ── Divider ───────────────────────────────────────────────────────────
 	lines = append(lines, contentDividerStyle.Width(pw).Render(strings.Repeat("─", pw)))
@@ -405,9 +413,35 @@ func (m Model) buildDebugBody(events []client.APIEvent, cursor int, pw int) []st
 	// ── REQUEST ───────────────────────────────────────────────────────────
 	addSection("REQUEST")
 
-	// Method + path
+	// Method + path — wrapped across multiple lines when the URL is long.
+	// Continuation lines are indented to align under the path start.
+	//   GET  /api/v2/organizations/org/workspaces/ws-longid/runs?page_number=1
+	//        &filter[...]=...
 	methodStyled := debugMethodStyle(e.Method).Render(e.Method)
-	lines = append(lines, methodStyled+contentStyle.Render("  "+truncateStr(e.Path, pw-len(e.Method)-3)))
+	chunkW := pw - len(e.Method) - 2 // width per line (same for first and continuations)
+	if chunkW < 1 {
+		chunkW = 1
+	}
+	indent := strings.Repeat(" ", len(e.Method)+2)
+	remaining := e.Path
+	first := remaining
+	if len(first) > chunkW {
+		first = remaining[:chunkW]
+		remaining = remaining[chunkW:]
+	} else {
+		remaining = ""
+	}
+	lines = append(lines, methodStyled+contentStyle.Render("  "+first))
+	for len(remaining) > 0 {
+		chunk := remaining
+		if len(chunk) > chunkW {
+			chunk = remaining[:chunkW]
+			remaining = remaining[chunkW:]
+		} else {
+			remaining = ""
+		}
+		lines = append(lines, contentStyle.Render(indent+chunk))
+	}
 
 	// Timestamp
 	lines = append(lines, jsonPunctStyle.Render("  "+e.Timestamp.Format(time.RFC3339)))
@@ -545,7 +579,13 @@ func (m Model) joinPanels(left, right string) string {
 		maxLines = len(rightLines)
 	}
 
-	sep := jsonPunctStyle.Render("│")
+	// Separator color tracks focus: accent when right panel is active,
+	// dim when left panel is active — provides an extra focus cue.
+	sepStyle := jsonPunctStyle
+	if m.debugFocused {
+		sepStyle = lipgloss.NewStyle().Background(colorBg).Foreground(colorAccent)
+	}
+	sep := sepStyle.Render("│")
 	out := make([]string, maxLines)
 	for i := 0; i < maxLines; i++ {
 		l, r := "", ""
