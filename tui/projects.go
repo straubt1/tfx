@@ -36,7 +36,7 @@ func filteredProjects(m Model) []*tfe.Project {
 }
 
 func (m Model) renderProjectsContent() string {
-	cols := projectColumns(m.width)
+	cols := projectColumns(m.mainWidth())
 	visible := m.projVisibleRows()
 	filtered := filteredProjects(m)
 
@@ -48,7 +48,7 @@ func (m Model) renderProjectsContent() string {
 	lines = append(lines, m.renderTableDivider())
 
 	if len(filtered) == 0 {
-		lines = append(lines, contentPlaceholderStyle.Width(m.width).Render("  No projects found."))
+		lines = append(lines, contentPlaceholderStyle.Width(m.mainWidth()).Render("  No projects found."))
 	} else {
 		end := m.projOffset + visible
 		if end > len(filtered) {
@@ -61,7 +61,7 @@ func (m Model) renderProjectsContent() string {
 	}
 
 	for len(lines) < m.contentHeight() {
-		lines = append(lines, contentStyle.Width(m.width).Render(""))
+		lines = append(lines, contentStyle.Width(m.mainWidth()).Render(""))
 	}
 	return strings.Join(lines[:m.contentHeight()], "\n")
 }

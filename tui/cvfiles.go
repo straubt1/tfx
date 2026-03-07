@@ -103,12 +103,15 @@ func buildTreeConnector(files []cvFile, i int) string {
 		return "" // root items: no connector
 	}
 	var sb strings.Builder
-	// Continuation lines for each ancestor level.
-	for level := 0; level < d; level++ {
-		if level == 0 || isLastChild(files, i, level) {
-			sb.WriteString("    ") // depth-0 ancestors never draw │; last-child ancestors also clear
+	// Continuation lines for ancestor levels 1..d-1.
+	// We skip level 0 (root) because root items carry no visual connector —
+	// writing "    " for them would add an unnecessary 4-space indent to every
+	// child, pushing connectors away from the left edge.
+	for level := 1; level < d; level++ {
+		if isLastChild(files, i, level) {
+			sb.WriteString("    ") // last-child ancestor — no vertical bar continues
 		} else {
-			sb.WriteString("│   ") // ancestor has siblings below — draw continuation
+			sb.WriteString("│   ") // ancestor has siblings below — draw continuation bar
 		}
 	}
 	// Branch connector for this item.
@@ -167,7 +170,7 @@ func (m Model) cvFilesPathBar() string {
 	posW := lipgloss.Width(posRendered)
 
 	// Available rune-width for the left path portion.
-	leftAvailW := m.width - posW - 2 // 2 for "  " left margin
+	leftAvailW := m.mainWidth() - posW - 2 // 2 for "  " left margin
 
 	// Build the glyph + path text, then left-truncate so the tail is always visible.
 	// Styled: ▸ in accent blue, path text in default fg.
@@ -193,7 +196,7 @@ func (m Model) cvFilesPathBar() string {
 
 	// Fill the gap between the path and the position indicator.
 	pathW := lipgloss.Width(pathRendered)
-	gapW := m.width - pathW - posW
+	gapW := m.mainWidth() - pathW - posW
 	if gapW < 0 {
 		gapW = 0
 	}
@@ -222,9 +225,9 @@ func (m Model) renderConfigVersionFilesContent() string {
 		frame := spinnerFrames[m.spinnerIdx]
 		for i := range lines {
 			if i == mid {
-				lines[i] = contentPlaceholderStyle.Width(m.width).Render("  " + frame + "  Downloading and extracting config version…")
+				lines[i] = contentPlaceholderStyle.Width(m.mainWidth()).Render("  " + frame + "  Downloading and extracting config version…")
 			} else {
-				lines[i] = contentStyle.Width(m.width).Render("")
+				lines[i] = contentStyle.Width(m.mainWidth()).Render("")
 			}
 		}
 		return strings.Join(lines, "\n")
@@ -235,9 +238,9 @@ func (m Model) renderConfigVersionFilesContent() string {
 		lines := make([]string, h)
 		for i := range lines {
 			if i == 0 {
-				lines[i] = contentStyle.Width(m.width).Render("  ✗  " + m.cvFileErr)
+				lines[i] = contentStyle.Width(m.mainWidth()).Render("  ✗  " + m.cvFileErr)
 			} else {
-				lines[i] = contentStyle.Width(m.width).Render("")
+				lines[i] = contentStyle.Width(m.mainWidth()).Render("")
 			}
 		}
 		return strings.Join(lines, "\n")
@@ -248,7 +251,7 @@ func (m Model) renderConfigVersionFilesContent() string {
 	// No separate cursor column — selection is shown via row highlight colour.
 	const sizeColW = 10
 	const gapW = 2
-	nameColW := m.width - sizeColW - gapW
+	nameColW := m.mainWidth() - sizeColW - gapW
 	if nameColW < 12 {
 		nameColW = 12
 	}
@@ -259,17 +262,17 @@ func (m Model) renderConfigVersionFilesContent() string {
 	lines = append(lines, m.cvFilesPathBar())
 
 	// Header + divider. NAME spans the full name column (root items have no connector prefix).
-	hdr := m.pad(
+	hdr := m.padContent(
 		tableHeaderStyle.Width(nameColW).Render("NAME")+
 			tableHeaderStyle.Render("  ")+
-			tableHeaderStyle.Width(sizeColW).Render("SIZE"),
+			tableHeaderStyle.Width(sizeColW).Align(lipgloss.Right).Render("SIZE"),
 		tableHeaderStyle,
 	)
 	lines = append(lines, hdr)
 	lines = append(lines, m.renderTableDivider())
 
 	if len(m.cvFiles) == 0 {
-		lines = append(lines, contentPlaceholderStyle.Width(m.width).Render("  No files found."))
+		lines = append(lines, contentPlaceholderStyle.Width(m.mainWidth()).Render("  No files found."))
 	} else {
 		vis := m.cvFilesVisibleRows()
 		end := m.cvFileOffset + vis
@@ -314,30 +317,30 @@ func (m Model) renderConfigVersionFilesContent() string {
 				row = tableRowSelectedStyle.Render(connStr+iconGlyph+" ") +
 					tableRowSelectedStyle.Width(availW).Render(namePart) +
 					tableRowSelectedStyle.Render("  ") +
-					tableRowSelectedStyle.Width(sizeColW).Render(size)
-				lines = append(lines, m.pad(row, tableRowSelectedStyle))
+					tableRowSelectedStyle.Width(sizeColW).Align(lipgloss.Right).Render(size)
+				lines = append(lines, m.padContent(row, tableRowSelectedStyle))
 			case f.isDir:
 				// Connector dim, icon its colour, directory name bold/bright.
 				row = jsonPunctStyle.Render(connStr) +
 					iconRendered +
 					contentTitleStyle.Width(availW).Render(namePart) +
 					tableRowStyle.Render("  ") +
-					tableRowStyle.Width(sizeColW).Render(size)
-				lines = append(lines, m.pad(row, tableRowStyle))
+					tableRowStyle.Width(sizeColW).Align(lipgloss.Right).Render(size)
+				lines = append(lines, m.padContent(row, tableRowStyle))
 			default:
 				// Connector dim, icon its colour, file name in default fg.
 				row = jsonPunctStyle.Render(connStr) +
 					iconRendered +
 					tableRowStyle.Width(availW).Render(namePart) +
 					tableRowStyle.Render("  ") +
-					tableRowStyle.Width(sizeColW).Render(size)
-				lines = append(lines, m.pad(row, tableRowStyle))
+					tableRowStyle.Width(sizeColW).Align(lipgloss.Right).Render(size)
+				lines = append(lines, m.padContent(row, tableRowStyle))
 			}
 		}
 	}
 
 	for len(lines) < h {
-		lines = append(lines, contentStyle.Width(m.width).Render(""))
+		lines = append(lines, contentStyle.Width(m.mainWidth()).Render(""))
 	}
 	return strings.Join(lines[:h], "\n")
 }
@@ -351,7 +354,7 @@ func (m Model) renderConfigVersionFileContent() string {
 	if len(m.cvFileLines) == 0 {
 		lines := make([]string, h)
 		for i := range lines {
-			lines[i] = contentStyle.Width(m.width).Render("")
+			lines[i] = contentStyle.Width(m.mainWidth()).Render("")
 		}
 		return strings.Join(lines, "\n")
 	}
@@ -359,7 +362,7 @@ func (m Model) renderConfigVersionFileContent() string {
 	numLines := len(m.cvFileLines)
 	lineNumWidth := len(fmt.Sprintf("%d", numLines))
 	// Layout: 2 margin + lineNumWidth + " │ " (3) + content
-	contentWidth := m.width - 2 - lineNumWidth - 3
+	contentWidth := m.mainWidth() - 2 - lineNumWidth - 3
 	if contentWidth < 10 {
 		contentWidth = 10
 	}
@@ -389,7 +392,7 @@ func (m Model) renderConfigVersionFileContent() string {
 			detailLabelStyle.Render(lineNum) +
 			contentDividerStyle.Render(" │ ") +
 			colored
-		all = append(all, contentStyle.Width(m.width).Render(row))
+		all = append(all, contentStyle.Width(m.mainWidth()).Render(row))
 	}
 
 	// Clamp scroll and slice visible window.
@@ -408,7 +411,7 @@ func (m Model) renderConfigVersionFileContent() string {
 	out := make([]string, h)
 	copy(out, visible)
 	for i := len(visible); i < h; i++ {
-		out[i] = contentStyle.Width(m.width).Render("")
+		out[i] = contentStyle.Width(m.mainWidth()).Render("")
 	}
 	return strings.Join(out, "\n")
 }

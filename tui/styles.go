@@ -43,6 +43,12 @@ var (
 				Foreground(colorPurple).
 				Padding(0, 1)
 
+	// headerRemoteStyle renders the remote app name / TFE version in the header.
+	// No padding -- spacing is baked into the rendered string for tight layout.
+	headerRemoteStyle = lipgloss.NewStyle().
+				Background(colorHeaderBg).
+				Foreground(colorDim)
+
 	// Breadcrumb bar
 	breadcrumbBarStyle = lipgloss.NewStyle().
 				Background(colorBg).
@@ -123,6 +129,10 @@ var (
 				Background(colorHeaderBg).
 				Foreground(colorSuccess)
 
+	statusInspectorStyle = lipgloss.NewStyle().
+			Background(colorHeaderBg).
+			Foreground(colorAccent)
+
 	// Table
 	tableHeaderStyle = lipgloss.NewStyle().
 			Background(colorHeaderBg).
@@ -168,6 +178,16 @@ var (
 				Background(colorHeaderBg).
 				Foreground(colorDim).
 				Padding(0, 1)
+
+	// Debug panel title — changes with focus to act as a visual "active tab" indicator.
+	debugTitleFocusedStyle = lipgloss.NewStyle().
+				Background(colorHeaderBg).
+				Foreground(colorAccent).
+				Bold(true)
+
+	debugTitleUnfocusedStyle = lipgloss.NewStyle().
+					Background(colorBg).
+					Foreground(colorDim)
 
 	// JSON viewer syntax highlighting
 	jsonKeyStyle     = lipgloss.NewStyle().Background(colorBg).Foreground(colorAccent)  // keys → blue

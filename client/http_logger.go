@@ -4,14 +4,19 @@
 package client
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httputil"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/straubt1/tfx/output"
@@ -42,28 +47,172 @@ func redactSensitiveData(dump []byte) []byte {
 	return result
 }
 
-// LoggingTransport wraps an http.RoundTripper to log requests and responses to a file
+// LoggingTransport wraps an http.RoundTripper to log requests and responses.
+// It optionally publishes APIEvents to an APIEventBus for the TUI inspector panel.
 type LoggingTransport struct {
 	Transport http.RoundTripper
 	LogFile   *os.File
+	EventBus  *APIEventBus // nil when not running in TUI mode
 }
 
-// RoundTrip implements the http.RoundTripper interface with logging
+// RoundTrip implements the http.RoundTripper interface with logging and event publishing.
 func (t *LoggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	// Log request
+	start := time.Now()
+
+	// Capture the request body for the event bus before logging alters req.Body.
+	// This is only done for methods that carry a body (POST, PATCH, PUT) and only
+	// when the event bus is wired up. DumpRequestOut replaces req.Body with a
+	// re-readable buffer so subsequent reads (logRequest, transport) still work.
+	var reqBodyStr string
+	if t.EventBus != nil {
+		reqBodyStr = captureReqBody(req)
+	}
+
+	// Log request (may also DumpRequestOut internally for TRACE; safe after our capture).
 	t.logRequest(req)
 
-	// Perform the actual request
+	// Perform the actual request.
 	resp, err := t.Transport.RoundTrip(req)
+	duration := time.Since(start)
+
 	if err != nil {
 		t.logError(err)
+		if t.EventBus != nil {
+			t.EventBus.Send(APIEvent{
+				Timestamp:  time.Now(),
+				Method:     req.Method,
+				URL:        req.URL.String(),
+				Path:       req.URL.Path,
+				Duration:   duration,
+				ReqHeaders: formatHeaders(req.Header),
+				ReqBody:    reqBodyStr,
+				Err:        err.Error(),
+			})
+		}
 		return nil, err
 	}
 
-	// Log response
-	t.logResponse(resp)
+	// Capture response dump ONCE — shared by file logger, trace logger, and event bus.
+	// DumpResponse(resp, true) reads and replaces resp.Body with a re-readable buffer.
+	var respDump []byte
+	needsDump := t.LogFile != nil ||
+		output.Get().Logger().IsEnabled(output.LevelTrace) ||
+		t.EventBus != nil
+	if needsDump {
+		var dumpErr error
+		respDump, dumpErr = httputil.DumpResponse(resp, true)
+		if dumpErr != nil {
+			respDump = nil // non-fatal — logging/inspector miss this response
+		}
+	}
+
+	// Log response (file + terminal) using the pre-captured dump.
+	t.logResponseFromDump(resp, respDump)
+
+	// Publish to the TUI event bus.
+	if t.EventBus != nil {
+		t.EventBus.Send(APIEvent{
+			Timestamp:   time.Now(),
+			Method:      req.Method,
+			URL:         req.URL.String(),
+			Path:        pathFromURL(req.URL),
+			StatusCode:  resp.StatusCode,
+			Duration:    duration,
+			ReqHeaders:  formatHeaders(req.Header),
+			ReqBody:     reqBodyStr,
+			RespHeaders: formatHeaders(resp.Header),
+			RespBody:    extractAndPrettyBody(respDump),
+		})
+	}
 
 	return resp, nil
+}
+
+// formatHeaders formats http.Header as sorted "Name: value" strings, redacting
+// known sensitive headers (Authorization, Cookie, X-Api-Key).
+func formatHeaders(h http.Header) []string {
+	sensitive := map[string]bool{
+		"Authorization": true,
+		"Cookie":        true,
+		"X-Api-Key":     true,
+	}
+
+	keys := make([]string, 0, len(h))
+	for k := range h {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	out := make([]string, 0, len(keys))
+	for _, k := range keys {
+		val := strings.Join(h[k], ", ")
+		if sensitive[http.CanonicalHeaderKey(k)] {
+			val = "[REDACTED]"
+		}
+		out = append(out, k+": "+val)
+	}
+	return out
+}
+
+// captureReqBody reads the request body (for POST/PATCH/PUT) and returns it as a
+// string. It replaces req.Body with a fresh re-readable buffer so the actual
+// transport can still read the original bytes.
+func captureReqBody(req *http.Request) string {
+	if req.Body == nil || req.Body == http.NoBody {
+		return ""
+	}
+	// Only capture for methods that carry bodies.
+	switch req.Method {
+	case http.MethodPost, http.MethodPatch, http.MethodPut:
+	default:
+		return ""
+	}
+	dump, err := httputil.DumpRequestOut(req, true)
+	if err != nil {
+		return ""
+	}
+	// Extract body portion (everything after the header/blank-line separator).
+	parts := bytes.SplitN(dump, []byte("\r\n\r\n"), 2)
+	if len(parts) < 2 {
+		return ""
+	}
+	return prettyJSONBytes(parts[1])
+}
+
+// pathFromURL returns just the path (and query) portion of u, suitable for display.
+func pathFromURL(u *url.URL) string {
+	p := u.Path
+	if u.RawQuery != "" {
+		p += "?" + u.RawQuery
+	}
+	return p
+}
+
+// extractAndPrettyBody extracts the HTTP body from a full response dump and
+// pretty-prints it if it is valid JSON. Returns an empty string on failure.
+func extractAndPrettyBody(dump []byte) string {
+	if len(dump) == 0 {
+		return ""
+	}
+	parts := bytes.SplitN(dump, []byte("\r\n\r\n"), 2)
+	if len(parts) < 2 {
+		return ""
+	}
+	return prettyJSONBytes(parts[1])
+}
+
+// prettyJSONBytes attempts to pretty-print b as JSON. Returns the original bytes
+// as a string when b is not valid JSON (e.g., binary or plain text).
+func prettyJSONBytes(b []byte) string {
+	b = bytes.TrimSpace(b)
+	if len(b) == 0 {
+		return ""
+	}
+	var buf bytes.Buffer
+	if err := json.Indent(&buf, b, "", "  "); err == nil {
+		return buf.String()
+	}
+	return string(b)
 }
 
 func (t *LoggingTransport) logRequest(req *http.Request) {
@@ -102,7 +251,9 @@ func (t *LoggingTransport) logRequest(req *http.Request) {
 	}
 }
 
-func (t *LoggingTransport) logResponse(resp *http.Response) {
+// logResponseFromDump logs the response using the pre-captured dump bytes.
+// The dump was already obtained by the caller via DumpResponse(resp, true).
+func (t *LoggingTransport) logResponseFromDump(resp *http.Response, dump []byte) {
 	// Log to file if enabled
 	if t.LogFile != nil {
 		timestamp := time.Now().Format(time.RFC3339)
@@ -110,30 +261,19 @@ func (t *LoggingTransport) logResponse(resp *http.Response) {
 		_, _ = fmt.Fprintf(t.LogFile, "RESPONSE @ %s\n", timestamp)
 		_, _ = fmt.Fprintf(t.LogFile, "--------------------------------------------------------------------------------\n")
 
-		// Dump the response with body
-		respDump, err := httputil.DumpResponse(resp, true)
-		if err != nil {
-			_, _ = fmt.Fprintf(t.LogFile, "Error dumping response: %v\n", err)
-		} else {
-			// Redact sensitive data before writing to file
-			redactedDump := redactSensitiveData(respDump)
+		if len(dump) > 0 {
+			redactedDump := redactSensitiveData(dump)
 			_, _ = t.LogFile.Write(redactedDump)
 		}
 	}
 
 	// Log to logger based on log level
 	if output.Get().Logger().IsEnabled(output.LevelTrace) {
-		// At TRACE level, log the full response dump
-		respDump, err := httputil.DumpResponse(resp, true)
-		if err != nil {
-			output.Get().Logger().Error("Failed to dump HTTP response", "error", err)
-		} else {
-			// Redact sensitive data before logging
-			redactedDump := redactSensitiveData(respDump)
+		if len(dump) > 0 {
+			redactedDump := redactSensitiveData(dump)
 			output.Get().Logger().Trace("HTTP Response (full dump)", "response", string(redactedDump))
 		}
 	} else if output.Get().Logger().IsEnabled(slog.LevelDebug) {
-		// At DEBUG level, log response summary
 		output.Get().Logger().Debug("HTTP Response",
 			"method", resp.Request.Method,
 			"url", resp.Request.URL.String(),
@@ -169,7 +309,8 @@ func IsTFXLogEnabled() bool {
 
 // NewHTTPClientWithLogging creates an HTTP client that logs all requests and responses to a file
 // if TFX_LOG_PATH is set, and/or to the terminal if TFX_LOG is set.
-func NewHTTPClientWithLogging() (*http.Client, io.Closer, error) {
+// An optional EventBus may be provided to also publish events for the TUI inspector panel.
+func NewHTTPClientWithLogging(bus *APIEventBus) (*http.Client, io.Closer, error) {
 	var logFile *os.File
 	var err error
 
@@ -201,6 +342,7 @@ func NewHTTPClientWithLogging() (*http.Client, io.Closer, error) {
 	transport := &LoggingTransport{
 		Transport: http.DefaultTransport,
 		LogFile:   logFile,
+		EventBus:  bus,
 	}
 
 	client := &http.Client{
@@ -208,4 +350,23 @@ func NewHTTPClientWithLogging() (*http.Client, io.Closer, error) {
 	}
 
 	return client, transport, nil
+}
+
+// methodColor returns an ANSI color prefix for a given HTTP method for display purposes.
+// Not used internally — exported so the TUI debugpanel can reference it.
+func MethodDisplayLabel(method string) string {
+	switch strings.ToUpper(method) {
+	case "GET":
+		return "GET   "
+	case "POST":
+		return "POST  "
+	case "PATCH":
+		return "PATCH "
+	case "PUT":
+		return "PUT   "
+	case "DELETE":
+		return "DELETE"
+	default:
+		return method
+	}
 }

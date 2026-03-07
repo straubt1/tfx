@@ -916,6 +916,175 @@ Used by both the JSON Viewer and File Content Viewer. Same approach as existing 
 
 ---
 
+### Phase 8 — API Inspector Panel
+
+Goal: a collapsible right-hand panel (toggled with `l`) that shows live TFE API calls — method, path, status, duration, full request body, and full response body — as the TUI makes them in the background. Scrollable, filterable, and non-blocking with respect to main-view navigation.
+
+```
+┌────────────────────────┬─┬────────────────────────────┐
+│ Header (full width)                                    │
+│ Breadcrumb (full width)                                │
+├────────────────────────┤│├────────────────────────────┤
+│                        ││  API Inspector  [l] close   │
+│  Main view             ││  GET /workspaces   200  45ms│ ← cursor (▶)
+│  (narrowed when panel  ││  POST /runs        201  89ms│
+│  is open)              ││  GET /projects     200  12ms│
+│                        ││────────────────────────────-│
+│                        ││ ─── REQUEST ───────────────  │
+│                        ││ GET /api/v2/workspaces      │
+│                        ││ ─── RESPONSE ──────────────  │
+│                        ││ 200 OK  •  45ms             │
+│                        ││ { "data": [...] }           │
+├────────────────────────┤│├────────────────────────────┤
+│ Status bar (full width)                                │
+│ CLI hint (full width)                                  │
+└────────────────────────┴─┴────────────────────────────┘
+```
+
+#### 8a. Event Bus & Transport Integration
+
+**New file: `client/eventbus.go`**
+```go
+type APIEvent struct {
+    Timestamp  time.Time
+    Method     string
+    URL        string        // full URL (for filter matching)
+    Path       string        // path only, scheme+host stripped (for display)
+    StatusCode int
+    Duration   time.Duration
+    ReqBody    string        // request body; empty for GET/DELETE
+    RespBody   string        // pretty-printed JSON response body
+    Err        string        // non-empty if RoundTrip errored
+}
+
+type APIEventBus struct { ch chan APIEvent }   // buffered, size 256
+
+func NewAPIEventBus() *APIEventBus
+func (b *APIEventBus) Send(e APIEvent)          // non-blocking (drops when full)
+func (b *APIEventBus) Receive() <-chan APIEvent
+```
+
+**`client/http_logger.go` changes:**
+- Add `EventBus *APIEventBus` field to `LoggingTransport`
+- Record `start := time.Now()` at top of `RoundTrip`
+- Consolidate to **one** `DumpResponse(resp, true)` call (shared by file log, trace log, event bus)
+- Extract request body from `DumpRequestOut`, split at `\r\n\r\n`
+- Pretty-print response JSON with `json.Indent` before publishing
+- Publish `APIEvent` when `t.EventBus != nil` (independent of `TFX_LOG`)
+
+**`client/client.go` changes:**
+- Add `EventBus *APIEventBus` field to `TfxClient`
+- New `NewFromViperForTUI(bus *APIEventBus) (*TfxClient, error)` — always installs a `LoggingTransport` with the bus set (additionally handles `TFX_LOG` if set)
+
+**`tui/run.go` changes:**
+```go
+bus := client.NewAPIEventBus()
+c, err := client.NewFromViperForTUI(bus)
+m := newModel(c)   // c.EventBus is set; Init() starts the listener
+```
+
+#### 8b. Model State & Width Parameterization
+
+**New Model fields:**
+```go
+showDebug       bool
+debugFocused    bool              // Tab toggles keyboard focus to panel
+apiEvents       []client.APIEvent // ring buffer, max 100, newest at index 0
+debugCursor     int               // selected call index
+debugBodyScroll int               // scroll offset in request/response viewer
+debugFilter     string
+debugFiltering  bool
+```
+
+**New helpers:**
+```go
+func (m Model) debugPanelWidth() int  // clamped min 52 / max 90 / ~35% of total
+func (m Model) mainWidth() int        // m.width when closed; m.width-panelW-1 when open
+func (m Model) padContent(rendered string, style lipgloss.Style) string  // pads to mainWidth()
+```
+
+**Width refactor:** Replace `m.width` → `m.mainWidth()` and `m.pad()` → `m.padContent()` in all content-area renderers (`renderContent()` and all sub-renderers in model.go, cvfiles.go, organizations.go, runs.go, variables.go, configversions.go, stateversions.go, detail view files). Full-width zones (header, breadcrumb, statusbar, clihint) keep `m.width`/`pad()`.
+
+**Bubble Tea event listener** — always active (events buffer even when panel is closed):
+```go
+// Init(): tea.Batch(..., waitForAPIEvent(m.c.EventBus))
+
+func waitForAPIEvent(bus *client.APIEventBus) tea.Cmd {
+    return func() tea.Msg { return <-bus.Receive() }
+}
+
+// Update():
+case client.APIEvent:
+    m.apiEvents = append([]client.APIEvent{msg}, m.apiEvents...)
+    if len(m.apiEvents) > 100 { m.apiEvents = m.apiEvents[:100] }
+    if m.debugCursor > 0 { m.debugCursor++ }  // track same call on new arrivals
+    return m, waitForAPIEvent(m.c.EventBus)
+```
+
+**Key routing:**
+- `l` (global) — toggle `showDebug`; clear `debugFocused` on close
+- `Tab` (when `showDebug`) — toggle `debugFocused`
+- When `m.debugFocused && m.showDebug`, route all keys to `handleDebugPanelKey()` first
+
+#### 8c. Debug Panel Renderer
+
+**New file: `tui/debugpanel.go`**
+
+`renderDebugPanel() string` — renders to exactly `contentHeight()` lines at `debugPanelWidth()` columns:
+- Title bar (1 line): `  API Inspector` + `[Tab] focus  [l] close` right-aligned
+- Call list (top 40% of height): newest first, with `▶` cursor marker
+  - `METHOD /path  STATUS  DUR` — method and status color-coded
+  - Method: GET=blue, POST=green, DELETE=red, PATCH/PUT=amber
+  - Status: 2xx=green, 4xx=amber, 5xx=red, 0=dim (error)
+- Divider + optional filter bar
+- Request/Response viewer (remainder): shows selected call's req body + response body, scrollable via `debugBodyScroll`, response JSON highlighted with `colorizeJSONLine()`
+
+`filteredDebugEvents(m Model) []client.APIEvent` — case-insensitive method+path filter.
+
+`handleDebugPanelKey()` keys:
+- `↑`/`k` / `↓`/`j` — navigate call list
+- `g`/`G` — top/bottom of list
+- `ctrl+u` / `ctrl+d` — scroll response viewer half-page
+- `/` — start filter input
+- `esc` — clear filter → unfocus panel → close panel (successive presses)
+- `Tab` — unfocus (return focus to main view)
+
+#### 8d. View() Horizontal Join
+
+**`View()` restructure:**
+```go
+if m.showDebug {
+    joined := joinPanels(m.renderContent(), m.renderDebugPanel())
+    content = lipgloss.JoinVertical(lipgloss.Left,
+        m.renderHeader(), m.renderBreadcrumb(), joined,
+        m.renderStatusBar(), m.renderCliHint())
+}
+```
+
+**`joinPanels(left, right string) string`** — line-by-line zip with dim `│` separator.
+
+#### 8e. Polish
+
+- Help overlay: add `[global] l`, `[inspector] Tab/↑↓/ctrl+u-d / / esc` entries
+- Status bar: show `[inspector]` accent badge when `debugFocused == true`
+- No CLI hint change needed
+
+#### 8f. New Files Summary
+
+| File | Purpose |
+|---|---|
+| `client/eventbus.go` | `APIEvent`, `APIEventBus` |
+| `tui/debugpanel.go` | `renderDebugPanel()`, `joinPanels()`, `filteredDebugEvents()`, `handleDebugPanelKey()` |
+
+#### 8g. Key Design Decisions
+- Subscription always runs (events buffered before panel opens)
+- `NewFromViperForTUI` always installs transport — no `TFX_LOG` required
+- One `DumpResponse` per request (shared across logging channels)
+- `padContent()`/`mainWidth()` is the invariant separating full-width vs. content-area rows
+- `debugCursor` increments on new events to track the same call when cursor is not at 0
+
+---
+
 ## 11. Open Questions
 
 - [x] **Resolved:** `tfx tui` subcommand (not `--tui` flag). Cobra's required-flag check runs before `PersistentPreRun`; subcommand goes through `postInitCommands`/`presetRequiredFlags` normally.

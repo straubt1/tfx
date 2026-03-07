@@ -11,29 +11,28 @@ import (
 )
 
 func variableColumns(width int) []column {
-	idW := 30
-	catW := 12  // "terraform" or "env"
-	senW := 9   // "SENSITIVE" header; values are "yes" / "no"
-	keyW := 30  // variable names are identifiers — cap at 30, rarely longer
-	valW := width - idW - catW - senW - keyW - 12 // 2(cursor) + 5×2(col padding)
-	if valW < 15 {
-		valW = 15
+	keyW := 24 // variable names are identifiers — cap at 24
+	catW := 10 // "terraform" or "env"
+	senW := 9  // "SENSITIVE" header; values are "yes" / "no"
+	valW := width - keyW - catW - senW - 10 // 2(cursor) + 4×2(col padding)
+	if valW < 5 {
+		valW = 5
 	}
 	return []column{
 		{name: "KEY", width: keyW},
-		{name: "VALUE", width: valW},
-		{name: "SENSITIVE", width: senW},
 		{name: "CATEGORY", width: catW},
-		{name: "ID", width: idW},
+		{name: "SENSITIVE", width: senW},
+		{name: "VALUE", width: valW},
 	}
 }
 
 // variableValue returns the display value for a variable, masking sensitive ones.
+// Embedded newlines are collapsed to ↵ so the value fits on a single table row.
 func variableValue(v *tfe.Variable) string {
 	if v.Sensitive {
 		return "••••••••"
 	}
-	return v.Value
+	return strings.ReplaceAll(v.Value, "\n", "↵")
 }
 
 // sensitiveStr returns a human-readable yes/no for v.Sensitive.
@@ -73,7 +72,7 @@ func filteredVariables(m Model) []*tfe.Variable {
 }
 
 func (m Model) renderVariablesContent() string {
-	cols := variableColumns(m.width)
+	cols := variableColumns(m.mainWidth())
 	visible := m.varVisibleRows()
 	filtered := filteredVariables(m)
 
@@ -86,7 +85,7 @@ func (m Model) renderVariablesContent() string {
 	lines = append(lines, m.renderTableDivider())
 
 	if len(filtered) == 0 {
-		lines = append(lines, contentPlaceholderStyle.Width(m.width).Render("  No variables found."))
+		lines = append(lines, contentPlaceholderStyle.Width(m.mainWidth()).Render("  No variables found."))
 	} else {
 		end := m.varOffset + visible
 		if end > len(filtered) {
@@ -94,20 +93,19 @@ func (m Model) renderVariablesContent() string {
 		}
 		for i := m.varOffset; i < end; i++ {
 			v := filtered[i]
-			// CATEGORY is at index 3: KEY(0) VALUE(1) SENSITIVE(2) CATEGORY(3) ID(4)
-			cellFgs := []color.Color{nil, nil, nil, categoryFg(v), nil}
+			// KEY(0) CATEGORY(1) SENSITIVE(2) VALUE(3)
+			cellFgs := []color.Color{nil, categoryFg(v), nil, nil}
 			lines = append(lines, m.renderTableRowWithCellStyles(i == m.varCursor, []string{
 				v.Key,
-				variableValue(v),
-				sensitiveStr(v),
 				string(v.Category),
-				v.ID,
+				sensitiveStr(v),
+				variableValue(v),
 			}, cols, cellFgs))
 		}
 	}
 
 	for len(lines) < m.contentHeight() {
-		lines = append(lines, contentStyle.Width(m.width).Render(""))
+		lines = append(lines, contentStyle.Width(m.mainWidth()).Render(""))
 	}
 	return strings.Join(lines[:m.contentHeight()], "\n")
 }

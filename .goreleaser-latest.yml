@@ -9,7 +9,7 @@ env:
 builds:
   - binary: tfx-latest
     ldflags:
-      - -s -w -X github.com/straubt1/tfx/version.Version={{ .Version }}
+      - -s -w -X github.com/straubt1/tfx/version.Version={{ .Env.TFX_VERSION }}
       - -s -w -X github.com/straubt1/tfx/version.Build={{ .ShortCommit }}
       - -s -w -X github.com/straubt1/tfx/version.Date={{ .Date }}
       - -s -w -X github.com/straubt1/tfx/version.BuiltBy=goreleaser
