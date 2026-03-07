@@ -73,6 +73,12 @@ cmd/          # Cobra command implementations and orchestration
 client/       # TFE API client wrapper (wraps go-tfe)
 data/         # Data fetching layer — API calls and business logic
 output/       # Output system (terminal tables, JSON, spinner, logger)
+tui/          # Bubble Tea TUI — models, renderers, styles
+  run.go      # Entry point (tui.Run())
+  model.go    # Root model, key dispatch, layout
+  styles.go   # Global lipgloss style vars
+  debugpanel.go # API inspector panel
+  # one file per view/feature
 integration/  # Integration tests (require live TFE instance)
 pkg/file/     # File utility package
 version/      # Version string
@@ -162,6 +168,51 @@ c, err := client.NewFromViper()  // reads Viper config/flags
 - Define flag structs in `cmd/flags/`
 - Parse with `Parse*Flags(cmd)` returning the struct
 - Bind to Viper for config file / env var fallback
+
+## TUI Architecture & Patterns
+
+The TUI lives in `tui/` and uses Bubble Tea v2 + Lip Gloss v2. It shares the same `data/` and `client/` layers as the CLI. Entry point: `cmd/tui.go` → `tui.Run()`.
+
+### Key TUI dependencies
+- `charm.land/bubbletea/v2` — ELM architecture event loop
+- `charm.land/lipgloss/v2` — terminal styling
+- `github.com/charmbracelet/x/ansi` — ANSI-safe string truncation (transitive dep of lipgloss v2, no extra `go get` needed)
+
+### Bubble Tea v2 API — common gotchas
+These differ from the widely-documented v1 API and will cause compile errors:
+- `Init() tea.Cmd` — NOT `(Model, Cmd)`
+- `View() tea.View` — return `tea.NewView(content)`, NOT a plain string; set `view.AltScreen = true` on the returned View (there is no `tea.WithAltScreen()` option)
+- Key events are `tea.KeyPressMsg`, NOT `tea.KeyMsg`
+
+### Lip Gloss v2 — common gotchas
+- `lipgloss.Color` is a **function** (`func(s string) color.Color`), not a type. Use `color.Color` from `"image/color"` for struct fields and function parameters that store a colour value.
+- Measure rendered string width with `lipgloss.Width(s)` (ANSI-aware).
+- Right-align within a fixed-width column: `style.Width(n).Align(lipgloss.Right).Render(s)`
+
+### ANSI-safe truncation
+Use `ansi.Truncate(str, width, "")` from `github.com/charmbracelet/x/ansi` to clip styled strings without breaking escape sequences.
+
+### Multi-panel layout: width enforcement
+Any layout with side-by-side panels needs a single enforcing function that *both* pads short lines AND truncates overwide ones using `ansi.Truncate`. Without explicit truncation, content from one panel bleeds into the adjacent separator column.
+
+### Style threading for focus-aware panels
+When a panel changes background based on focus state, styles cannot be global package vars — they need to be dynamic. Define a styles struct and pass it through every renderer:
+
+```go
+type panelStyles struct {
+    bg      lipgloss.Style
+    punct   lipgloss.Style
+    panelBg color.Color  // raw colour for helpers that build styles dynamically
+}
+```
+
+Functions that render coloured glyphs (e.g. HTTP method verbs, status codes) need `bg color.Color` as a parameter so the glyph background matches the panel, not a hardcoded global.
+
+### Key dispatch ordering
+Three-tier dispatch prevents focus-escape bugs where global keys intercept input meant for a focused sub-panel:
+1. Always-global (quit, toggle panel, switch focus)
+2. Focused panel — guarded by `panelFocused && panelVisible`
+3. Main view (filter input, globals, view-specific keys)
 
 ## Key Dependencies
 

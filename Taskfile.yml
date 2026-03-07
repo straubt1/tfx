@@ -5,9 +5,16 @@ tasks:
     desc: Build Go binary (development build with git metadata)
     cmds:
       - |
+        LATEST_TAG=$(git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" 2>/dev/null || echo "v0.0.0")
+        RAW="${LATEST_TAG#v}"
+        IFS='.' read -r MAJOR MINOR PATCH <<< "$RAW"
+        SHORT_SHA=$(git rev-parse --short HEAD)
+        NEXT_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))-local"
+        BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
         go build \
-          -ldflags="-X github.com/straubt1/tfx/version.Build=$(git rev-parse --short HEAD) \
-            -X 'github.com/straubt1/tfx/version.Date=$(date -u +%Y-%m-%dT%H:%M:%SZ)' \
+          -ldflags="-X github.com/straubt1/tfx/version.Version=${NEXT_VERSION} \
+            -X github.com/straubt1/tfx/version.Build=${SHORT_SHA} \
+            -X github.com/straubt1/tfx/version.Date=${BUILD_DATE} \
             -X github.com/straubt1/tfx/version.BuiltBy=local" \
           -o tfx .
 
