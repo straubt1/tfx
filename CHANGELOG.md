@@ -9,8 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Added**
 
-* `tfx workspace run policy` — show policy check and evaluation details for a run, supports both legacy Sentinel policy checks and newer policy evaluations (OPA/Sentinel via task stages)
+* `tfx tui` — new interactive full-screen TUI browser for HCP Terraform and TFE; navigate organizations → projects → workspaces → runs / variables / configuration versions / state versions using keyboard shortcuts
+* `tfx tui` — detail views for organizations, projects, workspaces, runs, variables, configuration versions, and state versions
+* `tfx tui` — state version JSON viewer with syntax highlighting and line numbers (`o` from state version detail)
+* `tfx tui` — configuration version archive browser: download and browse files inside a config version tarball, with a file content viewer (`x` from config version detail)
+* `tfx tui` — Live API Inspector panel (`l` key): collapsible right-side panel that captures every TFE API call in real-time, showing method, path, HTTP status, and duration; press Enter on a call to see the full request and pretty-printed, syntax-highlighted response body; supports `/` text filter and `Tab` focus switching
+* `tfx tui` — Instance Info modal (`i` key): centered popup overlaid on the current view showing application name, hostname, API version, TFE version, and live health check status (`/_health_check`) with color-coded UP/DOWN indicators
+* `tfx workspace run policy` — show policy check and evaluation details for a run; supports both legacy Sentinel policy checks and newer policy evaluations (OPA/Sentinel via task stages)
 * `--logs` flag for `tfx workspace run policy` — include raw policy output (Sentinel logs and OPA `output.print`)
+
+**Fixed**
+
+* `tfx tui` — CLI hint bar now shows correct command syntax for all detail views (configuration-version, state-version, variable flags)
+* `tfx tui` — multi-line variable values no longer break table layout; collapsed to `↵` in the list view and expanded row-per-line in the detail view
+* `tfx tui` — variable list column order changed to KEY | CATEGORY | SENSITIVE | VALUE
+
+**Changed**
+
+* Documentation site migrated to Starlight
 
 ## [v0.2.1] - 2026-03-01
 
