@@ -28,9 +28,15 @@ func buildVariableDetailSections(v *tfe.Variable) []wsDetailSection {
 			{"Value", "***** (sensitive)"},
 		}
 	} else if v.Value != "" {
-		value.rows = []wsDetailRow{
-			{"Value", v.Value},
+		// Split multi-line values into one row per line so embedded newlines
+		// don't break the row-counting / scroll math.
+		valueLines := strings.Split(v.Value, "\n")
+		rows := make([]wsDetailRow, len(valueLines))
+		rows[0] = wsDetailRow{"Value", valueLines[0]}
+		for i, line := range valueLines[1:] {
+			rows[i+1] = wsDetailRow{"", line}
 		}
+		value.rows = rows
 	} else {
 		value.rows = []wsDetailRow{
 			{"Value", "(empty)"},

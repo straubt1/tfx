@@ -1737,14 +1737,14 @@ func (m Model) currentCliCmd() string {
 		return "tfx workspace variable list"
 	case viewConfigVersions:
 		if m.selectedWS != nil {
-			return fmt.Sprintf("tfx workspace cv list -n %s", m.selectedWS.Name)
+			return fmt.Sprintf("tfx workspace configuration-version list -n %s", m.selectedWS.Name)
 		}
-		return "tfx workspace cv list"
+		return "tfx workspace configuration-version list"
 	case viewStateVersions:
 		if m.selectedWS != nil {
-			return fmt.Sprintf("tfx workspace sv list -n %s", m.selectedWS.Name)
+			return fmt.Sprintf("tfx workspace state-version list -n %s", m.selectedWS.Name)
 		}
-		return "tfx workspace sv list"
+		return "tfx workspace state-version list"
 	case viewWorkspaceDetail:
 		if m.selectedWS != nil {
 			return fmt.Sprintf("tfx workspace show -n %s", m.selectedWS.Name)
@@ -1762,34 +1762,34 @@ func (m Model) currentCliCmd() string {
 		return "tfx project show"
 	case viewRunDetail:
 		if m.selectedRun != nil {
-			return fmt.Sprintf("tfx workspace run show --run-id %s", m.selectedRun.ID)
+			return fmt.Sprintf("tfx workspace run show --id %s", m.selectedRun.ID)
 		}
 		return "tfx workspace run show"
 	case viewVariableDetail:
-		if m.selectedVar != nil {
-			return fmt.Sprintf("tfx workspace variable show --variable-id %s", m.selectedVar.ID)
+		if m.selectedWS != nil && m.selectedVar != nil {
+			return fmt.Sprintf("tfx workspace variable show -n %s --key %s", m.selectedWS.Name, m.selectedVar.Key)
 		}
 		return "tfx workspace variable show"
 	case viewStateVersionDetail:
 		if m.selectedSV != nil {
-			return fmt.Sprintf("tfx workspace sv show --state-version-id %s", m.selectedSV.ID)
+			return fmt.Sprintf("tfx workspace state-version show --state-id %s", m.selectedSV.ID)
 		}
-		return "tfx workspace sv show"
+		return "tfx workspace state-version show"
 	case viewStateVersionJson:
-		if m.selectedWS != nil {
-			return fmt.Sprintf("tfx workspace sv download -n %s", m.selectedWS.Name)
+		if m.selectedSV != nil {
+			return fmt.Sprintf("tfx workspace state-version download --state-id %s", m.selectedSV.ID)
 		}
-		return "tfx workspace sv download"
+		return "tfx workspace state-version download"
 	case viewConfigVersionFiles, viewConfigVersionFileContent:
-		if m.selectedWS != nil {
-			return fmt.Sprintf("tfx workspace cv download -n %s", m.selectedWS.Name)
+		if m.selectedCV != nil {
+			return fmt.Sprintf("tfx workspace configuration-version download --id %s", m.selectedCV.ID)
 		}
-		return "tfx workspace cv download"
+		return "tfx workspace configuration-version download"
 	case viewConfigVersionDetail:
 		if m.selectedCV != nil {
-			return fmt.Sprintf("tfx workspace cv show --config-version-id %s", m.selectedCV.ID)
+			return fmt.Sprintf("tfx workspace configuration-version show --id %s", m.selectedCV.ID)
 		}
-		return "tfx workspace cv show"
+		return "tfx workspace configuration-version show"
 	default:
 		return "tfx"
 	}
