@@ -178,6 +178,16 @@ type Model struct {
 	cvFileLines []string
 	cvFileScroll int
 	cvFileName  string // base name of the currently viewed file
+
+	// API Inspector panel state (Phase 8)
+	showDebug       bool              // true = panel is visible (toggled with l)
+	debugFocused    bool              // true = right panel has keyboard focus (Tab toggles)
+	apiEvents       []client.APIEvent // ring buffer, max 100, newest at index 0
+	debugCursor     int               // selected call index in filtered list
+	debugDetailMode bool              // true = showing full request/response detail for selected call
+	debugBodyScroll int               // scroll offset in the detail view
+	debugFilter     string            // case-insensitive method+path filter
+	debugFiltering  bool              // filter input is active
 }
 
 func newModel(c *client.TfxClient) Model {
@@ -190,8 +200,22 @@ func newModel(c *client.TfxClient) Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	// Start the org fetch and the spinner simultaneously.
-	return tea.Batch(loadOrganizations(m.c), tickSpinner())
+	// Start the org fetch, spinner, and API event listener simultaneously.
+	// The event listener runs unconditionally so the inspector panel shows
+	// history even when opened after some calls have already completed.
+	return tea.Batch(loadOrganizations(m.c), tickSpinner(), waitForAPIEvent(m.c))
+}
+
+// waitForAPIEvent returns a Cmd that blocks until the next API event arrives
+// on the client's event bus, then delivers it as a tea.Msg.
+// It is re-issued by Update() after each event to keep the subscription alive.
+func waitForAPIEvent(c *client.TfxClient) tea.Cmd {
+	if c.EventBus == nil {
+		return nil
+	}
+	return func() tea.Msg {
+		return <-c.EventBus.Receive()
+	}
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -208,6 +232,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.loading || m.svJsonLoading || m.cvFileLoading {
 			return m, tickSpinner()
 		}
+
+	// ── API Inspector event bus ───────────────────────────────────────────────
+	case client.APIEvent:
+		// Prepend (newest first), keep ring buffer at most 100 entries.
+		m.apiEvents = append([]client.APIEvent{msg}, m.apiEvents...)
+		if len(m.apiEvents) > 100 {
+			m.apiEvents = m.apiEvents[:100]
+		}
+		// Advance cursor so it stays on the same call when not at the top.
+		if m.debugCursor > 0 {
+			m.debugCursor++
+		}
+		// Re-subscribe unconditionally to keep the listener alive.
+		return m, waitForAPIEvent(m.c)
 
 	// ── Data loads ────────────────────────────────────────────────────────────
 	case orgsLoadedMsg:
@@ -314,15 +352,40 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
+		// ── Always-global keys (work regardless of which panel has focus) ──────
+		switch msg.String() {
+		case "q", "ctrl+c":
+			return m, tea.Quit
+		case "l":
+			// Toggle the API Inspector panel.
+			m.showDebug = !m.showDebug
+			if !m.showDebug {
+				m.debugFocused = false
+				m.debugDetailMode = false
+			}
+			return m, nil
+		case "tab":
+			// Switch focus between left (main) and right (inspector) panels.
+			if m.showDebug {
+				m.debugFocused = !m.debugFocused
+			}
+			return m, nil
+		}
+
+		// ── Right panel gets all remaining keys when it has focus ────────────
+		if m.debugFocused && m.showDebug {
+			return m.handleDebugPanelKey(msg)
+		}
+
+		// ── Left-panel keys (filter input, then global, then view-specific) ──
+
 		// Filter input mode.
 		if m.isFiltering() {
 			return m.handleFilterKey(msg)
 		}
 
-		// Global keys.
+		// Left-panel global keys.
 		switch msg.String() {
-		case "q", "ctrl+c":
-			return m, tea.Quit
 		case "?":
 			m.showHelp = true
 			return m, nil
@@ -393,6 +456,18 @@ func (m Model) View() tea.View {
 		content = fmt.Sprintf("\n  Terminal too small (%dx%d). Minimum: %dx%d.", m.width, m.height, minWidth, minHeight)
 	} else if m.showHelp {
 		content = m.renderHelpOverlay()
+	} else if m.showDebug {
+		// Split the content area horizontally: main view (left) | separator | debug panel (right).
+		// Full-width zones (header, breadcrumb, statusbar, clihint) span the whole terminal.
+		contentArea := m.joinPanels(m.renderContent(), m.renderDebugPanel())
+		content = lipgloss.JoinVertical(
+			lipgloss.Left,
+			m.renderHeader(),
+			m.renderBreadcrumb(),
+			contentArea,
+			m.renderStatusBar(),
+			m.renderCliHint(),
+		)
 	} else {
 		content = lipgloss.JoinVertical(
 			lipgloss.Left,
@@ -1525,6 +1600,33 @@ func (m Model) contentHeight() int {
 	return h
 }
 
+// debugPanelWidth returns the width of the API Inspector panel.
+// Always exactly half the terminal width for a clean 50/50 split.
+func (m Model) debugPanelWidth() int {
+	return m.width / 2
+}
+
+// mainWidth returns the usable width for the left (main) content area.
+// When the API Inspector panel is open, the content area is narrowed by the
+// panel width plus one separator column.
+func (m Model) mainWidth() int {
+	if m.showDebug {
+		return m.width - m.debugPanelWidth() - 1
+	}
+	return m.width
+}
+
+// padContent fills a rendered content-area string to mainWidth() using the
+// given style. Use this instead of pad() inside all content-area renderers
+// so the row width automatically accounts for the debug panel when it is open.
+func (m Model) padContent(rendered string, style lipgloss.Style) string {
+	w := m.mainWidth() - lipgloss.Width(rendered)
+	if w < 0 {
+		w = 0
+	}
+	return rendered + style.Width(w).Render("")
+}
+
 func (m Model) orgVisibleRows() int {
 	h := m.contentHeight() - 2 // table header + divider
 	if m.orgFilter != "" || m.orgFiltering {
@@ -1825,7 +1927,7 @@ func (m Model) renderWorkspaceTabStrip() string {
 			sb.WriteString(tabInactiveStyle.Render(t.label))
 		}
 	}
-	return m.pad(sb.String(), tabBarStyle)
+	return m.padContent(sb.String(), tabBarStyle)
 }
 
 // renderWorkspaceDetailLoading renders the tab strip + spinner for workspace
@@ -1839,9 +1941,9 @@ func (m Model) renderWorkspaceDetailLoading() string {
 	mid := (h - 1) / 2
 	for i := 0; i < h-1; i++ {
 		if i == mid {
-			lines = append(lines, contentPlaceholderStyle.Width(m.width).Render("  "+frame+"  Loading…"))
+			lines = append(lines, contentPlaceholderStyle.Width(m.mainWidth()).Render("  "+frame+"  Loading…"))
 		} else {
-			lines = append(lines, contentStyle.Width(m.width).Render(""))
+			lines = append(lines, contentStyle.Width(m.mainWidth()).Render(""))
 		}
 	}
 	return strings.Join(lines, "\n")
@@ -1854,9 +1956,9 @@ func (m Model) renderLoadingContent() string {
 	frame := spinnerFrames[m.spinnerIdx]
 	for i := range lines {
 		if i == mid {
-			lines[i] = contentPlaceholderStyle.Width(m.width).Render("  " + frame + "  Loading…")
+			lines[i] = contentPlaceholderStyle.Width(m.mainWidth()).Render("  " + frame + "  Loading…")
 		} else {
-			lines[i] = contentStyle.Width(m.width).Render("")
+			lines[i] = contentStyle.Width(m.mainWidth()).Render("")
 		}
 	}
 	return strings.Join(lines, "\n")
@@ -1868,9 +1970,9 @@ func (m Model) renderErrorContent() string {
 	mid := h / 2
 	for i := range lines {
 		if i == mid {
-			lines[i] = statusErrorStyle.Width(m.width).Render(fmt.Sprintf("  ✗  %s", m.errMsg))
+			lines[i] = statusErrorStyle.Width(m.mainWidth()).Render(fmt.Sprintf("  ✗  %s", m.errMsg))
 		} else {
-			lines[i] = contentStyle.Width(m.width).Render("")
+			lines[i] = contentStyle.Width(m.mainWidth()).Render("")
 		}
 	}
 	return strings.Join(lines, "\n")
@@ -2217,6 +2319,21 @@ func (m Model) renderStatusBar() string {
 	default:
 		msg = "  Ready"
 	}
+
+	// When the API inspector panel is focused, append a right-aligned badge.
+	if m.debugFocused {
+		label := "  [api inspector]  "
+		if m.debugDetailMode {
+			label = "  [api inspector › detail]  "
+		}
+		badge := statusInspectorStyle.Render(label)
+		left := statusBarStyle.Render(msg)
+		gap := m.width - lipgloss.Width(left) - lipgloss.Width(badge)
+		if gap < 0 {
+			gap = 0
+		}
+		return left + statusBarStyle.Width(gap).Render("") + badge
+	}
 	return m.pad(statusBarStyle.Render(msg), statusBarStyle)
 }
 
@@ -2273,6 +2390,7 @@ func (m Model) renderHelpOverlay() string {
 		{"/", "filter"},
 		{"g / G", "jump to top / bottom"},
 		{"c", "copy CLI command"},
+		{"l", "toggle API inspector"},
 		{"?", "toggle help"},
 		{"q", "quit"},
 		// List views
@@ -2297,6 +2415,17 @@ func (m Model) renderHelpOverlay() string {
 		{"[detail] ↑ ↓", "scroll"},
 		{"[detail] u", "copy URL (run, ws, org, proj)"},
 		{"[detail] U", "open in browser"},
+		// API inspector panel (right side, toggle with l)
+		{"", ""},
+		{"tab", "switch left ↔ right panel"},
+		{"[insp] ↑ / ↓", "navigate call list"},
+		{"[insp] enter", "open request detail"},
+		{"[insp] /", "filter calls"},
+		{"[insp] esc", "clear filter / back"},
+		{"[detail] ↑ / ↓", "scroll one line"},
+		{"[detail] ⇧↑ / ⇧↓", "scroll full page"},
+		{"[detail] ^u / ^d", "scroll half-page"},
+		{"[detail] esc", "back to call list"},
 	}
 
 	lines := make([]string, 0, m.height)
@@ -2334,11 +2463,12 @@ func (m Model) renderTableHeader(cols []column) string {
 		parts = append(parts, tableHeaderStyle.Width(col.width).Render(col.name))
 		parts = append(parts, tableHeaderStyle.Render("  "))
 	}
-	return m.pad(strings.Join(parts, ""), tableHeaderStyle)
+	return m.padContent(strings.Join(parts, ""), tableHeaderStyle)
 }
 
 func (m Model) renderTableDivider() string {
-	return contentDividerStyle.Width(m.width).Render(strings.Repeat("─", m.width))
+	w := m.mainWidth()
+	return contentDividerStyle.Width(w).Render(strings.Repeat("─", w))
 }
 
 func (m Model) renderTableRow(selected bool, cells []string, cols []column) string {
@@ -2358,7 +2488,7 @@ func (m Model) renderTableRow(selected bool, cells []string, cols []column) stri
 		parts = append(parts, style.Width(col.width).Render(val))
 		parts = append(parts, style.Render("  "))
 	}
-	return m.pad(strings.Join(parts, ""), style)
+	return m.padContent(strings.Join(parts, ""), style)
 }
 
 // renderTableRowWithCellStyles renders a row where individual cells can have
@@ -2385,7 +2515,7 @@ func (m Model) renderTableRowWithCellStyles(selected bool, cells []string, cols 
 		parts = append(parts, cellStyle.Render(val))
 		parts = append(parts, base.Render("  "))
 	}
-	return m.pad(strings.Join(parts, ""), base)
+	return m.padContent(strings.Join(parts, ""), base)
 }
 
 func (m Model) renderFilterBar(filter string, active bool) string {
@@ -2396,7 +2526,7 @@ func (m Model) renderFilterBar(filter string, active bool) string {
 	} else {
 		text = filterBarActiveStyle.Render(filter)
 	}
-	return m.pad(prompt+text, filterBarStyle)
+	return m.padContent(prompt+text, filterBarStyle)
 }
 
 // truncateStr truncates s to at most n runes, appending "…" if shortened.

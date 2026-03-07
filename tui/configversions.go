@@ -48,7 +48,7 @@ func speculative(cv *tfe.ConfigurationVersion) string {
 }
 
 func (m Model) renderConfigVersionsContent() string {
-	cols := cvColumns(m.width)
+	cols := cvColumns(m.mainWidth())
 	visible := m.cvVisibleRows()
 	filtered := filteredConfigVersions(m)
 
@@ -61,7 +61,7 @@ func (m Model) renderConfigVersionsContent() string {
 	lines = append(lines, m.renderTableDivider())
 
 	if len(filtered) == 0 {
-		lines = append(lines, contentPlaceholderStyle.Width(m.width).Render("  No configuration versions found."))
+		lines = append(lines, contentPlaceholderStyle.Width(m.mainWidth()).Render("  No configuration versions found."))
 	} else {
 		end := m.cvOffset + visible
 		if end > len(filtered) {
@@ -79,7 +79,7 @@ func (m Model) renderConfigVersionsContent() string {
 	}
 
 	for len(lines) < m.contentHeight() {
-		lines = append(lines, contentStyle.Width(m.width).Render(""))
+		lines = append(lines, contentStyle.Width(m.mainWidth()).Render(""))
 	}
 	return strings.Join(lines[:m.contentHeight()], "\n")
 }

@@ -123,6 +123,10 @@ var (
 				Background(colorHeaderBg).
 				Foreground(colorSuccess)
 
+	statusInspectorStyle = lipgloss.NewStyle().
+			Background(colorHeaderBg).
+			Foreground(colorAccent)
+
 	// Table
 	tableHeaderStyle = lipgloss.NewStyle().
 			Background(colorHeaderBg).

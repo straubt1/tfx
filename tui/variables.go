@@ -11,13 +11,13 @@ import (
 )
 
 func variableColumns(width int) []column {
-	idW := 30
-	catW := 12  // "terraform" or "env"
+	idW := 24
+	catW := 10  // "terraform" or "env"
 	senW := 9   // "SENSITIVE" header; values are "yes" / "no"
-	keyW := 30  // variable names are identifiers — cap at 30, rarely longer
+	keyW := 24  // variable names are identifiers — cap at 24
 	valW := width - idW - catW - senW - keyW - 12 // 2(cursor) + 5×2(col padding)
-	if valW < 15 {
-		valW = 15
+	if valW < 5 {
+		valW = 5
 	}
 	return []column{
 		{name: "KEY", width: keyW},
@@ -73,7 +73,7 @@ func filteredVariables(m Model) []*tfe.Variable {
 }
 
 func (m Model) renderVariablesContent() string {
-	cols := variableColumns(m.width)
+	cols := variableColumns(m.mainWidth())
 	visible := m.varVisibleRows()
 	filtered := filteredVariables(m)
 
@@ -86,7 +86,7 @@ func (m Model) renderVariablesContent() string {
 	lines = append(lines, m.renderTableDivider())
 
 	if len(filtered) == 0 {
-		lines = append(lines, contentPlaceholderStyle.Width(m.width).Render("  No variables found."))
+		lines = append(lines, contentPlaceholderStyle.Width(m.mainWidth()).Render("  No variables found."))
 	} else {
 		end := m.varOffset + visible
 		if end > len(filtered) {
@@ -107,7 +107,7 @@ func (m Model) renderVariablesContent() string {
 	}
 
 	for len(lines) < m.contentHeight() {
-		lines = append(lines, contentStyle.Width(m.width).Render(""))
+		lines = append(lines, contentStyle.Width(m.mainWidth()).Render(""))
 	}
 	return strings.Join(lines[:m.contentHeight()], "\n")
 }

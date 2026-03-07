@@ -57,7 +57,7 @@ func (m Model) renderVariableDetailContent() string {
 	if m.selectedVar == nil {
 		lines := make([]string, h)
 		for i := range lines {
-			lines[i] = contentStyle.Width(m.width).Render("")
+			lines[i] = contentStyle.Width(m.mainWidth()).Render("")
 		}
 		return strings.Join(lines, "\n")
 	}
@@ -65,7 +65,7 @@ func (m Model) renderVariableDetailContent() string {
 	sections := buildVariableDetailSections(m.selectedVar)
 
 	var all []string
-	all = append(all, contentStyle.Width(m.width).Render("")) // top padding
+	all = append(all, contentStyle.Width(m.mainWidth()).Render("")) // top padding
 
 	for si, sec := range sections {
 		all = append(all, m.renderDetailSectionHeader(sec.title))
@@ -73,10 +73,10 @@ func (m Model) renderVariableDetailContent() string {
 			all = append(all, m.renderDetailKV(row.label, row.value))
 		}
 		if si < len(sections)-1 {
-			all = append(all, contentStyle.Width(m.width).Render(""))
+			all = append(all, contentStyle.Width(m.mainWidth()).Render(""))
 		}
 	}
-	all = append(all, contentStyle.Width(m.width).Render("")) // bottom padding
+	all = append(all, contentStyle.Width(m.mainWidth()).Render("")) // bottom padding
 
 	// Clamp scroll and slice visible window.
 	maxScroll := len(all) - h
@@ -94,7 +94,7 @@ func (m Model) renderVariableDetailContent() string {
 	out := make([]string, h)
 	copy(out, visible)
 	for i := len(visible); i < h; i++ {
-		out[i] = contentStyle.Width(m.width).Render("")
+		out[i] = contentStyle.Width(m.mainWidth()).Render("")
 	}
 	return strings.Join(out, "\n")
 }

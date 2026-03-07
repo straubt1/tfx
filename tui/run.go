@@ -17,7 +17,10 @@ func Run() error {
 	// while Bubble Tea is rendering, corrupting the alt-screen display.
 	output.Get().DisableSpinner()
 
-	c, err := client.NewFromViper()
+	// Create an event bus for the API Inspector panel, then build a client that
+	// always installs the logging transport so the TUI receives every HTTP call.
+	bus := client.NewAPIEventBus()
+	c, err := client.NewFromViperForTUI(bus)
 	if err != nil {
 		return errors.Wrap(err, "failed to create TFx client")
 	}

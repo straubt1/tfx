@@ -22,3 +22,14 @@ func NewFromViperWithContext(ctx context.Context) (*TfxClient, error) {
 
 	return NewWithContext(ctx, hostname, token, organization)
 }
+
+// NewFromViperForTUI creates a TfxClient for TUI mode.
+// It always installs a LoggingTransport that publishes HTTP events to bus,
+// enabling the API Inspector panel regardless of whether TFX_LOG is set.
+func NewFromViperForTUI(bus *APIEventBus) (*TfxClient, error) {
+	hostname := viper.GetString("tfeHostname")
+	token := viper.GetString("tfeToken")
+	organization := viper.GetString("tfeOrganization")
+
+	return NewWithContextAndBus(context.Background(), hostname, token, organization, bus)
+}

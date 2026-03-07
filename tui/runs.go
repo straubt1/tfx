@@ -13,12 +13,12 @@ import (
 )
 
 func runColumns(width int) []column {
-	idW := 30
-	statusW := 22
+	idW := 26
+	statusW := 20
 	createdW := 10
 	msgW := width - idW - statusW - createdW - 10 // 2(cursor) + 4×2(col padding)
-	if msgW < 15 {
-		msgW = 15
+	if msgW < 5 {
+		msgW = 5
 	}
 	return []column{
 		{name: "STATUS", width: statusW},
@@ -79,7 +79,7 @@ func filteredRuns(m Model) []*tfe.Run {
 }
 
 func (m Model) renderRunsContent() string {
-	cols := runColumns(m.width)
+	cols := runColumns(m.mainWidth())
 	visible := m.runVisibleRows()
 	filtered := filteredRuns(m)
 
@@ -92,7 +92,7 @@ func (m Model) renderRunsContent() string {
 	lines = append(lines, m.renderTableDivider())
 
 	if len(filtered) == 0 {
-		lines = append(lines, contentPlaceholderStyle.Width(m.width).Render("  No runs found."))
+		lines = append(lines, contentPlaceholderStyle.Width(m.mainWidth()).Render("  No runs found."))
 	} else {
 		end := m.runOffset + visible
 		if end > len(filtered) {
@@ -113,7 +113,7 @@ func (m Model) renderRunsContent() string {
 	}
 
 	for len(lines) < m.contentHeight() {
-		lines = append(lines, contentStyle.Width(m.width).Render(""))
+		lines = append(lines, contentStyle.Width(m.mainWidth()).Render(""))
 	}
 	return strings.Join(lines[:m.contentHeight()], "\n")
 }
