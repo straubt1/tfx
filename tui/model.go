@@ -57,7 +57,6 @@ const (
 	viewStateVersionJson        // state version JSON viewer (o from SV detail) — Phase 7b
 	viewConfigVersionFiles      // CV file tree browser (x from CV detail) — Phase 7c
 	viewConfigVersionFileContent // CV file content viewer (enter from file browser) — Phase 7c
-	viewInstanceInfo             // instance info / health check (i key)
 )
 
 // Model is the root TUI model. All state lives here per the ELM architecture.
@@ -190,12 +189,12 @@ type Model struct {
 	debugFilter     string            // case-insensitive method+path filter
 	debugFiltering  bool              // filter input is active
 
-	// Instance info view state (i key)
-	infoPrevView    viewType
-	infoScroll      int
-	healthCheck     map[string]string // nil until loaded
-	healthCheckLoad bool
-	healthCheckErr  string
+	// Instance info modal state (i key — composited on top of current view)
+	showInstanceInfo bool              // true = modal popup is visible
+	infoScroll       int
+	healthCheck      map[string]string // nil until loaded
+	healthCheckLoad  bool
+	healthCheckErr   string
 }
 
 func newModel(c *client.TfxClient) Model {
@@ -388,6 +387,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
+		// Instance info modal intercepts all remaining keys when open.
+		// (q/ctrl+c/l/tab above still work regardless of modal state.)
+		if m.showInstanceInfo {
+			return m.handleInstanceInfoModalKey(msg)
+		}
+
 		// ── Right panel gets all remaining keys when it has focus ────────────
 		if m.debugFocused && m.showDebug {
 			return m.handleDebugPanelKey(msg)
@@ -418,19 +423,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "i":
-			// Toggle instance info / health check view.
-			if m.currentView == viewInstanceInfo {
-				m.currentView = m.infoPrevView
-			} else {
-				m.infoPrevView = m.currentView
-				m.currentView = viewInstanceInfo
-				m.infoScroll = 0
-				m.healthCheck = nil
-				m.healthCheckLoad = true
-				m.healthCheckErr = ""
-				return m, tea.Batch(loadHealthCheck(m.c), tickSpinner())
-			}
-			return m, nil
+			// Open the instance info modal.
+			m.showInstanceInfo = true
+			m.infoScroll = 0
+			m.healthCheck = nil
+			m.healthCheckLoad = true
+			m.healthCheckErr = ""
+			return m, tea.Batch(loadHealthCheck(m.c), tickSpinner())
 		}
 
 		// View-specific navigation (only when not loading).
@@ -470,8 +469,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.handleCVFilesKey(msg)
 			case viewConfigVersionFileContent:
 				return m.handleCVFileContentKey(msg)
-			case viewInstanceInfo:
-				return m.handleInstanceInfoKey(msg)
 			}
 		}
 	}
@@ -509,6 +506,12 @@ func (m Model) View() tea.View {
 			m.renderStatusBar(),
 			m.renderCliHint(),
 		)
+	}
+
+	// Composite the instance info modal on top when visible.
+	// (Not composited over the help overlay — help takes full priority.)
+	if m.ready && m.showInstanceInfo && !m.showHelp && m.width >= minWidth && m.height >= minHeight {
+		content = m.overlayInstanceInfoModal(content)
 	}
 
 	v := tea.NewView(content)
@@ -597,9 +600,6 @@ func (m Model) navigateBack() (tea.Model, tea.Cmd) {
 		m.currentView = viewConfigVersions
 		m.cvDetScroll = 0
 		m.selectedCV = nil
-	case viewInstanceInfo:
-		m.currentView = m.infoPrevView
-		m.infoScroll = 0
 	}
 	return m, nil
 }
@@ -1944,8 +1944,6 @@ func (m Model) renderContent() string {
 		return m.renderConfigVersionFilesContent()
 	case viewConfigVersionFileContent:
 		return m.renderConfigVersionFileContent()
-	case viewInstanceInfo:
-		return m.renderInstanceInfoContent()
 	}
 	return m.renderLoadingContent()
 }
@@ -2204,8 +2202,6 @@ func (m Model) renderBreadcrumb() string {
 			sep +
 			breadcrumbBarStyle.Render("files") +
 			sep + breadcrumbActiveStyle.Render(m.cvFileName+" ")
-	case viewInstanceInfo:
-		line = breadcrumbActiveStyle.Render(" instance info ")
 	default:
 		line = orgPart
 	}

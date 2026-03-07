@@ -11,87 +11,104 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// renderInstanceInfoContent renders the instance info / health check view.
-// Connection and version fields are populated immediately from ping response
-// headers cached on client init; health check data arrives asynchronously.
-func (m Model) renderInstanceInfoContent() string {
-	h := m.contentHeight()
+// renderInstanceInfoModal renders a centered modal popup showing connection,
+// version, and health check information. It is designed to be composited on
+// top of the current view via overlayInstanceInfoModal.
+func (m Model) renderInstanceInfoModal() string {
+	// Inner content width (before border + padding).
+	innerW := 58
+	if innerW > m.width-6 {
+		innerW = m.width - 6
+	}
+	if innerW < 30 {
+		innerW = 30
+	}
 
-	if m.c == nil {
-		out := make([]string, h)
-		for i := range out {
-			out[i] = contentStyle.Width(m.mainWidth()).Render("")
+	labelW := 16 // label column width inside the modal
+
+	// Maximum scrollable content rows visible inside the modal.
+	// Border (2) + padding rows (0) + hint row (1) are extra.
+	maxRows := m.height - 10
+	if maxRows < 5 {
+		maxRows = 5
+	}
+	if maxRows > 18 {
+		maxRows = 18
+	}
+
+	// ── Inline helpers ────────────────────────────────────────────────────────
+
+	renderSec := func(title string) string {
+		prefix := "  ── " + title + " "
+		n := innerW - len([]rune(prefix))
+		if n < 2 {
+			n = 2
 		}
-		return strings.Join(out, "\n")
+		return contentTitleStyle.Render(prefix + strings.Repeat("─", n))
 	}
 
-	cl := m.c.Client
-
-	// ── Build sections ───────────────────────────────────────────────────────
-
-	var sections []wsDetailSection
-
-	// Connection
-	conn := wsDetailSection{title: "Connection"}
-	conn.rows = []wsDetailRow{
-		{"Hostname", m.hostname},
-		{"Organization", m.org},
-		{"Application", cl.AppName()},
-	}
-	sections = append(sections, conn)
-
-	// Version
-	ver := wsDetailSection{title: "Version"}
-	ver.rows = []wsDetailRow{
-		{"API Version", cl.RemoteAPIVersion()},
-	}
-	if v := cl.RemoteTFEVersion(); v != "" {
-		ver.rows = append(ver.rows, wsDetailRow{"TFE Monthly", v})
-	}
-	if v := cl.RemoteTFENumericVersion(); v != "" {
-		ver.rows = append(ver.rows, wsDetailRow{"TFE Numeric", v})
-	}
-	sections = append(sections, ver)
-
-	// Health Check
-	hc := wsDetailSection{title: "Health Check"}
-	if m.healthCheckLoad {
-		frame := spinnerFrames[m.spinnerIdx]
-		hc.rows = []wsDetailRow{{"", frame + "  loading…"}}
-	} else if m.healthCheckErr != "" {
-		hc.rows = []wsDetailRow{{"Error", m.healthCheckErr}}
-	} else if len(m.healthCheck) == 0 {
-		hc.rows = []wsDetailRow{{"", "(no data)"}}
-	} else {
-		// Sort service names alphabetically for stable output.
-		keys := make([]string, 0, len(m.healthCheck))
-		for k := range m.healthCheck {
-			keys = append(keys, k)
+	renderKV := func(label, value string) string {
+		lp := detailLabelStyle.Width(labelW).Render("  " + label)
+		var vs lipgloss.Style
+		switch strings.ToUpper(strings.TrimSpace(value)) {
+		case "UP", "OK", "HEALTHY", "TRUE":
+			vs = contentStyle.Foreground(colorSuccess)
+		case "DOWN", "ERROR", "UNHEALTHY", "DEGRADED", "FAIL", "FAILED", "FALSE":
+			vs = contentStyle.Foreground(colorError)
+		default:
+			vs = contentStyle
 		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			hc.rows = append(hc.rows, wsDetailRow{k, m.healthCheck[k]})
+		maxVW := innerW - labelW
+		if maxVW < 10 {
+			maxVW = 10
 		}
+		return lp + vs.Render(truncateStr(value, maxVW))
 	}
-	sections = append(sections, hc)
 
-	// ── Assemble rendered rows ───────────────────────────────────────────────
+	// ── Build scrollable content lines ────────────────────────────────────────
 
 	var all []string
-	all = append(all, contentStyle.Width(m.mainWidth()).Render("")) // top padding
-	for si, sec := range sections {
-		all = append(all, m.renderDetailSectionHeader(sec.title))
-		for _, row := range sec.rows {
-			all = append(all, m.renderInstanceInfoKV(row.label, row.value))
+
+	if m.c == nil {
+		all = append(all, "  (no client)")
+	} else {
+		cl := m.c.Client
+
+		all = append(all, renderSec("Instance"))
+		all = append(all, renderKV("Application", cl.AppName()))
+		all = append(all, renderKV("Hostname", m.hostname))
+		all = append(all, renderKV("API Version", cl.RemoteAPIVersion()))
+		if v := cl.RemoteTFEVersion(); v != "" {
+			all = append(all, renderKV("TFE Monthly", v))
 		}
-		if si < len(sections)-1 {
-			all = append(all, contentStyle.Width(m.mainWidth()).Render(""))
+		if v := cl.RemoteTFENumericVersion(); v != "" {
+			all = append(all, renderKV("TFE Numeric", v))
+		}
+		all = append(all, "")
+
+		all = append(all, renderSec("Health Check"))
+		if m.healthCheckLoad {
+			frame := spinnerFrames[m.spinnerIdx]
+			all = append(all, renderKV("", frame+"  loading…"))
+		} else if m.healthCheckErr != "" {
+			all = append(all, renderKV("Error", m.healthCheckErr))
+		} else if len(m.healthCheck) == 0 {
+			all = append(all, renderKV("", "(no data)"))
+		} else {
+			keys := make([]string, 0, len(m.healthCheck))
+			for k := range m.healthCheck {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+			for _, k := range keys {
+				all = append(all, renderKV(k, m.healthCheck[k]))
+			}
 		}
 	}
-	all = append(all, contentStyle.Width(m.mainWidth()).Render("")) // bottom padding
 
-	// Clamp scroll and slice visible window.
-	maxScroll := len(all) - h
+	// ── Scroll ────────────────────────────────────────────────────────────────
+
+	maxScroll := len(all) - maxRows
 	if maxScroll < 0 {
 		maxScroll = 0
 	}
@@ -100,43 +117,65 @@ func (m Model) renderInstanceInfoContent() string {
 		start = maxScroll
 	}
 	visible := all[start:]
-	if len(visible) > h {
-		visible = visible[:h]
+	if len(visible) > maxRows {
+		visible = visible[:maxRows]
 	}
-	out := make([]string, h)
-	copy(out, visible)
-	for i := len(visible); i < h; i++ {
-		out[i] = contentStyle.Width(m.mainWidth()).Render("")
+
+	// Pad remaining rows to keep modal height stable while scrolling.
+	padded := make([]string, maxRows)
+	copy(padded, visible)
+	for i := len(visible); i < maxRows; i++ {
+		padded[i] = ""
 	}
-	return strings.Join(out, "\n")
+
+	// Footer hint — always pinned at the bottom of the modal.
+	padded = append(padded, contentPlaceholderStyle.Render(
+		"  [↑↓] scroll  •  [r] refresh  •  [i/esc] close",
+	))
+
+	inner := strings.Join(padded, "\n")
+
+	// Wrap in a rounded border with accent colour.
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(colorAccent).
+		Background(colorBg).
+		Foreground(colorFg).
+		Padding(0, 1).
+		Width(innerW).
+		Render(inner)
 }
 
-// renderInstanceInfoKV is like renderDetailKV but colors health check status
-// values: UP/OK/HEALTHY → green, anything non-UP → red.
-func (m Model) renderInstanceInfoKV(label, value string) string {
-	maxValueWidth := m.mainWidth() - wsDetLabelWidth - 2
-	if maxValueWidth < 10 {
-		maxValueWidth = 10
-	}
-	labelPart := detailLabelStyle.Width(wsDetLabelWidth).Render("  " + label)
+// overlayInstanceInfoModal composites the instance info modal on top of the
+// already-rendered full-screen base content using lipgloss Canvas + Layer.
+func (m Model) overlayInstanceInfoModal(base string) string {
+	modal := m.renderInstanceInfoModal()
+	mw := lipgloss.Width(modal)
+	mh := lipgloss.Height(modal)
 
-	// Choose value style based on status keyword.
-	var valueStyle lipgloss.Style
-	switch strings.ToUpper(strings.TrimSpace(value)) {
-	case "UP", "OK", "HEALTHY", "TRUE":
-		valueStyle = contentStyle.Foreground(colorSuccess)
-	case "DOWN", "ERROR", "UNHEALTHY", "DEGRADED", "FAIL", "FAILED", "FALSE":
-		valueStyle = contentStyle.Foreground(colorError)
-	default:
-		valueStyle = contentStyle
+	x := (m.width - mw) / 2
+	y := (m.height - mh) / 2
+	if x < 0 {
+		x = 0
 	}
-	valuePart := valueStyle.Render(truncateStr(value, maxValueWidth))
-	return m.padContent(labelPart+valuePart, contentStyle)
+	if y < 0 {
+		y = 0
+	}
+
+	baseLayer := lipgloss.NewLayer(base).Z(0)
+	modalLayer := lipgloss.NewLayer(modal).X(x).Y(y).Z(1)
+
+	compositor := lipgloss.NewCompositor(baseLayer, modalLayer)
+	canvas := lipgloss.NewCanvas(m.width, m.height)
+	canvas.Compose(compositor)
+	return canvas.Render()
 }
 
-// handleInstanceInfoKey processes keys while the instance info view is active.
-func (m Model) handleInstanceInfoKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+// handleInstanceInfoModalKey processes keys while the instance info modal is visible.
+func (m Model) handleInstanceInfoModalKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
+	case "i", "esc":
+		m.showInstanceInfo = false
 	case "up", "k":
 		if m.infoScroll > 0 {
 			m.infoScroll--
@@ -144,7 +183,7 @@ func (m Model) handleInstanceInfoKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "down", "j":
 		m.infoScroll++
 	case "r":
-		// Re-fetch health check.
+		// Re-fetch health check data.
 		m.healthCheck = nil
 		m.healthCheckLoad = true
 		m.healthCheckErr = ""
