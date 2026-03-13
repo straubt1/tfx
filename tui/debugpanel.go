@@ -76,9 +76,42 @@ func (m Model) handleDebugPanelKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 			m.debugBodyScroll = 0
 		case "G":
 			m.debugBodyScroll = 9999 // clamped in renderer
+		case "c":
+			events := m.filteredDebugEvents()
+			cursor := m.debugCursor
+			if cursor < len(events) && events[cursor].RespBody != "" {
+				if err := copyToClipboard(events[cursor].RespBody); err == nil {
+					m.clipFeedback = "✓ response body copied"
+				} else {
+					m.clipFeedback = "clipboard unavailable"
+				}
+			}
 		case "esc":
 			m.debugDetailMode = false
 			m.debugBodyScroll = 0
+		}
+		return m, nil
+	}
+
+	// ── Filter input (takes priority over all navigation) ───────────────
+	if m.debugFiltering {
+		switch msg.String() {
+		case "esc":
+			m.debugFiltering = false
+			m.debugFilter = ""
+			m.debugCursor = 0
+		case "enter":
+			m.debugFiltering = false
+			m.debugCursor = 0
+		case "backspace":
+			runes := []rune(m.debugFilter)
+			if len(runes) > 0 {
+				m.debugFilter = string(runes[:len(runes)-1])
+			}
+		default:
+			if isPrintable(msg.String()) {
+				m.debugFilter += msg.String()
+			}
 		}
 		return m, nil
 	}
@@ -107,39 +140,10 @@ func (m Model) handleDebugPanelKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 			m.debugDetailMode = true
 			m.debugBodyScroll = 0
 		}
-
-	// ── Filter ──────────────────────────────────────────────────────────
 	case "/":
 		m.debugFiltering = true
-
-	// ── Escape: clear filter → unfocus ──────────────────────────────────
 	case "esc":
-		if m.debugFiltering {
-			m.debugFiltering = false
-			m.debugFilter = ""
-			m.debugCursor = 0
-		} else {
-			m.debugFocused = false
-		}
-
-	// ── Filter input ────────────────────────────────────────────────────
-	default:
-		if m.debugFiltering {
-			switch msg.String() {
-			case "backspace":
-				runes := []rune(m.debugFilter)
-				if len(runes) > 0 {
-					m.debugFilter = string(runes[:len(runes)-1])
-				}
-			case "enter":
-				m.debugFiltering = false
-				m.debugCursor = 0
-			default:
-				if isPrintable(msg.String()) {
-					m.debugFilter += msg.String()
-				}
-			}
-		}
+		m.debugFocused = false
 	}
 	return m, nil
 }
@@ -165,7 +169,7 @@ type debugPanelStyles struct {
 	row         lipgloss.Style // non-selected list rows
 	divider     lipgloss.Style // horizontal ─── divider line
 	placeholder lipgloss.Style // empty-state italic placeholder text
-	panelBg     color.Color // raw background colour (for method/status helpers)
+	panelBg     color.Color    // raw background colour (for method/status helpers)
 }
 
 // newDebugStyles returns the style set that matches the current focus state.
@@ -308,7 +312,7 @@ func (m Model) renderDebugDetail(ds debugPanelStyles) string {
 	var lines []string
 
 	// ── Title bar — always focused when in detail mode ────────────────────
-	escHint := filterBarStyle.Render("  [esc] list  [Tab] main  ")
+	escHint := filterBarStyle.Render("  [c] copy response  [esc] list  [Tab] main  ")
 	titleLeft := debugTitleFocusedStyle.Render("  API Inspector › Detail")
 	gap := pw - lipgloss.Width(titleLeft) - lipgloss.Width(escHint)
 	if gap < 0 {

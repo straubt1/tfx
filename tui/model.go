@@ -1636,9 +1636,9 @@ func (m Model) contentHeight() int {
 }
 
 // debugPanelWidth returns the width of the API Inspector panel.
-// Always exactly half the terminal width for a clean 50/50 split.
+// Takes 70% of the terminal width when shown.
 func (m Model) debugPanelWidth() int {
-	return m.width / 2
+	return m.width * 7 / 10
 }
 
 // mainWidth returns the usable width for the left (main) content area.
@@ -2476,6 +2476,7 @@ func (m Model) renderHelpOverlay() string {
 		{"[detail] ⇧↑ / ⇧↓", "scroll full page"},
 		{"[detail] ^u / ^d", "scroll half-page"},
 		{"[detail] esc", "back to call list"},
+		{"[detail] c", "copy response body to clipboard"},
 	}
 
 	lines := make([]string, 0, m.height)
