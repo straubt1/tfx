@@ -14,6 +14,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/straubt1/tfx/client"
 	"github.com/straubt1/tfx/version"
@@ -509,15 +510,13 @@ func (m Model) View() tea.View {
 	} else if m.showHelp {
 		content = m.renderHelpOverlay()
 	} else if m.showDebug {
-		// Split the content area horizontally: main view (left) | separator | debug panel (right).
-		// Header, profile bar, statusbar and clihint span the full terminal width.
-		// The content box (top border + rows + bottom border) is the left panel.
-		contentArea := m.joinPanels(m.renderContentBox(), m.renderDebugPanel())
+		// Split content box: unified ┌──┬──┐ / │  │  │ / └──┴──┘ border
+		// with "API Inspector" title embedded in the top border.
 		content = lipgloss.JoinVertical(
 			lipgloss.Left,
 			m.renderHeader(),
 			m.renderProfileBar(),
-			contentArea,
+			m.renderSplitContentBox(),
 			m.renderStatusBar(),
 			m.renderCliHint(),
 		)
@@ -1659,10 +1658,10 @@ func (m Model) contentHeight() int {
 	return h
 }
 
-// debugPanelWidth returns the width of the API Inspector panel.
-// Takes 70% of the terminal width when shown.
+// debugPanelWidth returns the content width of the API Inspector panel.
+// Takes ~67% of the terminal width (the remaining ~33% goes to the main view).
 func (m Model) debugPanelWidth() int {
-	return m.width * 7 / 10
+	return (m.width - 3) * 2 / 3 // -3 for left │, middle │, right │ border chars
 }
 
 // mainWidth returns the total width of the content box (outer, including side borders).
@@ -2364,6 +2363,119 @@ func (m Model) renderContentBottomBorder() string {
 		inner = 0
 	}
 	return b.Render("└" + strings.Repeat("─", inner) + "┘")
+}
+
+// ── Split content box (API Inspector visible) ────────────────────────────────
+
+// renderSplitContentBox renders the content area as two side-by-side panels
+// inside a unified border with ┬/┴ connectors, replacing the old
+// joinPanels(renderContentBox(), renderDebugPanel()) approach.
+//
+//	┌─ breadcrumb ─────────┬── API Inspector ──────┐
+//	│ left content         │ right content          │
+//	└──────────────────────┴───────────────────────┘
+func (m Model) renderSplitContentBox() string {
+	b := contentBoxBorderStyle
+	leftW := m.innerWidth()
+	rightW := m.debugPanelWidth()
+	h := m.contentHeight()
+	ds := m.newDebugStyles()
+
+	leftContent := m.renderContent()
+	rightContent := m.renderDebugPanel()
+
+	leftLines := strings.Split(leftContent, "\n")
+	rightLines := strings.Split(rightContent, "\n")
+
+	lb := b.Render("│")
+	mb := b.Render("│")
+	rb := b.Render("│")
+
+	rows := make([]string, h)
+	for i := 0; i < h; i++ {
+		var l, r string
+		if i < len(leftLines) {
+			l = leftLines[i]
+		}
+		if i < len(rightLines) {
+			r = rightLines[i]
+		}
+
+		// Enforce exact widths — truncate or pad.
+		if w := lipgloss.Width(l); w > leftW {
+			l = ansi.Truncate(l, leftW, "")
+		} else if w < leftW {
+			l += contentStyle.Width(leftW - w).Render("")
+		}
+		if w := lipgloss.Width(r); w > rightW {
+			r = ansi.Truncate(r, rightW, "")
+		} else if w < rightW {
+			r += ds.bg.Width(rightW - w).Render("")
+		}
+
+		rows[i] = lb + l + mb + r + rb
+	}
+
+	return strings.Join([]string{
+		m.renderSplitTopBorder(),
+		strings.Join(rows, "\n"),
+		m.renderSplitBottomBorder(),
+	}, "\n")
+}
+
+// renderSplitTopBorder draws the top edge of the split content box:
+//
+//	┌─ breadcrumb ─────────┬── API Inspector ──────┐
+func (m Model) renderSplitTopBorder() string {
+	b := contentBoxBorderStyle
+	lw := m.innerWidth()
+	rw := m.debugPanelWidth()
+
+	// ── Left half: ┌─ breadcrumb ─────── (lw chars after ┌) ──
+	// NOTE: use lipgloss.Width for display-width of box-drawing chars, not len().
+	breadcrumb := m.breadcrumbLine()
+	const prefixStr = "─ "
+	const suffixStr = " "
+	prefixW := lipgloss.Width(prefixStr)
+	suffixW := lipgloss.Width(suffixStr)
+	used := prefixW + lipgloss.Width(breadcrumb) + suffixW
+	fill := lw - used
+	if fill < 0 {
+		// Breadcrumb too wide — truncate it.
+		breadcrumb = ansi.Truncate(breadcrumb, lw-prefixW-suffixW-1, "")
+		fill = lw - prefixW - lipgloss.Width(breadcrumb) - suffixW
+		if fill < 0 {
+			fill = 0
+		}
+	}
+	leftPart := b.Render("┌"+prefixStr) + breadcrumb + b.Render(suffixStr+strings.Repeat("─", fill))
+
+	// ── Right half: ┬── API Inspector ──────┐ (rw chars between ┬ and ┐) ──
+	titleStyle := debugTitleUnfocusedStyle
+	if m.debugFocused {
+		titleStyle = debugTitleFocusedStyle
+	}
+	inspectorTitle := titleStyle.Render("API Inspector")
+	const rPrefixStr = "── "
+	const rSuffixStr = " "
+	rPrefixW := lipgloss.Width(rPrefixStr)
+	rSuffixW := lipgloss.Width(rSuffixStr)
+	rUsed := rPrefixW + lipgloss.Width(inspectorTitle) + rSuffixW
+	rFill := rw - rUsed
+	if rFill < 0 {
+		rFill = 0
+	}
+	rightPart := b.Render("┬"+rPrefixStr) + inspectorTitle + b.Render(rSuffixStr+strings.Repeat("─", rFill)+"┐")
+
+	return leftPart + rightPart
+}
+
+// renderSplitBottomBorder draws the bottom edge of the split content box:
+//
+//	└──────────────────────┴───────────────────────┘
+func (m Model) renderSplitBottomBorder() string {
+	b := contentBoxBorderStyle
+	return b.Render("└" + strings.Repeat("─", m.innerWidth()) + "┴" + strings.Repeat("─", m.debugPanelWidth()) + "┘")
 }
 
 // renderBreadcrumb is kept for the help overlay (which uses m.renderHeader()

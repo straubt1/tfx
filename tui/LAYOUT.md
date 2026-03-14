@@ -197,7 +197,7 @@ Tab strip is the first line inside the content box:
 
 ---
 
-## API Inspector Panel (`l` key — 50/50 horizontal split)
+## API Inspector Panel (`l` key — 33% for the main view/67% for the inspector view horizontal split)
 
 Header, profile bar, status bar, and CLI hint bar remain **full terminal width**.
 The content box splits into left (main view) and right (inspector) panels.
@@ -210,7 +210,7 @@ The content box splits into left (main view) and right (inspector) panels.
   expires:   2027-01-15 (312 days)
 ┌─ org: my-org  /   workspaces ─────────────────┬── API Inspector ──────────────────┐  ← split top border
 │   NAME              LOCKED   UPDATED          │  GET  /api/v2/organizations  12ms │
-│  ─────────────────────────────────────────    │ ▶ POST /api/v2/runs          34ms │  ← selected row in inspector highlighted
+│  ───────────────────────────────────────────  │ ▶ POST /api/v2/runs          34ms │  ← selected row in inspector highlighted
 │    my-workspace     false    2025-06-01       │  GET  /api/v2/workspaces      8ms │
 │  ▶ prod-infra       true     2025-05-30       │  GET  /api/v2/projects        6ms │
 │    staging-api      false    2025-05-28       │  ...                              │
