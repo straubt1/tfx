@@ -171,6 +171,8 @@ c, err := client.NewFromViper()  // reads Viper config/flags
 
 ## TUI Architecture & Patterns
 
+> Visual layout reference (ASCII diagrams for all views): `tui/LAYOUT.md`
+
 The TUI lives in `tui/` and uses Bubble Tea v2 + Lip Gloss v2. It shares the same `data/` and `client/` layers as the CLI. Entry point: `cmd/tui.go` → `tui.Run()`.
 
 ### Key TUI dependencies

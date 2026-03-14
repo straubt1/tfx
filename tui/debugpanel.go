@@ -167,6 +167,7 @@ type debugPanelStyles struct {
 	bg          lipgloss.Style // base background + default foreground
 	punct       lipgloss.Style // dim decorative text (section headers, timestamps, hints)
 	row         lipgloss.Style // non-selected list rows
+	header      lipgloss.Style // column header row (accent fg, bold)
 	divider     lipgloss.Style // horizontal ─── divider line
 	placeholder lipgloss.Style // empty-state italic placeholder text
 	panelBg     color.Color    // raw background colour (for method/status helpers)
@@ -180,6 +181,7 @@ func (m Model) newDebugStyles() debugPanelStyles {
 			bg:          lipgloss.NewStyle().Background(bg).Foreground(colorFg),
 			punct:       lipgloss.NewStyle().Background(bg).Foreground(colorDim),
 			row:         lipgloss.NewStyle().Background(bg).Foreground(colorFg),
+			header:      lipgloss.NewStyle().Background(bg).Foreground(colorAccent).Bold(true),
 			divider:     lipgloss.NewStyle().Background(bg).Foreground(colorBorder),
 			placeholder: lipgloss.NewStyle().Background(bg).Foreground(colorDim).Italic(true),
 			panelBg:     bg,
@@ -189,6 +191,7 @@ func (m Model) newDebugStyles() debugPanelStyles {
 		bg:          contentStyle,
 		punct:       jsonPunctStyle,
 		row:         tableRowStyle,
+		header:      lipgloss.NewStyle().Background(colorBg).Foreground(colorAccent).Bold(true),
 		divider:     contentDividerStyle,
 		placeholder: contentPlaceholderStyle,
 		panelBg:     colorBg,
@@ -262,6 +265,29 @@ func (m Model) renderDebugList(ds debugPanelStyles) string {
 		}
 		lines = append(lines, filterLine)
 	}
+
+	// ── Column header — mirrors renderDebugCallRow column widths ─────────
+	// debugMethodLabel always produces 7-char padded strings; rightFixed in
+	// renderDebugCallRow is always 15 chars (2 + status(3) + 2 + dur(6) + 2).
+	const debugMethodColW = 7
+	const debugRightColW = 15
+	pathHdrW := pw - 2 - debugMethodColW - 2 - debugRightColW
+	if pathHdrW < 4 {
+		pathHdrW = 4
+	}
+	hdr := ds.header.Render("  ") +
+		ds.header.Width(debugMethodColW).Render("METHOD") +
+		ds.header.Render("  ") +
+		ds.header.Width(pathHdrW).Render("PATH") +
+		ds.header.Render("  ") +
+		ds.header.Width(3).Render("STS") +
+		ds.header.Render("  ") +
+		ds.header.Width(6).Align(lipgloss.Right).Render("TIME") +
+		ds.header.Render("  ")
+	if hdrW := lipgloss.Width(hdr); hdrW < pw {
+		hdr += ds.header.Width(pw - hdrW).Render("")
+	}
+	lines = append(lines, hdr)
 
 	// ── Divider ───────────────────────────────────────────────────────────
 	lines = append(lines, ds.divider.Width(pw).Render(strings.Repeat("─", pw)))
