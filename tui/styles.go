@@ -49,7 +49,7 @@ var (
 				Background(colorHeaderBg).
 				Foreground(colorDim)
 
-	// Breadcrumb bar
+	// Breadcrumb / content box border
 	breadcrumbBarStyle = lipgloss.NewStyle().
 				Background(colorBg).
 				Foreground(colorDim)
@@ -61,7 +61,13 @@ var (
 
 	breadcrumbSepStyle = lipgloss.NewStyle().
 				Background(colorBg).
-				Foreground(colorBorder)
+				Foreground(colorDim)
+
+	// contentBoxBorderStyle renders the box-drawing characters (┌ ─ └ ┘ etc.)
+	// that frame the main content area.
+	contentBoxBorderStyle = lipgloss.NewStyle().
+				Background(colorBg).
+				Foreground(colorDim)
 
 	// Content area
 	contentStyle = lipgloss.NewStyle().
@@ -75,7 +81,11 @@ var (
 
 	contentDividerStyle = lipgloss.NewStyle().
 				Background(colorBg).
-				Foreground(colorBorder)
+				Foreground(colorDim)
+
+	tableHeaderDividerStyle = lipgloss.NewStyle().
+				Background(colorBg).
+				Foreground(colorAccent)
 
 	contentPlaceholderStyle = lipgloss.NewStyle().
 				Background(colorBg).
@@ -136,7 +146,7 @@ var (
 	// Table
 	tableHeaderStyle = lipgloss.NewStyle().
 			Background(colorHeaderBg).
-			Foreground(colorDim).
+			Foreground(colorFg).
 			Bold(true)
 
 	tableRowStyle = lipgloss.NewStyle().

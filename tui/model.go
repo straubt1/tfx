@@ -6,19 +6,22 @@ package tui
 import (
 	"fmt"
 	"image/color"
+	"math"
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/straubt1/tfx/client"
 	"github.com/straubt1/tfx/version"
 )
 
 const (
-	fixedLines = 4 // header + breadcrumb + statusbar + clihint
+	fixedLines = 9 // header(1) + profilebar(4) + box-top(1) + box-bottom(1) + statusbar(1) + clihint(1)
 	minWidth   = 60
 	minHeight  = 10
 )
@@ -44,18 +47,18 @@ const (
 	viewProjects
 	viewWorkspaces
 	viewRuns
-	viewVariables        // Phase 5
-	viewConfigVersions   // Phase 5
-	viewStateVersions    // Phase 5
-	viewWorkspaceDetail   // workspace settings detail (d key from workspace list)
-	viewOrgDetail         // organization detail (d key from org list)
-	viewProjectDetail     // project detail (d key from project list)
-	viewRunDetail          // run detail (enter from run list) — Phase 7
-	viewVariableDetail     // variable detail (enter from variable list) — Phase 7
-	viewStateVersionDetail // state version detail (enter from SV list) — Phase 7
-	viewConfigVersionDetail // config version detail (enter from CV list) — Phase 7
-	viewStateVersionJson        // state version JSON viewer (o from SV detail) — Phase 7b
-	viewConfigVersionFiles      // CV file tree browser (x from CV detail) — Phase 7c
+	viewVariables                // Phase 5
+	viewConfigVersions           // Phase 5
+	viewStateVersions            // Phase 5
+	viewWorkspaceDetail          // workspace settings detail (d key from workspace list)
+	viewOrgDetail                // organization detail (d key from org list)
+	viewProjectDetail            // project detail (d key from project list)
+	viewRunDetail                // run detail (enter from run list) — Phase 7
+	viewVariableDetail           // variable detail (enter from variable list) — Phase 7
+	viewStateVersionDetail       // state version detail (enter from SV list) — Phase 7
+	viewConfigVersionDetail      // config version detail (enter from CV list) — Phase 7
+	viewStateVersionJson         // state version JSON viewer (o from SV detail) — Phase 7b
+	viewConfigVersionFiles       // CV file tree browser (x from CV detail) — Phase 7c
 	viewConfigVersionFileContent // CV file content viewer (enter from file browser) — Phase 7c
 )
 
@@ -67,9 +70,12 @@ type Model struct {
 	ready  bool
 
 	// Connection
-	c        *client.TfxClient
-	hostname string
-	org      string // active org name (may change when user selects from org list)
+	c            *client.TfxClient
+	hostname     string
+	org          string         // active org name (may change when user selects from org list)
+	profileName  string         // active profile name from ~/.tfx.hcl
+	accountUser  *tfe.User      // currently authenticated user; nil until loaded
+	accountToken *tfe.UserToken // most-recently-used user token; nil until loaded
 
 	// View routing
 	currentView viewType
@@ -84,12 +90,12 @@ type Model struct {
 	spinnerIdx int
 
 	// Organization list state (Phase 6)
-	orgs        []*tfe.Organization
-	orgCursor   int
-	orgOffset   int
-	orgFilter   string
+	orgs         []*tfe.Organization
+	orgCursor    int
+	orgOffset    int
+	orgFilter    string
 	orgFiltering bool
-	selectedOrg *tfe.Organization
+	selectedOrg  *tfe.Organization
 
 	// Project list state
 	projects      []*tfe.Project
@@ -146,7 +152,7 @@ type Model struct {
 	projDetScroll int
 
 	// Run detail state (Phase 7)
-	selectedRun *tfe.Run
+	selectedRun  *tfe.Run
 	runDetScroll int
 
 	// Variable detail state (Phase 7)
@@ -175,9 +181,9 @@ type Model struct {
 	cvFileErr     string
 
 	// Config version file content viewer state (Phase 7c)
-	cvFileLines []string
+	cvFileLines  []string
 	cvFileScroll int
-	cvFileName  string // base name of the currently viewed file
+	cvFileName   string // base name of the currently viewed file
 
 	// API Inspector panel state (Phase 8)
 	showDebug       bool              // true = panel is visible (toggled with l)
@@ -190,27 +196,28 @@ type Model struct {
 	debugFiltering  bool              // filter input is active
 
 	// Instance info modal state (i key — composited on top of current view)
-	showInstanceInfo bool              // true = modal popup is visible
+	showInstanceInfo bool // true = modal popup is visible
 	infoScroll       int
 	healthCheck      map[string]string // nil until loaded
 	healthCheckLoad  bool
 	healthCheckErr   string
 }
 
-func newModel(c *client.TfxClient) Model {
+func newModel(c *client.TfxClient, profileName string) Model {
 	return Model{
-		c:        c,
-		hostname: c.Hostname,
-		org:      c.OrganizationName,
-		loading:  true,
+		c:           c,
+		hostname:    c.Hostname,
+		org:         c.OrganizationName,
+		profileName: profileName,
+		loading:     true,
 	}
 }
 
 func (m Model) Init() tea.Cmd {
-	// Start the org fetch, spinner, and API event listener simultaneously.
-	// The event listener runs unconditionally so the inspector panel shows
-	// history even when opened after some calls have already completed.
-	return tea.Batch(loadOrganizations(m.c), tickSpinner(), waitForAPIEvent(m.c))
+	// Start the org fetch, account fetch, spinner, and API event listener
+	// simultaneously. The event listener runs unconditionally so the inspector
+	// panel shows history even when opened after some calls have already completed.
+	return tea.Batch(loadOrganizations(m.c), loadAccount(m.c), tickSpinner(), waitForAPIEvent(m.c))
 }
 
 // waitForAPIEvent returns a Cmd that blocks until the next API event arrives
@@ -255,6 +262,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, waitForAPIEvent(m.c)
 
 	// ── Data loads ────────────────────────────────────────────────────────────
+	case accountLoadedMsg:
+		m.accountUser = (*tfe.User)(msg)
+		if m.accountUser != nil {
+			return m, loadAccountToken(m.c, m.accountUser.ID)
+		}
+
+	case accountTokenLoadedMsg:
+		m.accountToken = (*tfe.UserToken)(msg)
+
 	case orgsLoadedMsg:
 		m.orgs = []*tfe.Organization(msg)
 		m.loading = false
@@ -367,9 +383,30 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// ── Always-global keys (work regardless of which panel has focus) ──────
+		// ── Always-global keys — fire even during filter input ─────────────────
+		// Only ctrl+c is truly unconditional; all other "global" shortcuts are
+		// suppressed while filter input is active so typed characters don't
+		// accidentally trigger navigation or quit.
+		if msg.String() == "ctrl+c" {
+			return m, tea.Quit
+		}
+
+		// Instance info modal intercepts all remaining keys when open.
+		if m.showInstanceInfo {
+			return m.handleInstanceInfoModalKey(msg)
+		}
+
+		// ── Filter input mode — must be checked before panel-toggle / quit ────
+		// While the user is typing a filter query, only esc, backspace, enter
+		// and printable characters are handled; everything else is silently
+		// dropped so shortcuts like q, l, r, tab cannot fire mid-filter.
+		if m.isFiltering() {
+			return m.handleFilterKey(msg)
+		}
+
+		// ── Non-filter global keys (suppressed during filter input) ──────────
 		switch msg.String() {
-		case "q", "ctrl+c":
+		case "q":
 			return m, tea.Quit
 		case "l":
 			// Toggle the API Inspector panel.
@@ -387,22 +424,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// Instance info modal intercepts all remaining keys when open.
-		// (q/ctrl+c/l/tab above still work regardless of modal state.)
-		if m.showInstanceInfo {
-			return m.handleInstanceInfoModalKey(msg)
-		}
-
 		// ── Right panel gets all remaining keys when it has focus ────────────
 		if m.debugFocused && m.showDebug {
 			return m.handleDebugPanelKey(msg)
-		}
-
-		// ── Left-panel keys (filter input, then global, then view-specific) ──
-
-		// Filter input mode.
-		if m.isFiltering() {
-			return m.handleFilterKey(msg)
 		}
 
 		// Left-panel global keys.
@@ -486,14 +510,13 @@ func (m Model) View() tea.View {
 	} else if m.showHelp {
 		content = m.renderHelpOverlay()
 	} else if m.showDebug {
-		// Split the content area horizontally: main view (left) | separator | debug panel (right).
-		// Full-width zones (header, breadcrumb, statusbar, clihint) span the whole terminal.
-		contentArea := m.joinPanels(m.renderContent(), m.renderDebugPanel())
+		// Split content box: unified ┌──┬──┐ / │  │  │ / └──┴──┘ border
+		// with "API Inspector" title embedded in the top border.
 		content = lipgloss.JoinVertical(
 			lipgloss.Left,
 			m.renderHeader(),
-			m.renderBreadcrumb(),
-			contentArea,
+			m.renderProfileBar(),
+			m.renderSplitContentBox(),
 			m.renderStatusBar(),
 			m.renderCliHint(),
 		)
@@ -501,8 +524,8 @@ func (m Model) View() tea.View {
 		content = lipgloss.JoinVertical(
 			lipgloss.Left,
 			m.renderHeader(),
-			m.renderBreadcrumb(),
-			m.renderContent(),
+			m.renderProfileBar(),
+			m.renderContentBox(),
 			m.renderStatusBar(),
 			m.renderCliHint(),
 		)
@@ -1635,13 +1658,13 @@ func (m Model) contentHeight() int {
 	return h
 }
 
-// debugPanelWidth returns the width of the API Inspector panel.
-// Always exactly half the terminal width for a clean 50/50 split.
+// debugPanelWidth returns the content width of the API Inspector panel.
+// Takes ~67% of the terminal width (the remaining ~33% goes to the main view).
 func (m Model) debugPanelWidth() int {
-	return m.width / 2
+	return (m.width - 3) * 2 / 3 // -3 for left │, middle │, right │ border chars
 }
 
-// mainWidth returns the usable width for the left (main) content area.
+// mainWidth returns the total width of the content box (outer, including side borders).
 // When the API Inspector panel is open, the content area is narrowed by the
 // panel width plus one separator column.
 func (m Model) mainWidth() int {
@@ -1651,11 +1674,21 @@ func (m Model) mainWidth() int {
 	return m.width
 }
 
-// padContent fills a rendered content-area string to mainWidth() using the
+// innerWidth returns the usable width for content inside the box borders (mainWidth - 2).
+// All content renderers must use this so rows fit inside the │ side borders.
+func (m Model) innerWidth() int {
+	w := m.mainWidth() - 2
+	if w < 1 {
+		return 1
+	}
+	return w
+}
+
+// padContent fills a rendered content-area string to innerWidth() using the
 // given style. Use this instead of pad() inside all content-area renderers
 // so the row width automatically accounts for the debug panel when it is open.
 func (m Model) padContent(rendered string, style lipgloss.Style) string {
-	w := m.mainWidth() - lipgloss.Width(rendered)
+	w := m.innerWidth() - lipgloss.Width(rendered)
 	if w < 0 {
 		w = 0
 	}
@@ -1976,9 +2009,9 @@ func (m Model) renderWorkspaceDetailLoading() string {
 	mid := (h - 1) / 2
 	for i := 0; i < h-1; i++ {
 		if i == mid {
-			lines = append(lines, contentPlaceholderStyle.Width(m.mainWidth()).Render("  "+frame+"  Loading…"))
+			lines = append(lines, contentPlaceholderStyle.Width(m.innerWidth()).Render("  "+frame+"  Loading…"))
 		} else {
-			lines = append(lines, contentStyle.Width(m.mainWidth()).Render(""))
+			lines = append(lines, contentStyle.Width(m.innerWidth()).Render(""))
 		}
 	}
 	return strings.Join(lines, "\n")
@@ -1991,9 +2024,9 @@ func (m Model) renderLoadingContent() string {
 	frame := spinnerFrames[m.spinnerIdx]
 	for i := range lines {
 		if i == mid {
-			lines[i] = contentPlaceholderStyle.Width(m.mainWidth()).Render("  " + frame + "  Loading…")
+			lines[i] = contentPlaceholderStyle.Width(m.innerWidth()).Render("  " + frame + "  Loading…")
 		} else {
-			lines[i] = contentStyle.Width(m.mainWidth()).Render("")
+			lines[i] = contentStyle.Width(m.innerWidth()).Render("")
 		}
 	}
 	return strings.Join(lines, "\n")
@@ -2005,9 +2038,9 @@ func (m Model) renderErrorContent() string {
 	mid := h / 2
 	for i := range lines {
 		if i == mid {
-			lines[i] = statusErrorStyle.Width(m.mainWidth()).Render(fmt.Sprintf("  ✗  %s", m.errMsg))
+			lines[i] = statusErrorStyle.Width(m.innerWidth()).Render(fmt.Sprintf("  ✗  %s", m.errMsg))
 		} else {
-			lines[i] = contentStyle.Width(m.mainWidth()).Render("")
+			lines[i] = contentStyle.Width(m.innerWidth()).Render("")
 		}
 	}
 	return strings.Join(lines, "\n")
@@ -2017,7 +2050,7 @@ func (m Model) renderErrorContent() string {
 
 func (m Model) renderHeader() string {
 	app := headerAppStyle.Render(" TFx ")
-	info := headerInfoStyle.Render(fmt.Sprintf(" %s  ⬥  %s ", m.hostname, m.org))
+	info := headerInfoStyle.Render(" " + m.hostname)
 	ver := headerVersionStyle.Render(fmt.Sprintf(" v%s ", version.Version))
 
 	// Remote app name + TFE version — populated from ping response headers on
@@ -2030,7 +2063,7 @@ func (m Model) renderHeader() string {
 			if tfeVer := m.c.Client.RemoteTFEVersion(); tfeVer != "" {
 				s += "  " + tfeVer
 			}
-			remoteInfo = headerRemoteStyle.Render("  ⬥  " + s + " ")
+			remoteInfo = headerRemoteStyle.Render(" ⬥  " + s + " ")
 		}
 	}
 
@@ -2042,7 +2075,107 @@ func (m Model) renderHeader() string {
 	return app + info + remoteInfo + headerStyle.Width(gap).Render("") + ver
 }
 
-func (m Model) renderBreadcrumb() string {
+// expiresLabel formats a token expiry time as "YYYY-MM-DD (N days/hours/minutes)".
+// Returns "never" for the zero value and "n/a" if already expired.
+func expiresLabel(t time.Time) string {
+	if t.IsZero() {
+		return "never"
+	}
+	date := t.Format("2006-01-02")
+	remaining := time.Until(t)
+	if remaining <= 0 {
+		return date + " (expired)"
+	}
+	var countdown string
+	switch {
+	case remaining >= 24*time.Hour:
+		days := int(math.Round(remaining.Hours() / 24))
+		countdown = fmt.Sprintf("%d days", days)
+	case remaining >= time.Hour:
+		hours := int(math.Round(remaining.Hours()))
+		countdown = fmt.Sprintf("%d hours", hours)
+	default:
+		mins := int(math.Round(remaining.Minutes()))
+		if mins < 1 {
+			mins = 1
+		}
+		countdown = fmt.Sprintf("%d minutes", mins)
+	}
+	return fmt.Sprintf("%s (%s)", date, countdown)
+}
+
+// renderProfileBar renders four fixed rows beneath the main header:
+//
+//	profile   <name>
+//	username  <username>
+//	email     <email>
+//	expires   <token expiry or "never" / "n/a">
+//
+// All four rows are always emitted (with "…" placeholders while loading) so
+// fixedLines stays constant and the layout does not shift after data arrives.
+// Labels are padded to the same width so values align vertically.
+func (m Model) renderProfileBar() string {
+	bg := lipgloss.NewStyle().Background(colorHeaderBg)
+	label := lipgloss.NewStyle().Background(colorHeaderBg).Foreground(colorDim)
+	value := lipgloss.NewStyle().Background(colorHeaderBg).Foreground(colorAccent)
+	dim := lipgloss.NewStyle().Background(colorHeaderBg).Foreground(colorDim)
+	na := lipgloss.NewStyle().Background(colorHeaderBg).Foreground(colorDim)
+
+	// Pad every label to the same width so values line up.
+	const labelW = 9 // "username:" = 9 chars including colon + trailing space
+
+	row := func(k, v string, valStyle lipgloss.Style) string {
+		// Right-pad the key so all colons align.
+		padded := fmt.Sprintf("  %-*s", labelW, k+":")
+		l := label.Render(padded)
+		val := valStyle.Render(v)
+		used := lipgloss.Width(l) + lipgloss.Width(val)
+		gap := m.width - used
+		if gap < 0 {
+			gap = 0
+		}
+		return l + val + bg.Width(gap).Render("")
+	}
+
+	profName := m.profileName
+	if profName == "" {
+		profName = "default"
+	}
+
+	uname, email, expires := "…", "…", "…"
+	uStyle, eStyle, xStyle := dim, dim, dim
+	if m.accountUser != nil {
+		uname = m.accountUser.Username
+		uStyle = value
+		if m.accountUser.Email != "" {
+			email = m.accountUser.Email
+			eStyle = value
+		} else {
+			email = "—"
+			eStyle = na
+		}
+	}
+	if m.accountToken != nil {
+		expires = expiresLabel(m.accountToken.ExpiredAt)
+		xStyle = value
+	} else if m.accountUser != nil {
+		// User loaded but token list returned nothing usable.
+		expires = "n/a"
+		xStyle = na
+	}
+
+	return strings.Join([]string{
+		row("profile", profName, value),
+		row("username", uname, uStyle),
+		row("email", email, eStyle),
+		row("expires", expires, xStyle),
+	}, "\n")
+}
+
+// breadcrumbLine returns the styled navigation trail without any full-width
+// padding. Used both by renderBreadcrumb (legacy, kept for the help overlay)
+// and by renderContentTopBorder as the box title.
+func (m Model) breadcrumbLine() string {
 	sep := breadcrumbSepStyle.Render("  /  ")
 	orgPart := breadcrumbBarStyle.Render(fmt.Sprintf(" org: %s", m.org))
 
@@ -2055,157 +2188,301 @@ func (m Model) renderBreadcrumb() string {
 		wsName = m.selectedWS.Name
 	}
 
-	var line string
 	switch m.currentView {
 	case viewOrganizations:
-		line = breadcrumbActiveStyle.Render(" organizations ")
+		return breadcrumbActiveStyle.Render(" organizations ")
 	case viewProjects:
-		line = orgPart + sep + breadcrumbActiveStyle.Render("projects ")
+		return orgPart + sep + breadcrumbActiveStyle.Render("projects ")
 	case viewWorkspaces:
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
 			sep + breadcrumbActiveStyle.Render("workspaces ")
 	case viewRuns:
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
 			sep + breadcrumbActiveStyle.Render("runs ")
 	case viewVariables:
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
 			sep + breadcrumbActiveStyle.Render("variables ")
 	case viewConfigVersions:
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
 			sep + breadcrumbActiveStyle.Render("config versions ")
 	case viewStateVersions:
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
 			sep + breadcrumbActiveStyle.Render("state versions ")
 	case viewWorkspaceDetail:
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
 			sep + breadcrumbActiveStyle.Render("detail ")
 	case viewOrgDetail:
 		orgDetailName := ""
 		if m.selectedOrg != nil {
 			orgDetailName = m.selectedOrg.Name
 		}
-		line = breadcrumbBarStyle.Render(fmt.Sprintf(" org: %s", orgDetailName)) +
+		return breadcrumbBarStyle.Render(fmt.Sprintf(" org: %s", orgDetailName)) +
 			sep + breadcrumbActiveStyle.Render("detail ")
 	case viewProjectDetail:
-		projDetailName := ""
-		if m.selectedProj != nil {
-			projDetailName = m.selectedProj.Name
-		}
-		line = orgPart + sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projDetailName)) +
+		return orgPart + sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
 			sep + breadcrumbActiveStyle.Render("detail ")
 	case viewRunDetail:
 		runID := ""
 		if m.selectedRun != nil {
 			runID = m.selectedRun.ID
 		}
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
-			sep +
-			breadcrumbBarStyle.Render("runs") +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbBarStyle.Render("runs") +
 			sep + breadcrumbActiveStyle.Render(fmt.Sprintf("run: %s ", runID))
 	case viewVariableDetail:
 		varKey := ""
 		if m.selectedVar != nil {
 			varKey = m.selectedVar.Key
 		}
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
-			sep +
-			breadcrumbBarStyle.Render("variables") +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbBarStyle.Render("variables") +
 			sep + breadcrumbActiveStyle.Render(fmt.Sprintf("var: %s ", varKey))
 	case viewStateVersionDetail:
 		svSerial := ""
 		if m.selectedSV != nil {
 			svSerial = fmt.Sprintf("%d", m.selectedSV.Serial)
 		}
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
-			sep +
-			breadcrumbBarStyle.Render("state versions") +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbBarStyle.Render("state versions") +
 			sep + breadcrumbActiveStyle.Render(fmt.Sprintf("sv: %s ", svSerial))
 	case viewConfigVersionDetail:
 		cvID := ""
 		if m.selectedCV != nil {
 			cvID = m.selectedCV.ID
 		}
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
-			sep +
-			breadcrumbBarStyle.Render("config versions") +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbBarStyle.Render("config versions") +
 			sep + breadcrumbActiveStyle.Render(fmt.Sprintf("cv: %s ", cvID))
 	case viewStateVersionJson:
 		svSerial := ""
 		if m.selectedSV != nil {
 			svSerial = fmt.Sprintf("%d", m.selectedSV.Serial)
 		}
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
-			sep +
-			breadcrumbBarStyle.Render("state versions") +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("sv: %s", svSerial)) +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbBarStyle.Render("state versions") +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("sv: %s", svSerial)) +
 			sep + breadcrumbActiveStyle.Render("json ")
 	case viewConfigVersionFiles:
 		cvID := ""
 		if m.selectedCV != nil {
 			cvID = m.selectedCV.ID
 		}
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
-			sep +
-			breadcrumbBarStyle.Render("config versions") +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("cv: %s", cvID)) +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbBarStyle.Render("config versions") +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("cv: %s", cvID)) +
 			sep + breadcrumbActiveStyle.Render("files ")
 	case viewConfigVersionFileContent:
 		cvID := ""
 		if m.selectedCV != nil {
 			cvID = m.selectedCV.ID
 		}
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
-			sep +
-			breadcrumbBarStyle.Render("config versions") +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("cv: %s", cvID)) +
-			sep +
-			breadcrumbBarStyle.Render("files") +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbBarStyle.Render("config versions") +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("cv: %s", cvID)) +
+			sep + breadcrumbBarStyle.Render("files") +
 			sep + breadcrumbActiveStyle.Render(m.cvFileName+" ")
 	default:
-		line = orgPart
+		return orgPart
 	}
-	return m.pad(line, breadcrumbBarStyle)
+}
+
+// renderContentBox wraps the inner content with a full border (top, sides,
+// bottom) giving the table area a k9s-style framed appearance.
+// Content lines (from renderContent) are each flanked by │ side borders.
+func (m Model) renderContentBox() string {
+	b := contentBoxBorderStyle
+	lb := b.Render("│")
+	rb := b.Render("│")
+
+	inner := m.renderContent()
+	lines := strings.Split(inner, "\n")
+	wrapped := make([]string, len(lines))
+	for i, line := range lines {
+		wrapped[i] = lb + line + rb
+	}
+	return strings.Join([]string{
+		m.renderContentTopBorder(),
+		strings.Join(wrapped, "\n"),
+		m.renderContentBottomBorder(),
+	}, "\n")
+}
+
+// renderContentTopBorder draws the top edge of the content box.
+// The navigation breadcrumb is embedded as the title:
+//
+//	┌─ org: my-org / workspaces ─────────────────────────────────┐
+func (m Model) renderContentTopBorder() string {
+	b := contentBoxBorderStyle
+
+	title := m.breadcrumbLine()
+	corner := b.Render("┌")
+	prefix := b.Render("─ ")
+
+	// Measure consumed width, compute fill for the right side.
+	// mainWidth() is the full outer width including corners.
+	used := lipgloss.Width(corner) + lipgloss.Width(prefix) + lipgloss.Width(title) + 2 // 2 = " ┐" at end
+	fill := m.mainWidth() - used
+	if fill < 0 {
+		fill = 0
+	}
+	return corner + prefix + title + b.Render(" "+strings.Repeat("─", fill)+"┐")
+}
+
+// renderContentBottomBorder draws the bottom edge of the content box:
+//
+//	└────────────────────────────────────────────────────────────┘
+func (m Model) renderContentBottomBorder() string {
+	b := contentBoxBorderStyle
+	inner := m.mainWidth() - 2 // leave room for └ and ┘
+	if inner < 0 {
+		inner = 0
+	}
+	return b.Render("└" + strings.Repeat("─", inner) + "┘")
+}
+
+// ── Split content box (API Inspector visible) ────────────────────────────────
+
+// renderSplitContentBox renders the content area as two side-by-side panels
+// inside a unified border with ┬/┴ connectors, replacing the old
+// joinPanels(renderContentBox(), renderDebugPanel()) approach.
+//
+//	┌─ breadcrumb ─────────┬── API Inspector ──────┐
+//	│ left content         │ right content          │
+//	└──────────────────────┴───────────────────────┘
+func (m Model) renderSplitContentBox() string {
+	b := contentBoxBorderStyle
+	leftW := m.innerWidth()
+	rightW := m.debugPanelWidth()
+	h := m.contentHeight()
+	ds := m.newDebugStyles()
+
+	leftContent := m.renderContent()
+	rightContent := m.renderDebugPanel()
+
+	leftLines := strings.Split(leftContent, "\n")
+	rightLines := strings.Split(rightContent, "\n")
+
+	lb := b.Render("│")
+	mb := b.Render("│")
+	rb := b.Render("│")
+
+	rows := make([]string, h)
+	for i := 0; i < h; i++ {
+		var l, r string
+		if i < len(leftLines) {
+			l = leftLines[i]
+		}
+		if i < len(rightLines) {
+			r = rightLines[i]
+		}
+
+		// Enforce exact widths — truncate or pad.
+		if w := lipgloss.Width(l); w > leftW {
+			l = ansi.Truncate(l, leftW, "")
+		} else if w < leftW {
+			l += contentStyle.Width(leftW - w).Render("")
+		}
+		if w := lipgloss.Width(r); w > rightW {
+			r = ansi.Truncate(r, rightW, "")
+		} else if w < rightW {
+			r += ds.bg.Width(rightW - w).Render("")
+		}
+
+		rows[i] = lb + l + mb + r + rb
+	}
+
+	return strings.Join([]string{
+		m.renderSplitTopBorder(),
+		strings.Join(rows, "\n"),
+		m.renderSplitBottomBorder(),
+	}, "\n")
+}
+
+// renderSplitTopBorder draws the top edge of the split content box:
+//
+//	┌─ breadcrumb ─────────┬── API Inspector ──────┐
+func (m Model) renderSplitTopBorder() string {
+	b := contentBoxBorderStyle
+	lw := m.innerWidth()
+	rw := m.debugPanelWidth()
+
+	// ── Left half: ┌─ breadcrumb ─────── (lw chars after ┌) ──
+	// NOTE: use lipgloss.Width for display-width of box-drawing chars, not len().
+	breadcrumb := m.breadcrumbLine()
+	const prefixStr = "─ "
+	const suffixStr = " "
+	prefixW := lipgloss.Width(prefixStr)
+	suffixW := lipgloss.Width(suffixStr)
+	used := prefixW + lipgloss.Width(breadcrumb) + suffixW
+	fill := lw - used
+	if fill < 0 {
+		// Breadcrumb too wide — truncate it.
+		breadcrumb = ansi.Truncate(breadcrumb, lw-prefixW-suffixW-1, "")
+		fill = lw - prefixW - lipgloss.Width(breadcrumb) - suffixW
+		if fill < 0 {
+			fill = 0
+		}
+	}
+	leftPart := b.Render("┌"+prefixStr) + breadcrumb + b.Render(suffixStr+strings.Repeat("─", fill))
+
+	// ── Right half: ┬── API Inspector ──────┐ (rw chars between ┬ and ┐) ──
+	titleStyle := debugTitleUnfocusedStyle
+	if m.debugFocused {
+		titleStyle = debugTitleFocusedStyle
+	}
+	inspectorTitle := titleStyle.Render("API Inspector")
+	const rPrefixStr = "── "
+	const rSuffixStr = " "
+	rPrefixW := lipgloss.Width(rPrefixStr)
+	rSuffixW := lipgloss.Width(rSuffixStr)
+	rUsed := rPrefixW + lipgloss.Width(inspectorTitle) + rSuffixW
+	rFill := rw - rUsed
+	if rFill < 0 {
+		rFill = 0
+	}
+	rightPart := b.Render("┬"+rPrefixStr) + inspectorTitle + b.Render(rSuffixStr+strings.Repeat("─", rFill)+"┐")
+
+	return leftPart + rightPart
+}
+
+// renderSplitBottomBorder draws the bottom edge of the split content box:
+//
+//	└──────────────────────┴───────────────────────┘
+func (m Model) renderSplitBottomBorder() string {
+	b := contentBoxBorderStyle
+	return b.Render("└" + strings.Repeat("─", m.innerWidth()) + "┴" + strings.Repeat("─", m.debugPanelWidth()) + "┘")
+}
+
+// renderBreadcrumb is kept for the help overlay (which uses m.renderHeader()
+// directly and builds its own layout). Normal views use renderContentBox.
+func (m Model) renderBreadcrumb() string {
+	return m.pad(m.breadcrumbLine(), breadcrumbBarStyle)
 }
 
 func (m Model) renderStatusBar() string {
@@ -2476,6 +2753,7 @@ func (m Model) renderHelpOverlay() string {
 		{"[detail] ⇧↑ / ⇧↓", "scroll full page"},
 		{"[detail] ^u / ^d", "scroll half-page"},
 		{"[detail] esc", "back to call list"},
+		{"[detail] c", "copy response body to clipboard"},
 	}
 
 	lines := make([]string, 0, m.height)
@@ -2510,15 +2788,15 @@ type column struct {
 func (m Model) renderTableHeader(cols []column) string {
 	parts := []string{tableHeaderStyle.Render("  ")} // cursor placeholder
 	for _, col := range cols {
-		parts = append(parts, tableHeaderStyle.Width(col.width).Render(col.name))
+		parts = append(parts, tableHeaderStyle.Width(col.width).Render(strings.ToUpper(col.name)))
 		parts = append(parts, tableHeaderStyle.Render("  "))
 	}
 	return m.padContent(strings.Join(parts, ""), tableHeaderStyle)
 }
 
 func (m Model) renderTableDivider() string {
-	w := m.mainWidth()
-	return contentDividerStyle.Width(w).Render(strings.Repeat("─", w))
+	w := m.innerWidth()
+	return tableHeaderDividerStyle.Width(w).Render(strings.Repeat("─", w))
 }
 
 func (m Model) renderTableRow(selected bool, cells []string, cols []column) string {

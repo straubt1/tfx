@@ -45,7 +45,7 @@ func filteredWorkspaces(m Model) []*tfe.Workspace {
 }
 
 func (m Model) renderWorkspacesContent() string {
-	cols := workspaceColumns(m.mainWidth())
+	cols := workspaceColumns(m.innerWidth())
 	visible := m.wsVisibleRows()
 	filtered := filteredWorkspaces(m)
 
@@ -57,7 +57,7 @@ func (m Model) renderWorkspacesContent() string {
 	lines = append(lines, m.renderTableDivider())
 
 	if len(filtered) == 0 {
-		lines = append(lines, contentPlaceholderStyle.Width(m.mainWidth()).Render("  No workspaces found."))
+		lines = append(lines, contentPlaceholderStyle.Width(m.innerWidth()).Render("  No workspaces found."))
 	} else {
 		end := m.wsOffset + visible
 		if end > len(filtered) {
@@ -70,7 +70,7 @@ func (m Model) renderWorkspacesContent() string {
 	}
 
 	for len(lines) < m.contentHeight() {
-		lines = append(lines, contentStyle.Width(m.mainWidth()).Render(""))
+		lines = append(lines, contentStyle.Width(m.innerWidth()).Render(""))
 	}
 	return strings.Join(lines[:m.contentHeight()], "\n")
 }

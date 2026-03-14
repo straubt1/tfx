@@ -11,7 +11,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	lipgloss "charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/ansi"
 	"github.com/straubt1/tfx/client"
 )
 
@@ -45,7 +44,7 @@ func (m Model) handleDebugPanelKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 
 	// ── Detail view keys ─────────────────────────────────────────────────
 	if m.debugDetailMode {
-		bodyH := m.contentHeight() - 2 // 2 = title + divider
+		bodyH := m.contentHeight()
 		halfStep := bodyH / 2
 		if halfStep < 1 {
 			halfStep = 1
@@ -76,9 +75,42 @@ func (m Model) handleDebugPanelKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 			m.debugBodyScroll = 0
 		case "G":
 			m.debugBodyScroll = 9999 // clamped in renderer
+		case "c":
+			events := m.filteredDebugEvents()
+			cursor := m.debugCursor
+			if cursor < len(events) && events[cursor].RespBody != "" {
+				if err := copyToClipboard(events[cursor].RespBody); err == nil {
+					m.clipFeedback = "✓ response body copied"
+				} else {
+					m.clipFeedback = "clipboard unavailable"
+				}
+			}
 		case "esc":
 			m.debugDetailMode = false
 			m.debugBodyScroll = 0
+		}
+		return m, nil
+	}
+
+	// ── Filter input (takes priority over all navigation) ───────────────
+	if m.debugFiltering {
+		switch msg.String() {
+		case "esc":
+			m.debugFiltering = false
+			m.debugFilter = ""
+			m.debugCursor = 0
+		case "enter":
+			m.debugFiltering = false
+			m.debugCursor = 0
+		case "backspace":
+			runes := []rune(m.debugFilter)
+			if len(runes) > 0 {
+				m.debugFilter = string(runes[:len(runes)-1])
+			}
+		default:
+			if isPrintable(msg.String()) {
+				m.debugFilter += msg.String()
+			}
 		}
 		return m, nil
 	}
@@ -107,39 +139,10 @@ func (m Model) handleDebugPanelKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 			m.debugDetailMode = true
 			m.debugBodyScroll = 0
 		}
-
-	// ── Filter ──────────────────────────────────────────────────────────
 	case "/":
 		m.debugFiltering = true
-
-	// ── Escape: clear filter → unfocus ──────────────────────────────────
 	case "esc":
-		if m.debugFiltering {
-			m.debugFiltering = false
-			m.debugFilter = ""
-			m.debugCursor = 0
-		} else {
-			m.debugFocused = false
-		}
-
-	// ── Filter input ────────────────────────────────────────────────────
-	default:
-		if m.debugFiltering {
-			switch msg.String() {
-			case "backspace":
-				runes := []rune(m.debugFilter)
-				if len(runes) > 0 {
-					m.debugFilter = string(runes[:len(runes)-1])
-				}
-			case "enter":
-				m.debugFiltering = false
-				m.debugCursor = 0
-			default:
-				if isPrintable(msg.String()) {
-					m.debugFilter += msg.String()
-				}
-			}
-		}
+		m.debugFocused = false
 	}
 	return m, nil
 }
@@ -165,7 +168,7 @@ type debugPanelStyles struct {
 	row         lipgloss.Style // non-selected list rows
 	divider     lipgloss.Style // horizontal ─── divider line
 	placeholder lipgloss.Style // empty-state italic placeholder text
-	panelBg     color.Color // raw background colour (for method/status helpers)
+	panelBg     color.Color    // raw background colour (for method/status helpers)
 }
 
 // newDebugStyles returns the style set that matches the current focus state.
@@ -205,6 +208,8 @@ func (m Model) renderDebugPanel() string {
 // ── List view ─────────────────────────────────────────────────────────────────
 
 // renderDebugList renders the full-height scrollable call list.
+// Title ("API Inspector") is now in the split top border — this renders
+// only the optional filter bar followed by data rows.
 func (m Model) renderDebugList(ds debugPanelStyles) string {
 	pw := m.debugPanelWidth()
 	h := m.contentHeight()
@@ -221,29 +226,7 @@ func (m Model) renderDebugList(ds debugPanelStyles) string {
 
 	var lines []string
 
-	// ── Title bar — styled to show which panel is active ──────────────────
-	// Focused: accent bg + blue title text acts as a visible "active" tab.
-	// Unfocused: dim text on content bg recedes visually.
-	titleStyle := debugTitleUnfocusedStyle
-	hintStyle := jsonPunctStyle
-	if m.debugFocused {
-		titleStyle = debugTitleFocusedStyle
-		hintStyle = filterBarStyle // colorHeaderBg bg, colorDim fg — matches title bg
-	}
-	focusedHint := ""
-	if !m.debugFocused {
-		focusedHint = hintStyle.Render("  [Tab] focus  ")
-	} else {
-		focusedHint = hintStyle.Render("  [Tab] main  [l] close  ")
-	}
-	titleLeft := titleStyle.Render("  API Inspector")
-	gap := pw - lipgloss.Width(titleLeft) - lipgloss.Width(focusedHint)
-	if gap < 0 {
-		gap = 0
-	}
-	lines = append(lines, titleLeft+titleStyle.Width(gap).Render("")+focusedHint)
-
-	// ── Filter bar (inline with title, shown when active) ─────────────────
+	// ── Filter bar (shown when filtering is active) ──────────────────────
 	if m.debugFiltering || m.debugFilter != "" {
 		curs := ""
 		if m.debugFiltering {
@@ -259,11 +242,8 @@ func (m Model) renderDebugList(ds debugPanelStyles) string {
 		lines = append(lines, filterLine)
 	}
 
-	// ── Divider ───────────────────────────────────────────────────────────
-	lines = append(lines, ds.divider.Width(pw).Render(strings.Repeat("─", pw)))
-
 	// ── Call list rows ────────────────────────────────────────────────────
-	listH := h - len(lines) // remaining rows for the list
+	listH := h - len(lines)
 	if listH < 1 {
 		listH = 1
 	}
@@ -307,20 +287,8 @@ func (m Model) renderDebugDetail(ds debugPanelStyles) string {
 
 	var lines []string
 
-	// ── Title bar — always focused when in detail mode ────────────────────
-	escHint := filterBarStyle.Render("  [esc] list  [Tab] main  ")
-	titleLeft := debugTitleFocusedStyle.Render("  API Inspector › Detail")
-	gap := pw - lipgloss.Width(titleLeft) - lipgloss.Width(escHint)
-	if gap < 0 {
-		gap = 0
-	}
-	lines = append(lines, titleLeft+debugTitleFocusedStyle.Width(gap).Render("")+escHint)
-
-	// ── Divider ───────────────────────────────────────────────────────────
-	lines = append(lines, ds.divider.Width(pw).Render(strings.Repeat("─", pw)))
-
-	// ── Body ──────────────────────────────────────────────────────────────
-	bodyH := h - len(lines)
+	// ── Body (full height — no fixed header) ─────────────────────────────
+	bodyH := h
 	bodyLines := m.buildDebugBody(events, cursor, pw, ds)
 
 	// Clamp scroll.
@@ -605,68 +573,3 @@ func debugDurLabel(d time.Duration) string {
 	return fmt.Sprintf("%.1fs", d.Seconds())
 }
 
-// joinPanels zips the left (main content) and right (debug panel) strings
-// line-by-line with a dim vertical-bar separator.
-//
-// It is a model method so it can access mainWidth() and debugPanelWidth() and
-// ENFORCE exact column widths on every line from both sides. This makes the two
-// panels mutually isolated: no renderer bug or off-by-one can bleed across the
-// separator — short lines are padded, and each lane is always exactly its target
-// width. This is the single source of truth for panel boundary enforcement.
-func (m Model) joinPanels(left, right string) string {
-	leftW := m.mainWidth()
-	rightW := m.debugPanelWidth()
-
-	// The right panel padding background matches the focused state so that
-	// any short lines in the right panel are filled with the same bg colour
-	// as the rest of the panel, not the left panel's colour.
-	ds := m.newDebugStyles()
-
-	leftLines := strings.Split(left, "\n")
-	rightLines := strings.Split(right, "\n")
-	maxLines := len(leftLines)
-	if len(rightLines) > maxLines {
-		maxLines = len(rightLines)
-	}
-
-	// Separator color tracks focus: accent when right panel is active,
-	// dim when left panel is active — provides an extra focus cue.
-	sepStyle := jsonPunctStyle
-	if m.debugFocused {
-		sepStyle = lipgloss.NewStyle().Background(colorBg).Foreground(colorAccent)
-	}
-	sep := sepStyle.Render("│")
-	out := make([]string, maxLines)
-	for i := 0; i < maxLines; i++ {
-		l, r := "", ""
-		if i < len(leftLines) {
-			l = leftLines[i]
-		}
-		if i < len(rightLines) {
-			r = rightLines[i]
-		}
-
-		// Enforce left panel width: truncate if too wide, pad if too narrow.
-		// ansi.Truncate is ANSI-escape-code-aware and safely clips styled strings.
-		lw := lipgloss.Width(l)
-		switch {
-		case lw > leftW:
-			l = ansi.Truncate(l, leftW, "")
-		case lw < leftW:
-			l += contentStyle.Width(leftW - lw).Render("")
-		}
-
-		// Enforce right panel width: pad short lines with the panel's own
-		// background (focused or not) so no left-panel colour bleeds through.
-		rw := lipgloss.Width(r)
-		switch {
-		case rw > rightW:
-			r = ansi.Truncate(r, rightW, "")
-		case rw < rightW:
-			r += ds.bg.Width(rightW - rw).Render("")
-		}
-
-		out[i] = l + sep + r
-	}
-	return strings.Join(out, "\n")
-}

@@ -40,7 +40,7 @@ func filteredOrgs(m Model) []*tfe.Organization {
 }
 
 func (m Model) renderOrgsContent() string {
-	cols := orgColumns(m.mainWidth())
+	cols := orgColumns(m.innerWidth())
 	visible := m.orgVisibleRows()
 	filtered := filteredOrgs(m)
 
@@ -52,7 +52,7 @@ func (m Model) renderOrgsContent() string {
 	lines = append(lines, m.renderTableDivider())
 
 	if len(filtered) == 0 {
-		lines = append(lines, contentPlaceholderStyle.Width(m.mainWidth()).Render("  No organizations found."))
+		lines = append(lines, contentPlaceholderStyle.Width(m.innerWidth()).Render("  No organizations found."))
 	} else {
 		end := m.orgOffset + visible
 		if end > len(filtered) {
@@ -65,7 +65,7 @@ func (m Model) renderOrgsContent() string {
 	}
 
 	for len(lines) < m.contentHeight() {
-		lines = append(lines, contentStyle.Width(m.mainWidth()).Render(""))
+		lines = append(lines, contentStyle.Width(m.innerWidth()).Render(""))
 	}
 	return strings.Join(lines[:m.contentHeight()], "\n")
 }

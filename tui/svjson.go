@@ -20,9 +20,9 @@ func (m Model) renderStateVersionJsonContent() string {
 		frame := spinnerFrames[m.spinnerIdx]
 		for i := range lines {
 			if i == mid {
-				lines[i] = contentPlaceholderStyle.Width(m.mainWidth()).Render("  " + frame + "  Loading state JSON…")
+				lines[i] = contentPlaceholderStyle.Width(m.innerWidth()).Render("  " + frame + "  Loading state JSON…")
 			} else {
-				lines[i] = contentStyle.Width(m.mainWidth()).Render("")
+				lines[i] = contentStyle.Width(m.innerWidth()).Render("")
 			}
 		}
 		return strings.Join(lines, "\n")
@@ -33,9 +33,9 @@ func (m Model) renderStateVersionJsonContent() string {
 		lines := make([]string, h)
 		for i := range lines {
 			if i == 0 {
-				lines[i] = contentStyle.Width(m.mainWidth()).Render("  ✗  " + m.svJsonErr)
+				lines[i] = contentStyle.Width(m.innerWidth()).Render("  ✗  " + m.svJsonErr)
 			} else {
-				lines[i] = contentStyle.Width(m.mainWidth()).Render("")
+				lines[i] = contentStyle.Width(m.innerWidth()).Render("")
 			}
 		}
 		return strings.Join(lines, "\n")
@@ -45,7 +45,7 @@ func (m Model) renderStateVersionJsonContent() string {
 	if len(m.svJsonLines) == 0 {
 		lines := make([]string, h)
 		for i := range lines {
-			lines[i] = contentStyle.Width(m.mainWidth()).Render("")
+			lines[i] = contentStyle.Width(m.innerWidth()).Render("")
 		}
 		return strings.Join(lines, "\n")
 	}
@@ -54,7 +54,7 @@ func (m Model) renderStateVersionJsonContent() string {
 	numLines := len(m.svJsonLines)
 	lineNumWidth := len(fmt.Sprintf("%d", numLines))
 	// Layout: 2 margin + lineNumWidth + " │ " (3) + content
-	contentWidth := m.mainWidth() - 2 - lineNumWidth - 3
+	contentWidth := m.innerWidth() - 2 - lineNumWidth - 3
 	if contentWidth < 10 {
 		contentWidth = 10
 	}
@@ -70,7 +70,7 @@ func (m Model) renderStateVersionJsonContent() string {
 			detailLabelStyle.Render(lineNum) +
 			contentDividerStyle.Render(" │ ") +
 			colorizeJSONLine(display)
-		all = append(all, contentStyle.Width(m.mainWidth()).Render(row))
+		all = append(all, contentStyle.Width(m.innerWidth()).Render(row))
 	}
 
 	// Clamp scroll and slice visible window.
@@ -89,7 +89,7 @@ func (m Model) renderStateVersionJsonContent() string {
 	out := make([]string, h)
 	copy(out, visible)
 	for i := len(visible); i < h; i++ {
-		out[i] = contentStyle.Width(m.mainWidth()).Render("")
+		out[i] = contentStyle.Width(m.innerWidth()).Render("")
 	}
 	return strings.Join(out, "\n")
 }

@@ -170,7 +170,7 @@ func (m Model) cvFilesPathBar() string {
 	posW := lipgloss.Width(posRendered)
 
 	// Available rune-width for the left path portion.
-	leftAvailW := m.mainWidth() - posW - 2 // 2 for "  " left margin
+	leftAvailW := m.innerWidth() - posW - 2 // 2 for "  " left margin
 
 	// Build the glyph + path text, then left-truncate so the tail is always visible.
 	// Styled: ▸ in accent blue, path text in default fg.
@@ -196,7 +196,7 @@ func (m Model) cvFilesPathBar() string {
 
 	// Fill the gap between the path and the position indicator.
 	pathW := lipgloss.Width(pathRendered)
-	gapW := m.mainWidth() - pathW - posW
+	gapW := m.innerWidth() - pathW - posW
 	if gapW < 0 {
 		gapW = 0
 	}
@@ -225,9 +225,9 @@ func (m Model) renderConfigVersionFilesContent() string {
 		frame := spinnerFrames[m.spinnerIdx]
 		for i := range lines {
 			if i == mid {
-				lines[i] = contentPlaceholderStyle.Width(m.mainWidth()).Render("  " + frame + "  Downloading and extracting config version…")
+				lines[i] = contentPlaceholderStyle.Width(m.innerWidth()).Render("  " + frame + "  Downloading and extracting config version…")
 			} else {
-				lines[i] = contentStyle.Width(m.mainWidth()).Render("")
+				lines[i] = contentStyle.Width(m.innerWidth()).Render("")
 			}
 		}
 		return strings.Join(lines, "\n")
@@ -238,9 +238,9 @@ func (m Model) renderConfigVersionFilesContent() string {
 		lines := make([]string, h)
 		for i := range lines {
 			if i == 0 {
-				lines[i] = contentStyle.Width(m.mainWidth()).Render("  ✗  " + m.cvFileErr)
+				lines[i] = contentStyle.Width(m.innerWidth()).Render("  ✗  " + m.cvFileErr)
 			} else {
-				lines[i] = contentStyle.Width(m.mainWidth()).Render("")
+				lines[i] = contentStyle.Width(m.innerWidth()).Render("")
 			}
 		}
 		return strings.Join(lines, "\n")
@@ -251,7 +251,7 @@ func (m Model) renderConfigVersionFilesContent() string {
 	// No separate cursor column — selection is shown via row highlight colour.
 	const sizeColW = 10
 	const gapW = 2
-	nameColW := m.mainWidth() - sizeColW - gapW
+	nameColW := m.innerWidth() - sizeColW - gapW
 	if nameColW < 12 {
 		nameColW = 12
 	}
@@ -272,7 +272,7 @@ func (m Model) renderConfigVersionFilesContent() string {
 	lines = append(lines, m.renderTableDivider())
 
 	if len(m.cvFiles) == 0 {
-		lines = append(lines, contentPlaceholderStyle.Width(m.mainWidth()).Render("  No files found."))
+		lines = append(lines, contentPlaceholderStyle.Width(m.innerWidth()).Render("  No files found."))
 	} else {
 		vis := m.cvFilesVisibleRows()
 		end := m.cvFileOffset + vis
@@ -340,7 +340,7 @@ func (m Model) renderConfigVersionFilesContent() string {
 	}
 
 	for len(lines) < h {
-		lines = append(lines, contentStyle.Width(m.mainWidth()).Render(""))
+		lines = append(lines, contentStyle.Width(m.innerWidth()).Render(""))
 	}
 	return strings.Join(lines[:h], "\n")
 }
@@ -354,7 +354,7 @@ func (m Model) renderConfigVersionFileContent() string {
 	if len(m.cvFileLines) == 0 {
 		lines := make([]string, h)
 		for i := range lines {
-			lines[i] = contentStyle.Width(m.mainWidth()).Render("")
+			lines[i] = contentStyle.Width(m.innerWidth()).Render("")
 		}
 		return strings.Join(lines, "\n")
 	}
@@ -362,7 +362,7 @@ func (m Model) renderConfigVersionFileContent() string {
 	numLines := len(m.cvFileLines)
 	lineNumWidth := len(fmt.Sprintf("%d", numLines))
 	// Layout: 2 margin + lineNumWidth + " │ " (3) + content
-	contentWidth := m.mainWidth() - 2 - lineNumWidth - 3
+	contentWidth := m.innerWidth() - 2 - lineNumWidth - 3
 	if contentWidth < 10 {
 		contentWidth = 10
 	}
@@ -392,7 +392,7 @@ func (m Model) renderConfigVersionFileContent() string {
 			detailLabelStyle.Render(lineNum) +
 			contentDividerStyle.Render(" │ ") +
 			colored
-		all = append(all, contentStyle.Width(m.mainWidth()).Render(row))
+		all = append(all, contentStyle.Width(m.innerWidth()).Render(row))
 	}
 
 	// Clamp scroll and slice visible window.
@@ -411,7 +411,7 @@ func (m Model) renderConfigVersionFileContent() string {
 	out := make([]string, h)
 	copy(out, visible)
 	for i := len(visible); i < h; i++ {
-		out[i] = contentStyle.Width(m.mainWidth()).Render("")
+		out[i] = contentStyle.Width(m.innerWidth()).Render("")
 	}
 	return strings.Join(out, "\n")
 }

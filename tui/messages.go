@@ -82,10 +82,49 @@ type configVersionsLoadedMsg []*tfe.ConfigurationVersion
 // stateVersionsLoadedMsg carries the fetched state version list.
 type stateVersionsLoadedMsg []*tfe.StateVersion
 
+// accountLoadedMsg carries the currently authenticated user from the TFE API.
+type accountLoadedMsg *tfe.User
+
+// accountTokenLoadedMsg carries the user token whose LastUsedAt is closest to
+// now — a proxy for "the token currently in use". nil when none can be found.
+type accountTokenLoadedMsg *tfe.UserToken
+
 // fetchErrMsg wraps any error returned from an async fetch.
 type fetchErrMsg struct{ err error }
 
 // ── Commands ──────────────────────────────────────────────────────────────────
+
+// loadAccount fetches the currently authenticated user via Users.ReadCurrent.
+// Errors are silently discarded — account info is supplemental, not required.
+func loadAccount(c *client.TfxClient) tea.Cmd {
+	return func() tea.Msg {
+		user, err := c.Client.Users.ReadCurrent(c.Context)
+		if err != nil {
+			return accountLoadedMsg(nil)
+		}
+		return accountLoadedMsg(user)
+	}
+}
+
+// loadAccountToken lists all tokens for userID and returns the one whose
+// LastUsedAt is most recent — the best proxy for "the token in use now".
+// On any error it returns accountTokenLoadedMsg(nil) so the UI shows "n/a".
+func loadAccountToken(c *client.TfxClient, userID string) tea.Cmd {
+	return func() tea.Msg {
+		list, err := c.Client.UserTokens.List(c.Context, userID)
+		if err != nil || list == nil || len(list.Items) == 0 {
+			return accountTokenLoadedMsg(nil)
+		}
+		// Pick the token with the most-recent LastUsedAt.
+		var best *tfe.UserToken
+		for _, t := range list.Items {
+			if best == nil || t.LastUsedAt.After(best.LastUsedAt) {
+				best = t
+			}
+		}
+		return accountTokenLoadedMsg(best)
+	}
+}
 
 func loadOrganizations(c *client.TfxClient) tea.Cmd {
 	return func() tea.Msg {

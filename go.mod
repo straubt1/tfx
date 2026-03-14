@@ -3,11 +3,15 @@ module github.com/straubt1/tfx
 go 1.26.0
 
 require (
+	charm.land/bubbletea/v2 v2.0.1
+	charm.land/lipgloss/v2 v2.0.0
 	code.cloudfoundry.org/bytefmt v0.64.0
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/briandowns/spinner v1.23.2
+	github.com/charmbracelet/x/ansi v0.11.6
 	github.com/coreos/go-semver v0.3.1
 	github.com/dustin/go-humanize v1.0.1
+	github.com/epilande/go-devicons v0.0.0-20250505162540-0661cab71a28
 	github.com/fatih/color v1.18.0
 	github.com/go-viper/encoding/hcl v0.1.0
 	github.com/google/go-containerregistry v0.21.1
@@ -24,11 +28,8 @@ require (
 )
 
 require (
-	charm.land/bubbletea/v2 v2.0.1 // indirect
-	charm.land/lipgloss/v2 v2.0.0 // indirect
 	github.com/charmbracelet/colorprofile v0.4.2 // indirect
 	github.com/charmbracelet/ultraviolet v0.0.0-20260205113103-524a6607adb8 // indirect
-	github.com/charmbracelet/x/ansi v0.11.6 // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/charmbracelet/x/termios v0.1.1 // indirect
 	github.com/charmbracelet/x/windows v0.2.2 // indirect
@@ -38,7 +39,6 @@ require (
 	github.com/docker/cli v29.2.1+incompatible // indirect
 	github.com/docker/distribution v2.8.3+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.9.5 // indirect
-	github.com/epilande/go-devicons v0.0.0-20250505162540-0661cab71a28 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/hashicorp/go-version v1.8.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
