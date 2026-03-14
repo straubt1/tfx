@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	fixedLines = 8 // header(1) + profilebar(4) + breadcrumb(1) + statusbar(1) + clihint(1)
+	fixedLines = 9 // header(1) + profilebar(4) + box-top(1) + box-bottom(1) + statusbar(1) + clihint(1)
 	minWidth   = 60
 	minHeight  = 10
 )
@@ -502,13 +502,13 @@ func (m Model) View() tea.View {
 		content = m.renderHelpOverlay()
 	} else if m.showDebug {
 		// Split the content area horizontally: main view (left) | separator | debug panel (right).
-		// Full-width zones (header, breadcrumb, statusbar, clihint) span the whole terminal.
-		contentArea := m.joinPanels(m.renderContent(), m.renderDebugPanel())
+		// Header, profile bar, statusbar and clihint span the full terminal width.
+		// The content box (top border + rows + bottom border) is the left panel.
+		contentArea := m.joinPanels(m.renderContentBox(), m.renderDebugPanel())
 		content = lipgloss.JoinVertical(
 			lipgloss.Left,
 			m.renderHeader(),
 			m.renderProfileBar(),
-			m.renderBreadcrumb(),
 			contentArea,
 			m.renderStatusBar(),
 			m.renderCliHint(),
@@ -518,8 +518,7 @@ func (m Model) View() tea.View {
 			lipgloss.Left,
 			m.renderHeader(),
 			m.renderProfileBar(),
-			m.renderBreadcrumb(),
-			m.renderContent(),
+			m.renderContentBox(),
 			m.renderStatusBar(),
 			m.renderCliHint(),
 		)
@@ -1658,7 +1657,7 @@ func (m Model) debugPanelWidth() int {
 	return m.width * 7 / 10
 }
 
-// mainWidth returns the usable width for the left (main) content area.
+// mainWidth returns the total width of the content box (outer, including side borders).
 // When the API Inspector panel is open, the content area is narrowed by the
 // panel width plus one separator column.
 func (m Model) mainWidth() int {
@@ -1668,11 +1667,21 @@ func (m Model) mainWidth() int {
 	return m.width
 }
 
-// padContent fills a rendered content-area string to mainWidth() using the
+// innerWidth returns the usable width for content inside the box borders (mainWidth - 2).
+// All content renderers must use this so rows fit inside the │ side borders.
+func (m Model) innerWidth() int {
+	w := m.mainWidth() - 2
+	if w < 1 {
+		return 1
+	}
+	return w
+}
+
+// padContent fills a rendered content-area string to innerWidth() using the
 // given style. Use this instead of pad() inside all content-area renderers
 // so the row width automatically accounts for the debug panel when it is open.
 func (m Model) padContent(rendered string, style lipgloss.Style) string {
-	w := m.mainWidth() - lipgloss.Width(rendered)
+	w := m.innerWidth() - lipgloss.Width(rendered)
 	if w < 0 {
 		w = 0
 	}
@@ -1993,9 +2002,9 @@ func (m Model) renderWorkspaceDetailLoading() string {
 	mid := (h - 1) / 2
 	for i := 0; i < h-1; i++ {
 		if i == mid {
-			lines = append(lines, contentPlaceholderStyle.Width(m.mainWidth()).Render("  "+frame+"  Loading…"))
+			lines = append(lines, contentPlaceholderStyle.Width(m.innerWidth()).Render("  "+frame+"  Loading…"))
 		} else {
-			lines = append(lines, contentStyle.Width(m.mainWidth()).Render(""))
+			lines = append(lines, contentStyle.Width(m.innerWidth()).Render(""))
 		}
 	}
 	return strings.Join(lines, "\n")
@@ -2008,9 +2017,9 @@ func (m Model) renderLoadingContent() string {
 	frame := spinnerFrames[m.spinnerIdx]
 	for i := range lines {
 		if i == mid {
-			lines[i] = contentPlaceholderStyle.Width(m.mainWidth()).Render("  " + frame + "  Loading…")
+			lines[i] = contentPlaceholderStyle.Width(m.innerWidth()).Render("  " + frame + "  Loading…")
 		} else {
-			lines[i] = contentStyle.Width(m.mainWidth()).Render("")
+			lines[i] = contentStyle.Width(m.innerWidth()).Render("")
 		}
 	}
 	return strings.Join(lines, "\n")
@@ -2022,9 +2031,9 @@ func (m Model) renderErrorContent() string {
 	mid := h / 2
 	for i := range lines {
 		if i == mid {
-			lines[i] = statusErrorStyle.Width(m.mainWidth()).Render(fmt.Sprintf("  ✗  %s", m.errMsg))
+			lines[i] = statusErrorStyle.Width(m.innerWidth()).Render(fmt.Sprintf("  ✗  %s", m.errMsg))
 		} else {
-			lines[i] = contentStyle.Width(m.mainWidth()).Render("")
+			lines[i] = contentStyle.Width(m.innerWidth()).Render("")
 		}
 	}
 	return strings.Join(lines, "\n")
@@ -2155,8 +2164,11 @@ func (m Model) renderProfileBar() string {
 	}, "\n")
 }
 
-func (m Model) renderBreadcrumb() string {
-	sep := breadcrumbSepStyle.Render("  /  ")
+// breadcrumbLine returns the styled navigation trail without any full-width
+// padding. Used both by renderBreadcrumb (legacy, kept for the help overlay)
+// and by renderContentTopBorder as the box title.
+func (m Model) breadcrumbLine() string {
+	sep     := breadcrumbSepStyle.Render("  /  ")
 	orgPart := breadcrumbBarStyle.Render(fmt.Sprintf(" org: %s", m.org))
 
 	projName := ""
@@ -2168,157 +2180,188 @@ func (m Model) renderBreadcrumb() string {
 		wsName = m.selectedWS.Name
 	}
 
-	var line string
 	switch m.currentView {
 	case viewOrganizations:
-		line = breadcrumbActiveStyle.Render(" organizations ")
+		return breadcrumbActiveStyle.Render(" organizations ")
 	case viewProjects:
-		line = orgPart + sep + breadcrumbActiveStyle.Render("projects ")
+		return orgPart + sep + breadcrumbActiveStyle.Render("projects ")
 	case viewWorkspaces:
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
 			sep + breadcrumbActiveStyle.Render("workspaces ")
 	case viewRuns:
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
 			sep + breadcrumbActiveStyle.Render("runs ")
 	case viewVariables:
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
 			sep + breadcrumbActiveStyle.Render("variables ")
 	case viewConfigVersions:
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
 			sep + breadcrumbActiveStyle.Render("config versions ")
 	case viewStateVersions:
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
 			sep + breadcrumbActiveStyle.Render("state versions ")
 	case viewWorkspaceDetail:
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
 			sep + breadcrumbActiveStyle.Render("detail ")
 	case viewOrgDetail:
 		orgDetailName := ""
 		if m.selectedOrg != nil {
 			orgDetailName = m.selectedOrg.Name
 		}
-		line = breadcrumbBarStyle.Render(fmt.Sprintf(" org: %s", orgDetailName)) +
+		return breadcrumbBarStyle.Render(fmt.Sprintf(" org: %s", orgDetailName)) +
 			sep + breadcrumbActiveStyle.Render("detail ")
 	case viewProjectDetail:
-		projDetailName := ""
-		if m.selectedProj != nil {
-			projDetailName = m.selectedProj.Name
-		}
-		line = orgPart + sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projDetailName)) +
+		return orgPart + sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
 			sep + breadcrumbActiveStyle.Render("detail ")
 	case viewRunDetail:
 		runID := ""
 		if m.selectedRun != nil {
 			runID = m.selectedRun.ID
 		}
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
-			sep +
-			breadcrumbBarStyle.Render("runs") +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbBarStyle.Render("runs") +
 			sep + breadcrumbActiveStyle.Render(fmt.Sprintf("run: %s ", runID))
 	case viewVariableDetail:
 		varKey := ""
 		if m.selectedVar != nil {
 			varKey = m.selectedVar.Key
 		}
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
-			sep +
-			breadcrumbBarStyle.Render("variables") +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbBarStyle.Render("variables") +
 			sep + breadcrumbActiveStyle.Render(fmt.Sprintf("var: %s ", varKey))
 	case viewStateVersionDetail:
 		svSerial := ""
 		if m.selectedSV != nil {
 			svSerial = fmt.Sprintf("%d", m.selectedSV.Serial)
 		}
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
-			sep +
-			breadcrumbBarStyle.Render("state versions") +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbBarStyle.Render("state versions") +
 			sep + breadcrumbActiveStyle.Render(fmt.Sprintf("sv: %s ", svSerial))
 	case viewConfigVersionDetail:
 		cvID := ""
 		if m.selectedCV != nil {
 			cvID = m.selectedCV.ID
 		}
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
-			sep +
-			breadcrumbBarStyle.Render("config versions") +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbBarStyle.Render("config versions") +
 			sep + breadcrumbActiveStyle.Render(fmt.Sprintf("cv: %s ", cvID))
 	case viewStateVersionJson:
 		svSerial := ""
 		if m.selectedSV != nil {
 			svSerial = fmt.Sprintf("%d", m.selectedSV.Serial)
 		}
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
-			sep +
-			breadcrumbBarStyle.Render("state versions") +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("sv: %s", svSerial)) +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbBarStyle.Render("state versions") +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("sv: %s", svSerial)) +
 			sep + breadcrumbActiveStyle.Render("json ")
 	case viewConfigVersionFiles:
 		cvID := ""
 		if m.selectedCV != nil {
 			cvID = m.selectedCV.ID
 		}
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
-			sep +
-			breadcrumbBarStyle.Render("config versions") +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("cv: %s", cvID)) +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbBarStyle.Render("config versions") +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("cv: %s", cvID)) +
 			sep + breadcrumbActiveStyle.Render("files ")
 	case viewConfigVersionFileContent:
 		cvID := ""
 		if m.selectedCV != nil {
 			cvID = m.selectedCV.ID
 		}
-		line = orgPart + sep +
+		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
-			sep +
-			breadcrumbBarStyle.Render("config versions") +
-			sep +
-			breadcrumbBarStyle.Render(fmt.Sprintf("cv: %s", cvID)) +
-			sep +
-			breadcrumbBarStyle.Render("files") +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbBarStyle.Render("config versions") +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("cv: %s", cvID)) +
+			sep + breadcrumbBarStyle.Render("files") +
 			sep + breadcrumbActiveStyle.Render(m.cvFileName+" ")
 	default:
-		line = orgPart
+		return orgPart
 	}
-	return m.pad(line, breadcrumbBarStyle)
+}
+
+// renderContentBox wraps the inner content with a full border (top, sides,
+// bottom) giving the table area a k9s-style framed appearance.
+// Content lines (from renderContent) are each flanked by │ side borders.
+func (m Model) renderContentBox() string {
+	b  := contentBoxBorderStyle
+	lb := b.Render("│")
+	rb := b.Render("│")
+
+	inner := m.renderContent()
+	lines := strings.Split(inner, "\n")
+	wrapped := make([]string, len(lines))
+	for i, line := range lines {
+		wrapped[i] = lb + line + rb
+	}
+	return strings.Join([]string{
+		m.renderContentTopBorder(),
+		strings.Join(wrapped, "\n"),
+		m.renderContentBottomBorder(),
+	}, "\n")
+}
+
+// renderContentTopBorder draws the top edge of the content box.
+// The navigation breadcrumb is embedded as the title:
+//
+//	┌─ org: my-org / workspaces ─────────────────────────────────┐
+func (m Model) renderContentTopBorder() string {
+	b := contentBoxBorderStyle
+
+	title  := m.breadcrumbLine()
+	corner := b.Render("┌")
+	prefix := b.Render("─ ")
+
+	// Measure consumed width, compute fill for the right side.
+	// mainWidth() is the full outer width including corners.
+	used := lipgloss.Width(corner) + lipgloss.Width(prefix) + lipgloss.Width(title) + 2 // 2 = " ┐" at end
+	fill := m.mainWidth() - used
+	if fill < 0 {
+		fill = 0
+	}
+	return corner + prefix + title + b.Render(" "+strings.Repeat("─", fill)+"┐")
+}
+
+// renderContentBottomBorder draws the bottom edge of the content box:
+//
+//	└────────────────────────────────────────────────────────────┘
+func (m Model) renderContentBottomBorder() string {
+	b := contentBoxBorderStyle
+	inner := m.mainWidth() - 2 // leave room for └ and ┘
+	if inner < 0 {
+		inner = 0
+	}
+	return b.Render("└" + strings.Repeat("─", inner) + "┘")
+}
+
+// renderBreadcrumb is kept for the help overlay (which uses m.renderHeader()
+// directly and builds its own layout). Normal views use renderContentBox.
+func (m Model) renderBreadcrumb() string {
+	return m.pad(m.breadcrumbLine(), breadcrumbBarStyle)
 }
 
 func (m Model) renderStatusBar() string {
@@ -2631,7 +2674,7 @@ func (m Model) renderTableHeader(cols []column) string {
 }
 
 func (m Model) renderTableDivider() string {
-	w := m.mainWidth()
+	w := m.innerWidth()
 	return contentDividerStyle.Width(w).Render(strings.Repeat("─", w))
 }
 

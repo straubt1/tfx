@@ -72,7 +72,7 @@ func filteredVariables(m Model) []*tfe.Variable {
 }
 
 func (m Model) renderVariablesContent() string {
-	cols := variableColumns(m.mainWidth())
+	cols := variableColumns(m.innerWidth())
 	visible := m.varVisibleRows()
 	filtered := filteredVariables(m)
 
@@ -85,7 +85,7 @@ func (m Model) renderVariablesContent() string {
 	lines = append(lines, m.renderTableDivider())
 
 	if len(filtered) == 0 {
-		lines = append(lines, contentPlaceholderStyle.Width(m.mainWidth()).Render("  No variables found."))
+		lines = append(lines, contentPlaceholderStyle.Width(m.innerWidth()).Render("  No variables found."))
 	} else {
 		end := m.varOffset + visible
 		if end > len(filtered) {
@@ -105,7 +105,7 @@ func (m Model) renderVariablesContent() string {
 	}
 
 	for len(lines) < m.contentHeight() {
-		lines = append(lines, contentStyle.Width(m.mainWidth()).Render(""))
+		lines = append(lines, contentStyle.Width(m.innerWidth()).Render(""))
 	}
 	return strings.Join(lines[:m.contentHeight()], "\n")
 }

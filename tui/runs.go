@@ -79,7 +79,7 @@ func filteredRuns(m Model) []*tfe.Run {
 }
 
 func (m Model) renderRunsContent() string {
-	cols := runColumns(m.mainWidth())
+	cols := runColumns(m.innerWidth())
 	visible := m.runVisibleRows()
 	filtered := filteredRuns(m)
 
@@ -92,7 +92,7 @@ func (m Model) renderRunsContent() string {
 	lines = append(lines, m.renderTableDivider())
 
 	if len(filtered) == 0 {
-		lines = append(lines, contentPlaceholderStyle.Width(m.mainWidth()).Render("  No runs found."))
+		lines = append(lines, contentPlaceholderStyle.Width(m.innerWidth()).Render("  No runs found."))
 	} else {
 		end := m.runOffset + visible
 		if end > len(filtered) {
@@ -113,7 +113,7 @@ func (m Model) renderRunsContent() string {
 	}
 
 	for len(lines) < m.contentHeight() {
-		lines = append(lines, contentStyle.Width(m.mainWidth()).Render(""))
+		lines = append(lines, contentStyle.Width(m.innerWidth()).Render(""))
 	}
 	return strings.Join(lines[:m.contentHeight()], "\n")
 }

@@ -43,7 +43,7 @@ func filteredStateVersions(m Model) []*tfe.StateVersion {
 }
 
 func (m Model) renderStateVersionsContent() string {
-	cols := svColumns(m.mainWidth())
+	cols := svColumns(m.innerWidth())
 	visible := m.svVisibleRows()
 	filtered := filteredStateVersions(m)
 
@@ -56,7 +56,7 @@ func (m Model) renderStateVersionsContent() string {
 	lines = append(lines, m.renderTableDivider())
 
 	if len(filtered) == 0 {
-		lines = append(lines, contentPlaceholderStyle.Width(m.mainWidth()).Render("  No state versions found."))
+		lines = append(lines, contentPlaceholderStyle.Width(m.innerWidth()).Render("  No state versions found."))
 	} else {
 		end := m.svOffset + visible
 		if end > len(filtered) {
@@ -75,7 +75,7 @@ func (m Model) renderStateVersionsContent() string {
 	}
 
 	for len(lines) < m.contentHeight() {
-		lines = append(lines, contentStyle.Width(m.mainWidth()).Render(""))
+		lines = append(lines, contentStyle.Width(m.innerWidth()).Render(""))
 	}
 	return strings.Join(lines[:m.contentHeight()], "\n")
 }

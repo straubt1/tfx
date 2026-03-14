@@ -110,7 +110,7 @@ func (m Model) renderWorkspaceDetailContent() string {
 	if m.selectedWS == nil {
 		lines := make([]string, h)
 		for i := range lines {
-			lines[i] = contentStyle.Width(m.mainWidth()).Render("")
+			lines[i] = contentStyle.Width(m.innerWidth()).Render("")
 		}
 		return strings.Join(lines, "\n")
 	}
@@ -119,7 +119,7 @@ func (m Model) renderWorkspaceDetailContent() string {
 
 	// Build a flat list of all rendered lines.
 	var all []string
-	all = append(all, contentStyle.Width(m.mainWidth()).Render("")) // top padding
+	all = append(all, contentStyle.Width(m.innerWidth()).Render("")) // top padding
 
 	for si, sec := range sections {
 		all = append(all, m.renderDetailSectionHeader(sec.title))
@@ -127,10 +127,10 @@ func (m Model) renderWorkspaceDetailContent() string {
 			all = append(all, m.renderDetailKV(row.label, row.value))
 		}
 		if si < len(sections)-1 {
-			all = append(all, contentStyle.Width(m.mainWidth()).Render("")) // blank line between sections
+			all = append(all, contentStyle.Width(m.innerWidth()).Render("")) // blank line between sections
 		}
 	}
-	all = append(all, contentStyle.Width(m.mainWidth()).Render("")) // bottom padding
+	all = append(all, contentStyle.Width(m.innerWidth()).Render("")) // bottom padding
 
 	// Clamp the scroll offset to valid range.
 	maxScroll := len(all) - h
@@ -150,7 +150,7 @@ func (m Model) renderWorkspaceDetailContent() string {
 	out := make([]string, h)
 	copy(out, visible)
 	for i := len(visible); i < h; i++ {
-		out[i] = contentStyle.Width(m.mainWidth()).Render("")
+		out[i] = contentStyle.Width(m.innerWidth()).Render("")
 	}
 	return strings.Join(out, "\n")
 }
@@ -160,17 +160,17 @@ func (m Model) renderWorkspaceDetailContent() string {
 //	  ── Title ───────────────────────────────────
 func (m Model) renderDetailSectionHeader(title string) string {
 	prefix := "  ── " + title + " "
-	n := m.mainWidth() - len([]rune(prefix))
+	n := m.innerWidth() - len([]rune(prefix))
 	if n < 4 {
 		n = 4
 	}
 	text := prefix + strings.Repeat("─", n)
-	return contentTitleStyle.Width(m.mainWidth()).Render(text)
+	return contentTitleStyle.Width(m.innerWidth()).Render(text)
 }
 
 // renderDetailKV renders a single label-value row with a fixed-width label column.
 func (m Model) renderDetailKV(label, value string) string {
-	maxValueWidth := m.mainWidth() - wsDetLabelWidth - 2
+	maxValueWidth := m.innerWidth() - wsDetLabelWidth - 2
 	if maxValueWidth < 10 {
 		maxValueWidth = 10
 	}
