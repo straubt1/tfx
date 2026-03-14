@@ -3,15 +3,20 @@
 
 // Package hclconfig reads and writes TFx profile blocks in ~/.tfx.hcl.
 //
-// New format — profile name is the hostname:
+// Profile block format:
 //
-//	profile "app.terraform.io" {
+//	profile "default" {
+//	  tfeHostname     = "app.terraform.io"
 //	  tfeOrganization = "my-org"
 //	  tfeToken        = "abc123..."
 //	}
 //
+// The block label is the profile name (user-editable alias). tfeHostname is a
+// key inside the block. The name defaults to the hostname when written by
+// `tfx login`.
+//
 // Old (flat) format is still supported for reading; it is treated as a single
-// profile whose name equals the value of tfeHostname.
+// profile whose name and hostname both equal the value of tfeHostname.
 package hclconfig
 
 import (
@@ -25,16 +30,16 @@ import (
 )
 
 // Profile holds configuration for one TFx profile.
-// In the new format the Hostname field is the profile block label.
 type Profile struct {
-	Hostname     string
+	Name         string // block label — user-editable alias
+	Hostname     string // tfeHostname value inside the block
 	Organization string
 	Token        string
 }
 
 var (
 	reProfileStart = regexp.MustCompile(`^profile\s+"([^"]+)"\s*\{`)
-	reKeyValue     = regexp.MustCompile(`^\s+(tfeOrganization|tfeToken)\s*=\s*"([^"]*)"`)
+	reKeyValue     = regexp.MustCompile(`^\s+(tfeHostname|tfeOrganization|tfeToken)\s*=\s*"([^"]*)"`)
 	reFlatHostname = regexp.MustCompile(`^tfeHostname\s*=\s*"([^"]*)"`)
 	reFlatOrg      = regexp.MustCompile(`^tfeOrganization\s*=\s*"([^"]*)"`)
 	reFlatToken    = regexp.MustCompile(`^tfeToken\s*=\s*"([^"]*)"`)
@@ -52,9 +57,10 @@ func DefaultConfigPath() (string, error) {
 
 // ListProfiles parses path and returns all profiles in file order.
 //
-//   - New format: each profile block becomes one entry (Hostname = block label).
+//   - New format: each profile block becomes one entry (Name = block label,
+//     Hostname = tfeHostname inside the block; falls back to Name if omitted).
 //   - Old format (flat tfeHostname/tfeOrganization/tfeToken keys): returns a
-//     single Profile with Hostname = the tfeHostname value.
+//     single Profile with Name and Hostname both equal to the tfeHostname value.
 //   - File not found: returns nil, nil.
 func ListProfiles(path string) ([]Profile, error) {
 	data, err := os.ReadFile(path)
@@ -70,8 +76,7 @@ func ListProfiles(path string) ([]Profile, error) {
 	// Detect old (flat) format: look for a top-level tfeHostname line.
 	for _, line := range lines {
 		if m := reFlatHostname.FindStringSubmatch(line); m != nil {
-			// Old format — collect flat values.
-			p := Profile{Hostname: m[1]}
+			p := Profile{Name: m[1], Hostname: m[1]}
 			for _, l := range lines {
 				if mo := reFlatOrg.FindStringSubmatch(l); mo != nil {
 					p.Organization = mo[1]
@@ -89,12 +94,14 @@ func ListProfiles(path string) ([]Profile, error) {
 	var current *Profile
 	for _, line := range lines {
 		if m := reProfileStart.FindStringSubmatch(line); m != nil {
-			current = &Profile{Hostname: m[1]}
+			current = &Profile{Name: m[1]}
 			continue
 		}
 		if current != nil {
 			if m := reKeyValue.FindStringSubmatch(line); m != nil {
 				switch m[1] {
+				case "tfeHostname":
+					current.Hostname = m[2]
 				case "tfeOrganization":
 					current.Organization = m[2]
 				case "tfeToken":
@@ -103,6 +110,10 @@ func ListProfiles(path string) ([]Profile, error) {
 				continue
 			}
 			if reBlockEnd.MatchString(line) {
+				// Backward compat: if tfeHostname was absent, use the block label.
+				if current.Hostname == "" {
+					current.Hostname = current.Name
+				}
 				profiles = append(profiles, *current)
 				current = nil
 			}
@@ -111,12 +122,14 @@ func ListProfiles(path string) ([]Profile, error) {
 	return profiles, nil
 }
 
-// WriteProfile adds or replaces the profile block for hostname in the file at
-// path. If path does not exist it is created. All other profiles and content
+// WriteProfile adds or replaces the named profile block in the file at path.
+// If path does not exist it is created. All other profiles and content
 // (flat keys, comments) are preserved unchanged. The file is written with 0600
 // permissions because it contains an API token.
-func WriteProfile(path, hostname, organization, token string) error {
-	// Read existing content (empty string if file doesn't exist yet).
+//
+// name is the block label (profile alias). hostname is written as tfeHostname
+// inside the block.
+func WriteProfile(path, name, hostname, organization, token string) error {
 	existing := ""
 	if data, err := os.ReadFile(path); err == nil {
 		existing = string(data)
@@ -124,34 +137,35 @@ func WriteProfile(path, hostname, organization, token string) error {
 		return fmt.Errorf("reading config file: %w", err)
 	}
 
-	// Remove existing block for this hostname so we don't duplicate it.
-	stripped := removeProfileBlock(existing, hostname)
+	stripped := removeProfileBlock(existing, name)
 
-	// Build new block.
+	var orgLine string
+	if organization != "" {
+		orgLine = fmt.Sprintf("  tfeOrganization = %q", organization)
+	} else {
+		orgLine = `  # tfeOrganization = "" # set this to your organization name`
+	}
 	block := fmt.Sprintf(
-		"\nprofile %q {\n  tfeOrganization = %q\n  tfeToken        = %q\n}\n",
-		hostname, organization, token,
+		"\nprofile %q {\n  tfeHostname     = %q\n%s\n  tfeToken        = %q\n}\n",
+		name, hostname, orgLine, token,
 	)
 
-	// Normalise trailing whitespace on the surviving content, then append.
 	content := strings.TrimRight(stripped, "\n\t ")
 	if content != "" {
 		content += "\n"
 	}
 	content += block
 
-	// Ensure the parent directory exists (e.g. if path is ~/foo/bar.hcl).
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return fmt.Errorf("creating config directory: %w", err)
 	}
 	return os.WriteFile(path, []byte(content), 0600)
 }
 
-// removeProfileBlock strips the profile block for hostname from content,
-// returning everything else. Uses a simple brace-depth counter so it handles
-// the closing } correctly even if the block contains nested structures.
-func removeProfileBlock(content, hostname string) string {
-	target := fmt.Sprintf("profile %q", hostname)
+// removeProfileBlock strips the profile block with the given name (block label)
+// from content, returning everything else.
+func removeProfileBlock(content, name string) string {
+	target := fmt.Sprintf("profile %q", name)
 	lines := strings.Split(content, "\n")
 	var out []string
 	skip := false
