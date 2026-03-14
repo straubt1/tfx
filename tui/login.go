@@ -241,8 +241,8 @@ func (m LoginModel) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 		case "enter":
 			if m.profileNameCursor == 0 {
-				// Use hostname as name
-				m.selectedProfileName = m.hostname
+				// Use "default" as the profile name
+				m.selectedProfileName = "default"
 				m.step = stepMenu
 			} else {
 				// Enter custom name
@@ -294,11 +294,7 @@ func (m LoginModel) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				m.tokenRunes = m.tokenRunes[:len(m.tokenRunes)-1]
 			}
 		case "esc":
-			if m.isUpdate {
-				m.step = stepMenu
-			} else {
-				m.step = stepProfileName
-			}
+			m.step = stepMenu
 		default:
 			if isPrintable(k) {
 				m.tokenRunes = append(m.tokenRunes, []rune(k)[0])
@@ -361,7 +357,7 @@ func (m LoginModel) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 func (m LoginModel) finalize() (tea.Model, tea.Cmd) {
 	name := m.selectedProfileName
 	if name == "" {
-		name = m.hostname
+		name = "default"
 	}
 	if err := hclconfig.WriteProfile(m.configPath, name, m.hostname, m.selectedOrg, m.resolvedToken); err != nil {
 		m.err = err
@@ -471,7 +467,7 @@ func (m LoginModel) render() string {
 		b.WriteString(pad + dim.Render("Choose a name for this profile.") + "\n\n")
 
 		options := []string{
-			"Use hostname  " + dim.Render("("+m.hostname+")"),
+			`Use "default"`,
 			"Enter custom name",
 		}
 		for i, opt := range options {

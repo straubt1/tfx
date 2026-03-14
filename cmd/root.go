@@ -174,10 +174,21 @@ func resolveActiveProfile() {
 			return
 		}
 	} else {
-		active = &profiles[0]
+		// No --profile flag: prefer a profile named "default", fall back to first.
+		for i := range profiles {
+			if profiles[i].Name == "default" {
+				active = &profiles[i]
+				break
+			}
+		}
+		if active == nil {
+			active = &profiles[0]
+		}
 	}
 
-	viper.Set("tfeHostname", active.Hostname)
+	if active.Hostname != "" {
+		viper.Set("tfeHostname", active.Hostname)
+	}
 	viper.Set("tfeToken", active.Token)
 	viper.Set("tfeOrganization", active.Organization)
 }

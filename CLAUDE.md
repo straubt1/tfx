@@ -218,41 +218,91 @@ Three-tier dispatch prevents focus-escape bugs where global keys intercept input
 
 The login flow is an **inline** Bubble Tea TUI (no alt-screen) implemented in `tui/login.go`. Entry point: `cmd/login.go` calls `output.Get().DisableSpinner()` then `tui.RunLogin(hostname)`.
 
+### Profile Model
+
+A profile has four properties, all stored in `pkg/hclconfig`:
+
+| Property | HCL key | Default | Required |
+|---|---|---|---|
+| Name | block label | `"default"` | — |
+| Hostname | `tfeHostname` | `"app.terraform.io"` | — |
+| Organization | `tfeOrganization` | (commented placeholder) | — |
+| Token | `tfeToken` | — | ✓ |
+
+`tfe-license-path` is a valid key in the block but is **not** written by `tfx login` and is not populated in the `Profile` struct — it passes through untouched in the raw file.
+
 ### HCL Config Format (`pkg/hclconfig/`)
 
+**New format** — one or more profile blocks:
+
 ```hcl
-profile "my-alias" {
+profile "default" {
   tfeHostname     = "app.terraform.io"
   tfeOrganization = "my-org"
   tfeToken        = "abc123..."
 }
+
+profile "staging" {
+  tfeHostname     = "tfe.myco.internal"
+  tfeOrganization = "my-org"
+  tfeToken        = "xyz..."
+}
 ```
 
-- The **block label** is the profile **name** (user-editable alias, selected with `--profile`).
-- `tfeHostname` is a separate key inside the block — name and hostname are independent.
-- Old flat format (top-level `tfeHostname =` with no `profile` block) is still read; treated as a single profile with `Name == Hostname`.
-- When org is empty, `WriteProfile` writes a commented placeholder instead of omitting the key:
+- Block label = profile **name** (user-editable alias). Not the hostname.
+- `tfeHostname` inside the block = hostname. Independent of the name.
+- `tfeHostname` is optional; defaults to `DefaultHostname` (`"app.terraform.io"`) when absent.
+- `tfeOrganization` is optional; when empty `WriteProfile` writes a commented placeholder:
   ```
     # tfeOrganization = "" # set this to your organization name
   ```
-- `Profile` struct: `Name string`, `Hostname string`, `Organization string`, `Token string`.
-- `WriteProfile(path, name, hostname, organization, token string) error`
-- `ListProfiles(path string) ([]Profile, error)` — returns nil, nil if file not found.
+
+**Legacy flat format** (no `profile` blocks) — still supported for reading:
+
+```hcl
+tfeHostname     = "app.terraform.io"   # optional, defaults to app.terraform.io
+tfeOrganization = "my-org"
+tfeToken        = "abc123..."
+```
+
+Parsed as a single profile with `Name = "default"` and `Hostname = tfeHostname` (or `DefaultHostname` if absent). Only returned when `tfeToken` is non-empty.
+
+**Key constants:**
+- `hclconfig.DefaultProfileName = "default"`
+- `hclconfig.DefaultHostname = "app.terraform.io"`
+
+**Key functions:**
+- `Profile` struct: `Name`, `Hostname`, `Organization`, `Token string`
+- `ListProfiles(path string) ([]Profile, error)` — nil, nil when file not found or empty
+- `WriteProfile(path, name, hostname, organization, token string) error` — name/hostname default to constants when empty
+
+**Backward compat for block-label-as-hostname files:**
+If `tfeHostname` is absent AND the block label contains a dot (e.g. `profile "app.terraform.io" {}`), the label is used as hostname. Arbitrary aliases like `"default"` or `"prod"` get `DefaultHostname` instead.
+
+### Profile Resolution in `cmd/root.go`
+
+`resolveActiveProfile()` runs in `PersistentPreRunE` (after `bindPFlags`):
+
+1. Load profiles from `viper.ConfigFileUsed()` via `hclconfig.ListProfiles`
+2. If `--profile` flag set → find by `Profile.Name`, promote its values to Viper
+3. If `--profile` not set → look for a profile named `"default"`, then fall back to `profiles[0]`
+4. Promotes: `viper.Set("tfeHostname", active.Hostname)` only when `Hostname != ""`; always sets `tfeToken` and `tfeOrganization`
+5. Hostname is NEVER derived from the profile name — always from `tfeHostname` inside the block
 
 ### State Machine
 
 ```
-stepProfileList     — existing-profile selector (skipped when no profiles in ~/.tfx.hcl)
-stepProfileName     — two-option menu: use hostname as name / enter custom name
+stepProfileList      — existing-profile selector (skipped when no profiles in ~/.tfx.hcl)
+stepProfileName      — two-option menu: use "default" as name / enter custom name
 stepProfileNameEntry — free-text input for a custom profile name
-stepMenu            — two options: open browser / enter token directly
-stepToken           — masked token input (● per char); paste via tea.PasteMsg
-stepValidating      — spinner while fetching orgs from the API
-stepTokenError      — validation failed: re-enter / accept anyway
-stepOrgSelect       — arrow-key org picker (only when 2+ orgs returned)
-stepDone            — success; shows created vs updated message
-stepError           — fatal write/config error
-stepCancelled       — clean exit (q / esc / ctrl+c)
+stepMenu             — two options: open browser / enter token directly
+stepToken            — masked token input (● per char); paste via tea.PasteMsg
+stepValidating       — spinner while fetching orgs from the API
+stepTokenError       — validation failed: re-enter / accept anyway
+stepOrgSelect        — arrow-key org picker (only when 2+ orgs returned)
+stepDone             — success; shows created vs updated message
+stepError            — fatal write/config error
+stepCancelled        — clean exit (q / esc / ctrl+c)
 ```
 
 ### Entry Logic in `RunLogin()`
@@ -263,19 +313,20 @@ stepCancelled       — clean exit (q / esc / ctrl+c)
 ### Step-by-Step Flow
 
 **Adding a new profile** (cursor 0 on profile list, or no existing profiles):
-1. `stepProfileName` — pick a name: "Use hostname (app.terraform.io)" or "Enter custom name"
-   - Option 0: set `selectedProfileName = hostname`, advance to `stepMenu`
-   - Option 1: advance to `stepProfileNameEntry`
+
+1. `stepProfileName` — pick a name for the new profile:
+   - Option 0 `Use "default"`: set `selectedProfileName = "default"`, advance to `stepMenu`
+   - Option 1 `Enter custom name`: advance to `stepProfileNameEntry`
 2. `stepProfileNameEntry` — type a name, Enter to confirm, advance to `stepMenu`
-3. `stepMenu` — choose "Open browser" or "Enter token directly"
-   - Browser option: open `https://<hostname>/app/settings/tokens?source=tfx-login`
-   - Both options advance to `stepToken`
-4. `stepToken` — masked input; show `✓ looks right` when token contains `.atlasv1.`; Enter to validate
-5. `stepValidating` — call TFE API `Organizations.List`
-   - 0 orgs → `stepTokenError` (or `stepError` with "no organizations accessible")
+3. `stepMenu` — choose auth method:
+   - "Open browser to create a token" → opens `https://<hostname>/app/settings/tokens?source=tfx-login`, advance to `stepToken`
+   - "Enter token directly" → advance to `stepToken`
+4. `stepToken` — masked input (● per char); show `✓ looks right` when token contains `.atlasv1.`; Enter to validate
+5. `stepValidating` — call TFE API `Organizations.List` with the entered token
+   - API error / 0 orgs → `stepTokenError`
    - 1 org → `finalize()` with that org auto-selected
    - 2+ orgs → `stepOrgSelect`
-6. `stepOrgSelect` — pick org, Enter to confirm → `finalize()`
+6. `stepOrgSelect` — pick org with ↑/↓, Enter → `finalize()`
 7. `stepDone` — shows "Profile for \<hostname\> has been **created**"
 
 **Re-authenticating an existing profile** (cursor N on profile list):
@@ -287,20 +338,26 @@ stepCancelled       — clean exit (q / esc / ctrl+c)
 **Token validation failure** (`stepTokenError`):
 - Option 0 "Re-enter token": clear `tokenRunes` and `resolvedToken`, go back to `stepToken`
 - Option 1 "Accept anyway": set `selectedOrg = ""`, call `finalize()` immediately (no org prompt)
-  - `finalize()` writes the profile with empty org → commented placeholder line in HCL
+  - `finalize()` writes profile with empty org → commented placeholder in HCL
   - `stepDone` shows amber warning: `⚠ Organization not set — edit <configPath> to configure`
+
+**`finalize()`** — called from `stepOrgSelect`, single-org path, or "accept anyway":
+- `name = selectedProfileName || "default"` (never uses hostname as fallback)
+- Calls `hclconfig.WriteProfile(configPath, name, hostname, selectedOrg, resolvedToken)`
+- Sets `stepDone` on success, `stepError` on failure
+- Returns `tea.Quit`
 
 ### ESC / Back Navigation
 
-| Step                | ESC goes to                                         |
-|---------------------|-----------------------------------------------------|
-| `stepProfileList`   | `stepCancelled` (quit)                              |
-| `stepProfileName`   | `stepProfileList` if profiles exist, else cancel    |
-| `stepProfileNameEntry` | `stepProfileName`                                |
-| `stepMenu`          | `stepProfileName` (new profile) or `stepProfileList` (re-auth) |
-| `stepToken`         | `stepMenu`                                          |
-| `stepOrgSelect`     | `stepToken` (clears token for re-entry)             |
-| `stepTokenError`    | `stepToken` (keeps token for editing)               |
+| Step                   | ESC goes to                                          |
+|------------------------|------------------------------------------------------|
+| `stepProfileList`      | `stepCancelled` (quit)                               |
+| `stepProfileName`      | `stepProfileList` if profiles exist, else cancel     |
+| `stepProfileNameEntry` | `stepProfileName`                                    |
+| `stepMenu`             | `stepProfileName` (new profile) or `stepProfileList` (re-auth) |
+| `stepToken`            | `stepMenu`                                           |
+| `stepOrgSelect`        | `stepToken` (clears token for re-entry)              |
+| `stepTokenError`       | `stepToken` (keeps token for editing)                |
 
 ### Rendering
 
@@ -318,7 +375,7 @@ stepCancelled       — clean exit (q / esc / ctrl+c)
 - `tea.PasteMsg` — use `msg.Content` field (it is a struct, not a string); strip `\n \r \t` for token, strip `\n \r` for name
 - `isPrintable(k string) bool` — shared helper in `tui/debugpanel.go` (same package); reuse it for character-by-character key input in both token and name entry steps
 - `finalize()` — calls `hclconfig.WriteProfile`, sets `stepDone` or `stepError`, returns `tea.Quit`
-- `--profile` flag in `cmd/root.go` matches by `Profile.Name` (not `Profile.Hostname`)
+- `--profile` flag in `cmd/root.go` matches by `Profile.Name`; hostname is always read from `Profile.Hostname`, never from the name
 - `loginFetchOrgs` constructs its own `*tfe.Client` directly (does not use `client.NewFromViper`) because credentials aren't in Viper yet at login time
 
 ## Key Dependencies

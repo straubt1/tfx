@@ -3,7 +3,7 @@
 
 // Package hclconfig reads and writes TFx profile blocks in ~/.tfx.hcl.
 //
-// Profile block format:
+// New profile block format:
 //
 //	profile "default" {
 //	  tfeHostname     = "app.terraform.io"
@@ -11,12 +11,12 @@
 //	  tfeToken        = "abc123..."
 //	}
 //
-// The block label is the profile name (user-editable alias). tfeHostname is a
-// key inside the block. The name defaults to the hostname when written by
-// `tfx login`.
+// The block label is the profile name (a user-editable alias — not the
+// hostname). tfeHostname is an optional key inside the block; it defaults to
+// DefaultHostname ("app.terraform.io") when omitted.
 //
-// Old (flat) format is still supported for reading; it is treated as a single
-// profile whose name and hostname both equal the value of tfeHostname.
+// Legacy flat format (no profile blocks) is still read; it is treated as a
+// single profile named DefaultProfileName with hostname DefaultHostname.
 package hclconfig
 
 import (
@@ -29,12 +29,19 @@ import (
 	homedir "github.com/mitchellh/go-homedir"
 )
 
+const (
+	// DefaultProfileName is the profile name used when none is specified.
+	DefaultProfileName = "default"
+	// DefaultHostname is the TFE/HCP Terraform hostname used when none is specified.
+	DefaultHostname = "app.terraform.io"
+)
+
 // Profile holds configuration for one TFx profile.
 type Profile struct {
 	Name         string // block label — user-editable alias
-	Hostname     string // tfeHostname value inside the block
-	Organization string
-	Token        string
+	Hostname     string // tfeHostname value; defaults to DefaultHostname if omitted
+	Organization string // tfeOrganization value; may be empty
+	Token        string // tfeToken value
 }
 
 var (
@@ -57,10 +64,12 @@ func DefaultConfigPath() (string, error) {
 
 // ListProfiles parses path and returns all profiles in file order.
 //
-//   - New format: each profile block becomes one entry (Name = block label,
-//     Hostname = tfeHostname inside the block; falls back to Name if omitted).
-//   - Old format (flat tfeHostname/tfeOrganization/tfeToken keys): returns a
-//     single Profile with Name and Hostname both equal to the tfeHostname value.
+//   - New format (file contains one or more profile blocks): each block
+//     becomes one Profile. Name = block label; Hostname = tfeHostname inside
+//     the block, or DefaultHostname when the key is absent.
+//   - Legacy flat format (no profile blocks): returns a single Profile with
+//     Name = DefaultProfileName and Hostname = tfeHostname value or
+//     DefaultHostname. Only returned when at least a tfeToken is present.
 //   - File not found: returns nil, nil.
 func ListProfiles(path string) ([]Profile, error) {
 	data, err := os.ReadFile(path)
@@ -73,20 +82,37 @@ func ListProfiles(path string) ([]Profile, error) {
 
 	lines := strings.Split(string(data), "\n")
 
-	// Detect old (flat) format: look for a top-level tfeHostname line.
+	// Decide format: if ANY profile block exists → new format; otherwise legacy.
+	hasBlocks := false
 	for _, line := range lines {
-		if m := reFlatHostname.FindStringSubmatch(line); m != nil {
-			p := Profile{Name: m[1], Hostname: m[1]}
-			for _, l := range lines {
-				if mo := reFlatOrg.FindStringSubmatch(l); mo != nil {
-					p.Organization = mo[1]
-				}
-				if mt := reFlatToken.FindStringSubmatch(l); mt != nil {
-					p.Token = mt[1]
-				}
-			}
-			return []Profile{p}, nil
+		if reProfileStart.MatchString(line) {
+			hasBlocks = true
+			break
 		}
+	}
+
+	if !hasBlocks {
+		// Legacy flat format: parse top-level keys with sensible defaults.
+		p := Profile{
+			Name:     DefaultProfileName,
+			Hostname: DefaultHostname,
+		}
+		for _, l := range lines {
+			if m := reFlatHostname.FindStringSubmatch(l); m != nil {
+				p.Hostname = m[1]
+			}
+			if m := reFlatOrg.FindStringSubmatch(l); m != nil {
+				p.Organization = m[1]
+			}
+			if m := reFlatToken.FindStringSubmatch(l); m != nil {
+				p.Token = m[1]
+			}
+		}
+		if p.Token == "" {
+			// Empty or comment-only file — no usable profile.
+			return nil, nil
+		}
+		return []Profile{p}, nil
 	}
 
 	// New format — scan for profile blocks.
@@ -110,9 +136,17 @@ func ListProfiles(path string) ([]Profile, error) {
 				continue
 			}
 			if reBlockEnd.MatchString(line) {
-				// Backward compat: if tfeHostname was absent, use the block label.
+				// If tfeHostname was absent, apply defaults:
+				//   - Block label looks like a hostname (contains ".") → backward compat
+				//     for files written before name/hostname were separated.
+				//   - Otherwise → DefaultHostname. Never use the profile name as a
+				//     hostname for arbitrary aliases like "default" or "prod".
 				if current.Hostname == "" {
-					current.Hostname = current.Name
+					if strings.Contains(current.Name, ".") {
+						current.Hostname = current.Name
+					} else {
+						current.Hostname = DefaultHostname
+					}
 				}
 				profiles = append(profiles, *current)
 				current = nil
@@ -123,13 +157,21 @@ func ListProfiles(path string) ([]Profile, error) {
 }
 
 // WriteProfile adds or replaces the named profile block in the file at path.
-// If path does not exist it is created. All other profiles and content
-// (flat keys, comments) are preserved unchanged. The file is written with 0600
+// If path does not exist it is created. All other profiles and file content
+// (flat keys, comments) are preserved. The file is written with 0600
 // permissions because it contains an API token.
 //
-// name is the block label (profile alias). hostname is written as tfeHostname
-// inside the block.
+// name defaults to DefaultProfileName when empty.
+// hostname defaults to DefaultHostname when empty.
+// organization may be empty; a commented placeholder is written instead.
 func WriteProfile(path, name, hostname, organization, token string) error {
+	if name == "" {
+		name = DefaultProfileName
+	}
+	if hostname == "" {
+		hostname = DefaultHostname
+	}
+
 	existing := ""
 	if data, err := os.ReadFile(path); err == nil {
 		existing = string(data)
