@@ -47,18 +47,18 @@ const (
 	viewProjects
 	viewWorkspaces
 	viewRuns
-	viewVariables        // Phase 5
-	viewConfigVersions   // Phase 5
-	viewStateVersions    // Phase 5
-	viewWorkspaceDetail   // workspace settings detail (d key from workspace list)
-	viewOrgDetail         // organization detail (d key from org list)
-	viewProjectDetail     // project detail (d key from project list)
-	viewRunDetail          // run detail (enter from run list) — Phase 7
-	viewVariableDetail     // variable detail (enter from variable list) — Phase 7
-	viewStateVersionDetail // state version detail (enter from SV list) — Phase 7
-	viewConfigVersionDetail // config version detail (enter from CV list) — Phase 7
-	viewStateVersionJson        // state version JSON viewer (o from SV detail) — Phase 7b
-	viewConfigVersionFiles      // CV file tree browser (x from CV detail) — Phase 7c
+	viewVariables                // Phase 5
+	viewConfigVersions           // Phase 5
+	viewStateVersions            // Phase 5
+	viewWorkspaceDetail          // workspace settings detail (d key from workspace list)
+	viewOrgDetail                // organization detail (d key from org list)
+	viewProjectDetail            // project detail (d key from project list)
+	viewRunDetail                // run detail (enter from run list) — Phase 7
+	viewVariableDetail           // variable detail (enter from variable list) — Phase 7
+	viewStateVersionDetail       // state version detail (enter from SV list) — Phase 7
+	viewConfigVersionDetail      // config version detail (enter from CV list) — Phase 7
+	viewStateVersionJson         // state version JSON viewer (o from SV detail) — Phase 7b
+	viewConfigVersionFiles       // CV file tree browser (x from CV detail) — Phase 7c
 	viewConfigVersionFileContent // CV file content viewer (enter from file browser) — Phase 7c
 )
 
@@ -70,12 +70,12 @@ type Model struct {
 	ready  bool
 
 	// Connection
-	c             *client.TfxClient
-	hostname      string
-	org           string         // active org name (may change when user selects from org list)
-	profileName   string         // active profile name from ~/.tfx.hcl
-	accountUser   *tfe.User      // currently authenticated user; nil until loaded
-	accountToken  *tfe.UserToken // most-recently-used user token; nil until loaded
+	c            *client.TfxClient
+	hostname     string
+	org          string         // active org name (may change when user selects from org list)
+	profileName  string         // active profile name from ~/.tfx.hcl
+	accountUser  *tfe.User      // currently authenticated user; nil until loaded
+	accountToken *tfe.UserToken // most-recently-used user token; nil until loaded
 
 	// View routing
 	currentView viewType
@@ -90,12 +90,12 @@ type Model struct {
 	spinnerIdx int
 
 	// Organization list state (Phase 6)
-	orgs        []*tfe.Organization
-	orgCursor   int
-	orgOffset   int
-	orgFilter   string
+	orgs         []*tfe.Organization
+	orgCursor    int
+	orgOffset    int
+	orgFilter    string
 	orgFiltering bool
-	selectedOrg *tfe.Organization
+	selectedOrg  *tfe.Organization
 
 	// Project list state
 	projects      []*tfe.Project
@@ -152,7 +152,7 @@ type Model struct {
 	projDetScroll int
 
 	// Run detail state (Phase 7)
-	selectedRun *tfe.Run
+	selectedRun  *tfe.Run
 	runDetScroll int
 
 	// Variable detail state (Phase 7)
@@ -181,9 +181,9 @@ type Model struct {
 	cvFileErr     string
 
 	// Config version file content viewer state (Phase 7c)
-	cvFileLines []string
+	cvFileLines  []string
 	cvFileScroll int
-	cvFileName  string // base name of the currently viewed file
+	cvFileName   string // base name of the currently viewed file
 
 	// API Inspector panel state (Phase 8)
 	showDebug       bool              // true = panel is visible (toggled with l)
@@ -196,7 +196,7 @@ type Model struct {
 	debugFiltering  bool              // filter input is active
 
 	// Instance info modal state (i key — composited on top of current view)
-	showInstanceInfo bool              // true = modal popup is visible
+	showInstanceInfo bool // true = modal popup is visible
 	infoScroll       int
 	healthCheck      map[string]string // nil until loaded
 	healthCheckLoad  bool
@@ -2049,9 +2049,9 @@ func (m Model) renderErrorContent() string {
 // ── Fixed chrome ──────────────────────────────────────────────────────────────
 
 func (m Model) renderHeader() string {
-	app  := headerAppStyle.Render(" TFx ")
-	info := headerInfoStyle.Render(fmt.Sprintf(" %s ", m.hostname))
-	ver  := headerVersionStyle.Render(fmt.Sprintf(" v%s ", version.Version))
+	app := headerAppStyle.Render(" TFx ")
+	info := headerInfoStyle.Render(" " + m.hostname)
+	ver := headerVersionStyle.Render(fmt.Sprintf(" v%s ", version.Version))
 
 	// Remote app name + TFE version — populated from ping response headers on
 	// client init, so no extra API call is needed. Empty for HCP Terraform
@@ -2063,7 +2063,7 @@ func (m Model) renderHeader() string {
 			if tfeVer := m.c.Client.RemoteTFEVersion(); tfeVer != "" {
 				s += "  " + tfeVer
 			}
-			remoteInfo = headerRemoteStyle.Render("  ⬥  " + s + " ")
+			remoteInfo = headerRemoteStyle.Render(" ⬥  " + s + " ")
 		}
 	}
 
@@ -2105,20 +2105,21 @@ func expiresLabel(t time.Time) string {
 }
 
 // renderProfileBar renders four fixed rows beneath the main header:
-//   profile   <name>
-//   username  <username>
-//   email     <email>
-//   expires   <token expiry or "never" / "n/a">
+//
+//	profile   <name>
+//	username  <username>
+//	email     <email>
+//	expires   <token expiry or "never" / "n/a">
 //
 // All four rows are always emitted (with "…" placeholders while loading) so
 // fixedLines stays constant and the layout does not shift after data arrives.
 // Labels are padded to the same width so values align vertically.
 func (m Model) renderProfileBar() string {
-	bg    := lipgloss.NewStyle().Background(colorHeaderBg)
+	bg := lipgloss.NewStyle().Background(colorHeaderBg)
 	label := lipgloss.NewStyle().Background(colorHeaderBg).Foreground(colorDim)
 	value := lipgloss.NewStyle().Background(colorHeaderBg).Foreground(colorAccent)
-	dim   := lipgloss.NewStyle().Background(colorHeaderBg).Foreground(colorDim)
-	na    := lipgloss.NewStyle().Background(colorHeaderBg).Foreground(colorDim)
+	dim := lipgloss.NewStyle().Background(colorHeaderBg).Foreground(colorDim)
+	na := lipgloss.NewStyle().Background(colorHeaderBg).Foreground(colorDim)
 
 	// Pad every label to the same width so values line up.
 	const labelW = 9 // "username:" = 9 chars including colon + trailing space
@@ -2144,30 +2145,30 @@ func (m Model) renderProfileBar() string {
 	uname, email, expires := "…", "…", "…"
 	uStyle, eStyle, xStyle := dim, dim, dim
 	if m.accountUser != nil {
-		uname  = m.accountUser.Username
+		uname = m.accountUser.Username
 		uStyle = value
 		if m.accountUser.Email != "" {
-			email  = m.accountUser.Email
+			email = m.accountUser.Email
 			eStyle = value
 		} else {
-			email  = "—"
+			email = "—"
 			eStyle = na
 		}
 	}
 	if m.accountToken != nil {
 		expires = expiresLabel(m.accountToken.ExpiredAt)
-		xStyle  = value
+		xStyle = value
 	} else if m.accountUser != nil {
 		// User loaded but token list returned nothing usable.
 		expires = "n/a"
-		xStyle  = na
+		xStyle = na
 	}
 
 	return strings.Join([]string{
-		row("profile",  profName, value),
-		row("username", uname,   uStyle),
-		row("email",    email,   eStyle),
-		row("expires",  expires, xStyle),
+		row("profile", profName, value),
+		row("username", uname, uStyle),
+		row("email", email, eStyle),
+		row("expires", expires, xStyle),
 	}, "\n")
 }
 
@@ -2175,7 +2176,7 @@ func (m Model) renderProfileBar() string {
 // padding. Used both by renderBreadcrumb (legacy, kept for the help overlay)
 // and by renderContentTopBorder as the box title.
 func (m Model) breadcrumbLine() string {
-	sep     := breadcrumbSepStyle.Render("  /  ")
+	sep := breadcrumbSepStyle.Render("  /  ")
 	orgPart := breadcrumbBarStyle.Render(fmt.Sprintf(" org: %s", m.org))
 
 	projName := ""
@@ -2315,7 +2316,7 @@ func (m Model) breadcrumbLine() string {
 // bottom) giving the table area a k9s-style framed appearance.
 // Content lines (from renderContent) are each flanked by │ side borders.
 func (m Model) renderContentBox() string {
-	b  := contentBoxBorderStyle
+	b := contentBoxBorderStyle
 	lb := b.Render("│")
 	rb := b.Render("│")
 
@@ -2339,7 +2340,7 @@ func (m Model) renderContentBox() string {
 func (m Model) renderContentTopBorder() string {
 	b := contentBoxBorderStyle
 
-	title  := m.breadcrumbLine()
+	title := m.breadcrumbLine()
 	corner := b.Render("┌")
 	prefix := b.Render("─ ")
 
