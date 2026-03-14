@@ -2675,7 +2675,7 @@ type column struct {
 func (m Model) renderTableHeader(cols []column) string {
 	parts := []string{tableHeaderStyle.Render("  ")} // cursor placeholder
 	for _, col := range cols {
-		parts = append(parts, tableHeaderStyle.Width(col.width).Render(col.name))
+		parts = append(parts, tableHeaderStyle.Width(col.width).Render(strings.ToUpper(col.name)))
 		parts = append(parts, tableHeaderStyle.Render("  "))
 	}
 	return m.padContent(strings.Join(parts, ""), tableHeaderStyle)
@@ -2683,7 +2683,7 @@ func (m Model) renderTableHeader(cols []column) string {
 
 func (m Model) renderTableDivider() string {
 	w := m.innerWidth()
-	return contentDividerStyle.Width(w).Render(strings.Repeat("─", w))
+	return tableHeaderDividerStyle.Width(w).Render(strings.Repeat("─", w))
 }
 
 func (m Model) renderTableRow(selected bool, cells []string, cols []column) string {

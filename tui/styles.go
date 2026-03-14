@@ -83,6 +83,10 @@ var (
 				Background(colorBg).
 				Foreground(colorDim)
 
+	tableHeaderDividerStyle = lipgloss.NewStyle().
+				Background(colorBg).
+				Foreground(colorAccent)
+
 	contentPlaceholderStyle = lipgloss.NewStyle().
 				Background(colorBg).
 				Foreground(colorDim).
@@ -142,7 +146,7 @@ var (
 	// Table
 	tableHeaderStyle = lipgloss.NewStyle().
 			Background(colorHeaderBg).
-			Foreground(colorDim).
+			Foreground(colorAccent).
 			Bold(true)
 
 	tableRowStyle = lipgloss.NewStyle().
