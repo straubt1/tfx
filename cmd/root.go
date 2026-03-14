@@ -186,6 +186,10 @@ func resolveActiveProfile() {
 		}
 	}
 
+	// Store the resolved profile name so callers (e.g. the TUI) can read it
+	// back from Viper even when --profile was not explicitly provided.
+	viper.Set("profile", active.Name)
+
 	if active.Hostname != "" {
 		viper.Set("tfeHostname", active.Hostname)
 	}

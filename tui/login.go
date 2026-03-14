@@ -21,17 +21,16 @@ import (
 type loginStep int
 
 const (
-	stepProfileList     loginStep = iota // existing-profile selector (skipped when no profiles)
-	stepMenu                             // two options: browser / direct entry
-	stepProfileName                      // two options: use hostname / enter custom name
-	stepProfileNameEntry                 // text input for a custom profile name
-	stepToken                            // masked token input
-	stepValidating                       // spinner while fetching orgs
-	stepTokenError                       // validation failed — re-enter or accept anyway
-	stepOrgSelect                        // arrow-key org picker (2+ orgs)
-	stepDone                             // success — profile written
-	stepError                            // fatal write/config error
-	stepCancelled                        // clean exit via q/esc/ctrl+c
+	stepProfileList loginStep = iota // existing-profile selector (skipped when no profiles)
+	stepProfileName                  // text input: profile name, pre-filled with "default"
+	stepMenu                         // two options: browser / direct entry
+	stepToken                        // masked token input
+	stepValidating                   // spinner while fetching orgs
+	stepTokenError                   // validation failed — re-enter or accept anyway
+	stepOrgSelect                    // arrow-key org picker (2+ orgs)
+	stepDone                         // success — profile written
+	stepError                        // fatal write/config error
+	stepCancelled                    // clean exit via q/esc/ctrl+c
 )
 
 // ── Message types ─────────────────────────────────────────────────────────────
@@ -94,8 +93,7 @@ type LoginModel struct {
 	profileCursor       int
 	isUpdate            bool                // true when re-authing an existing profile
 	selectedProfileName string              // final name written to the profile block
-	profileNameCursor   int                 // stepProfileName: 0 = use hostname, 1 = enter custom
-	nameRunes           []rune              // stepProfileNameEntry text buffer
+	nameRunes           []rune              // stepProfileName text buffer (pre-filled "default")
 	menuCursor          int                 // stepMenu: 0 = browser, 1 = direct
 	useBrowser          bool
 	tokenRunes          []rune
@@ -129,7 +127,7 @@ func (m LoginModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.tokenRunes = append(m.tokenRunes, r)
 				}
 			}
-		case stepProfileNameEntry:
+		case stepProfileName:
 			for _, r := range msg.Content {
 				if r != '\n' && r != '\r' {
 					m.nameRunes = append(m.nameRunes, r)
@@ -188,9 +186,10 @@ func (m LoginModel) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 		case "enter":
 			if m.profileCursor == 0 {
+				// Add new profile — pre-fill name with "default".
 				m.isUpdate = false
 				m.selectedProfileName = ""
-				m.profileNameCursor = 0
+				m.nameRunes = []rune(hclconfig.DefaultProfileName)
 				m.step = stepProfileName
 			} else {
 				p := m.profiles[m.profileCursor-1]
@@ -202,6 +201,33 @@ func (m LoginModel) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		case "q", "esc":
 			m.step = stepCancelled
 			return m, tea.Quit
+		}
+
+	case stepProfileName:
+		// Text input pre-filled with "default"; user accepts or edits before Enter.
+		switch k {
+		case "enter":
+			name := strings.TrimSpace(string(m.nameRunes))
+			if name == "" {
+				name = hclconfig.DefaultProfileName
+			}
+			m.selectedProfileName = name
+			m.step = stepMenu
+		case "backspace":
+			if len(m.nameRunes) > 0 {
+				m.nameRunes = m.nameRunes[:len(m.nameRunes)-1]
+			}
+		case "esc":
+			if len(m.profiles) > 0 {
+				m.step = stepProfileList
+			} else {
+				m.step = stepCancelled
+				return m, tea.Quit
+			}
+		default:
+			if isPrintable(k) {
+				m.nameRunes = append(m.nameRunes, []rune(k)[0])
+			}
 		}
 
 	case stepMenu:
@@ -226,56 +252,6 @@ func (m LoginModel) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				m.step = stepProfileList
 			} else {
 				m.step = stepProfileName
-			}
-		}
-
-	case stepProfileName:
-		switch k {
-		case "j", "down":
-			if m.profileNameCursor < 1 {
-				m.profileNameCursor++
-			}
-		case "k", "up":
-			if m.profileNameCursor > 0 {
-				m.profileNameCursor--
-			}
-		case "enter":
-			if m.profileNameCursor == 0 {
-				// Use "default" as the profile name
-				m.selectedProfileName = "default"
-				m.step = stepMenu
-			} else {
-				// Enter custom name
-				m.nameRunes = nil
-				m.step = stepProfileNameEntry
-			}
-		case "esc":
-			if len(m.profiles) > 0 {
-				m.step = stepProfileList
-			} else {
-				m.step = stepCancelled
-				return m, tea.Quit
-			}
-		}
-
-	case stepProfileNameEntry:
-		switch k {
-		case "enter":
-			name := strings.TrimSpace(string(m.nameRunes))
-			if name == "" {
-				return m, nil
-			}
-			m.selectedProfileName = name
-			m.step = stepMenu
-		case "backspace":
-			if len(m.nameRunes) > 0 {
-				m.nameRunes = m.nameRunes[:len(m.nameRunes)-1]
-			}
-		case "esc":
-			m.step = stepProfileName
-		default:
-			if isPrintable(k) {
-				m.nameRunes = append(m.nameRunes, []rune(k)[0])
 			}
 		}
 
@@ -464,25 +440,7 @@ func (m LoginModel) render() string {
 		b.WriteString("\n" + pad + hint.Render("↑/↓ · Enter to select · Esc to go back · q to quit") + "\n")
 
 	case stepProfileName:
-		b.WriteString(pad + dim.Render("Choose a name for this profile.") + "\n\n")
-
-		options := []string{
-			`Use "default"`,
-			"Enter custom name",
-		}
-		for i, opt := range options {
-			if i == m.profileNameCursor {
-				b.WriteString(pad + selected.Render("▸ ") + accent.Render(opt) + "\n")
-			} else {
-				b.WriteString(pad + dim.Render("  "+opt) + "\n")
-			}
-		}
-
-		b.WriteString("\n" + pad + hint.Render("↑/↓ · Enter to select · Esc to go back") + "\n")
-
-	case stepProfileNameEntry:
 		b.WriteString(pad + dim.Render("Enter a name for this profile.") + "\n\n")
-
 		nameDisplay := string(m.nameRunes)
 		b.WriteString(pad + "Name  " + accent.Render(nameDisplay) + dim.Render(" _") + "\n\n")
 		b.WriteString(pad + hint.Render("Enter") + dim.Render(" to continue · ") +
@@ -589,6 +547,8 @@ func RunLogin(hostname string) error {
 		hostname:   hostname,
 		configPath: configPath,
 		profiles:   profiles,
+		// Pre-fill profile name with "default" when starting at the name entry step.
+		nameRunes: []rune(hclconfig.DefaultProfileName),
 	}
 	p := tea.NewProgram(m)
 	finalModel, err := p.Run()

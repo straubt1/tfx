@@ -6,9 +6,11 @@ package tui
 import (
 	"fmt"
 	"image/color"
+	"math"
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -18,7 +20,7 @@ import (
 )
 
 const (
-	fixedLines = 4 // header + breadcrumb + statusbar + clihint
+	fixedLines = 8 // header(1) + profilebar(4) + breadcrumb(1) + statusbar(1) + clihint(1)
 	minWidth   = 60
 	minHeight  = 10
 )
@@ -67,9 +69,12 @@ type Model struct {
 	ready  bool
 
 	// Connection
-	c        *client.TfxClient
-	hostname string
-	org      string // active org name (may change when user selects from org list)
+	c             *client.TfxClient
+	hostname      string
+	org           string         // active org name (may change when user selects from org list)
+	profileName   string         // active profile name from ~/.tfx.hcl
+	accountUser   *tfe.User      // currently authenticated user; nil until loaded
+	accountToken  *tfe.UserToken // most-recently-used user token; nil until loaded
 
 	// View routing
 	currentView viewType
@@ -197,20 +202,21 @@ type Model struct {
 	healthCheckErr   string
 }
 
-func newModel(c *client.TfxClient) Model {
+func newModel(c *client.TfxClient, profileName string) Model {
 	return Model{
-		c:        c,
-		hostname: c.Hostname,
-		org:      c.OrganizationName,
-		loading:  true,
+		c:           c,
+		hostname:    c.Hostname,
+		org:         c.OrganizationName,
+		profileName: profileName,
+		loading:     true,
 	}
 }
 
 func (m Model) Init() tea.Cmd {
-	// Start the org fetch, spinner, and API event listener simultaneously.
-	// The event listener runs unconditionally so the inspector panel shows
-	// history even when opened after some calls have already completed.
-	return tea.Batch(loadOrganizations(m.c), tickSpinner(), waitForAPIEvent(m.c))
+	// Start the org fetch, account fetch, spinner, and API event listener
+	// simultaneously. The event listener runs unconditionally so the inspector
+	// panel shows history even when opened after some calls have already completed.
+	return tea.Batch(loadOrganizations(m.c), loadAccount(m.c), tickSpinner(), waitForAPIEvent(m.c))
 }
 
 // waitForAPIEvent returns a Cmd that blocks until the next API event arrives
@@ -255,6 +261,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, waitForAPIEvent(m.c)
 
 	// ── Data loads ────────────────────────────────────────────────────────────
+	case accountLoadedMsg:
+		m.accountUser = (*tfe.User)(msg)
+		if m.accountUser != nil {
+			return m, loadAccountToken(m.c, m.accountUser.ID)
+		}
+
+	case accountTokenLoadedMsg:
+		m.accountToken = (*tfe.UserToken)(msg)
+
 	case orgsLoadedMsg:
 		m.orgs = []*tfe.Organization(msg)
 		m.loading = false
@@ -492,6 +507,7 @@ func (m Model) View() tea.View {
 		content = lipgloss.JoinVertical(
 			lipgloss.Left,
 			m.renderHeader(),
+			m.renderProfileBar(),
 			m.renderBreadcrumb(),
 			contentArea,
 			m.renderStatusBar(),
@@ -501,6 +517,7 @@ func (m Model) View() tea.View {
 		content = lipgloss.JoinVertical(
 			lipgloss.Left,
 			m.renderHeader(),
+			m.renderProfileBar(),
 			m.renderBreadcrumb(),
 			m.renderContent(),
 			m.renderStatusBar(),
@@ -2016,9 +2033,9 @@ func (m Model) renderErrorContent() string {
 // ── Fixed chrome ──────────────────────────────────────────────────────────────
 
 func (m Model) renderHeader() string {
-	app := headerAppStyle.Render(" TFx ")
-	info := headerInfoStyle.Render(fmt.Sprintf(" %s  ⬥  %s ", m.hostname, m.org))
-	ver := headerVersionStyle.Render(fmt.Sprintf(" v%s ", version.Version))
+	app  := headerAppStyle.Render(" TFx ")
+	info := headerInfoStyle.Render(fmt.Sprintf(" %s ", m.hostname))
+	ver  := headerVersionStyle.Render(fmt.Sprintf(" v%s ", version.Version))
 
 	// Remote app name + TFE version — populated from ping response headers on
 	// client init, so no extra API call is needed. Empty for HCP Terraform
@@ -2040,6 +2057,102 @@ func (m Model) renderHeader() string {
 		gap = 0
 	}
 	return app + info + remoteInfo + headerStyle.Width(gap).Render("") + ver
+}
+
+// expiresLabel formats a token expiry time as "YYYY-MM-DD (N days/hours/minutes)".
+// Returns "never" for the zero value and "n/a" if already expired.
+func expiresLabel(t time.Time) string {
+	if t.IsZero() {
+		return "never"
+	}
+	date := t.Format("2006-01-02")
+	remaining := time.Until(t)
+	if remaining <= 0 {
+		return date + " (expired)"
+	}
+	var countdown string
+	switch {
+	case remaining >= 24*time.Hour:
+		days := int(math.Round(remaining.Hours() / 24))
+		countdown = fmt.Sprintf("%d days", days)
+	case remaining >= time.Hour:
+		hours := int(math.Round(remaining.Hours()))
+		countdown = fmt.Sprintf("%d hours", hours)
+	default:
+		mins := int(math.Round(remaining.Minutes()))
+		if mins < 1 {
+			mins = 1
+		}
+		countdown = fmt.Sprintf("%d minutes", mins)
+	}
+	return fmt.Sprintf("%s (%s)", date, countdown)
+}
+
+// renderProfileBar renders four fixed rows beneath the main header:
+//   profile   <name>
+//   username  <username>
+//   email     <email>
+//   expires   <token expiry or "never" / "n/a">
+//
+// All four rows are always emitted (with "…" placeholders while loading) so
+// fixedLines stays constant and the layout does not shift after data arrives.
+// Labels are padded to the same width so values align vertically.
+func (m Model) renderProfileBar() string {
+	bg    := lipgloss.NewStyle().Background(colorHeaderBg)
+	label := lipgloss.NewStyle().Background(colorHeaderBg).Foreground(colorDim)
+	value := lipgloss.NewStyle().Background(colorHeaderBg).Foreground(colorAccent)
+	dim   := lipgloss.NewStyle().Background(colorHeaderBg).Foreground(colorDim)
+	na    := lipgloss.NewStyle().Background(colorHeaderBg).Foreground(colorDim)
+
+	// Pad every label to the same width so values line up.
+	const labelW = 9 // "username:" = 9 chars including colon + trailing space
+
+	row := func(k, v string, valStyle lipgloss.Style) string {
+		// Right-pad the key so all colons align.
+		padded := fmt.Sprintf("  %-*s", labelW, k+":")
+		l := label.Render(padded)
+		val := valStyle.Render(v)
+		used := lipgloss.Width(l) + lipgloss.Width(val)
+		gap := m.width - used
+		if gap < 0 {
+			gap = 0
+		}
+		return l + val + bg.Width(gap).Render("")
+	}
+
+	profName := m.profileName
+	if profName == "" {
+		profName = "default"
+	}
+
+	uname, email, expires := "…", "…", "…"
+	uStyle, eStyle, xStyle := dim, dim, dim
+	if m.accountUser != nil {
+		uname  = m.accountUser.Username
+		uStyle = value
+		if m.accountUser.Email != "" {
+			email  = m.accountUser.Email
+			eStyle = value
+		} else {
+			email  = "—"
+			eStyle = na
+		}
+	}
+	if m.accountToken != nil {
+		expires = expiresLabel(m.accountToken.ExpiredAt)
+		xStyle  = value
+	} else if m.accountUser != nil {
+		// User loaded but token list returned nothing usable.
+		expires = "n/a"
+		xStyle  = na
+	}
+
+	return strings.Join([]string{
+		row("profile",  profName, value),
+		row("username", uname,   uStyle),
+		row("email",    email,   eStyle),
+		row("expires",  expires, xStyle),
+	}, "\n")
 }
 
 func (m Model) renderBreadcrumb() string {
