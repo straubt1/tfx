@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/go-viper/encoding/hcl"
@@ -12,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/straubt1/tfx/output"
+	"github.com/straubt1/tfx/pkg/hclconfig"
 	"github.com/straubt1/tfx/version"
 
 	homedir "github.com/mitchellh/go-homedir"
@@ -37,10 +39,25 @@ var rootCmd = &cobra.Command{
 	Long: `Leveraging the API can become a burden for common tasks.
 	TFx aims to ease that challenge for common and repeatable tasks. This application
 	can be used to interact with either HCP Terraform or Terraform Enterprise.`,
-	SilenceUsage:     true,
-	SilenceErrors:    true,
-	Version:          version.String(),
-	PersistentPreRun: bindPFlags, // Bind here to avoid having to call this in every subcommand
+	SilenceUsage:  true,
+	SilenceErrors: true,
+	Version:       version.String(),
+	// PersistentPreRunE binds flags to viper, resolves the active profile, then
+	// validates that credentials are present for all commands except 'login'.
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		bindPFlags(cmd, args)
+		resolveActiveProfile()
+		if cmd.Name() == "login" {
+			return nil
+		}
+		if viper.GetString("tfeToken") == "" {
+			return fmt.Errorf("no API token found — run 'tfx login' to authenticate")
+		}
+		if viper.GetString("tfeOrganization") == "" {
+			return fmt.Errorf("organization is required (--tfeOrganization, TFE_ORGANIZATION, or run 'tfx login')")
+		}
+		return nil
+	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -63,18 +80,16 @@ func init() {
 	rootCmd.PersistentFlags().String("tfeHostname", "app.terraform.io", "The hostname of TFE without the schema. Can also be set with the environment variable TFE_HOSTNAME.")
 	rootCmd.PersistentFlags().String("tfeOrganization", "", "The name of the TFx Organization. Can also be set with the environment variable TFE_ORGANIZATION.")
 	rootCmd.PersistentFlags().String("tfeToken", "", "The API token used to authenticate to TFx. Can also be set with the environment variable TFE_TOKEN.")
+	rootCmd.PersistentFlags().String("profile", "", "Named profile (hostname) to use from ~/.tfx.hcl.")
 
 	// Add json output option
 	rootCmd.PersistentFlags().BoolP("json", "j", false, "Will output command results as JSON.")
-
-	// required
-	rootCmd.MarkPersistentFlagRequired("tfeOrganization")
-	rootCmd.MarkPersistentFlagRequired("tfeToken")
 
 	// ENV aliases
 	viper.BindEnv("tfeHostname", "TFE_HOSTNAME")
 	viper.BindEnv("tfeOrganization", "TFE_ORGANIZATION")
 	viper.BindEnv("tfeToken", "TFE_TOKEN")
+	viper.BindEnv("profile", "TFX_PROFILE")
 
 	// Turn off completion option
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
@@ -124,6 +139,47 @@ func initConfig() {
 		out := output.Get()
 		out.Message("Using config file: %s", viper.ConfigFileUsed())
 	}
+}
+
+// resolveActiveProfile reads profile blocks from the loaded config file and
+// promotes the active profile's values to the flat viper keys (tfeHostname,
+// tfeToken, tfeOrganization) that the rest of the app reads.
+//
+// Profile selection priority:
+//  1. --profile flag (or TFX_PROFILE env var) — use the named profile
+//  2. No flag — use the first profile block in the file
+//  3. Old flat format (no profile blocks) — nothing to do; flat keys already set
+func resolveActiveProfile() {
+	configPath := viper.ConfigFileUsed()
+	if configPath == "" {
+		return
+	}
+
+	profiles, err := hclconfig.ListProfiles(configPath)
+	if err != nil || len(profiles) == 0 {
+		return
+	}
+
+	profileFlag := viper.GetString("profile")
+	var active *hclconfig.Profile
+	if profileFlag != "" {
+		for i := range profiles {
+			if profiles[i].Hostname == profileFlag {
+				active = &profiles[i]
+				break
+			}
+		}
+		// Unknown profile — let validation in PersistentPreRunE report the error.
+		if active == nil {
+			return
+		}
+	} else {
+		active = &profiles[0]
+	}
+
+	viper.Set("tfeHostname", active.Hostname)
+	viper.Set("tfeToken", active.Token)
+	viper.Set("tfeOrganization", active.Organization)
 }
 
 // copy.pasta function
