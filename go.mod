@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	charm.land/bubbletea/v2 v2.0.1
 	charm.land/lipgloss/v2 v2.0.0
-	code.cloudfoundry.org/bytefmt v0.64.0
+	code.cloudfoundry.org/bytefmt v0.66.0
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/briandowns/spinner v1.23.2
 	github.com/charmbracelet/x/ansi v0.11.6
@@ -54,7 +54,7 @@ require (
 	github.com/vbatts/tar-split v0.12.2 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/sync v0.19.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/term v0.40.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )
@@ -76,7 +76,7 @@ require (
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.2.0 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
-	golang.org/x/sys v0.41.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 )
