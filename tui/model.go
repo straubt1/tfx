@@ -382,9 +382,30 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// ── Always-global keys (work regardless of which panel has focus) ──────
+		// ── Always-global keys — fire even during filter input ─────────────────
+		// Only ctrl+c is truly unconditional; all other "global" shortcuts are
+		// suppressed while filter input is active so typed characters don't
+		// accidentally trigger navigation or quit.
+		if msg.String() == "ctrl+c" {
+			return m, tea.Quit
+		}
+
+		// Instance info modal intercepts all remaining keys when open.
+		if m.showInstanceInfo {
+			return m.handleInstanceInfoModalKey(msg)
+		}
+
+		// ── Filter input mode — must be checked before panel-toggle / quit ────
+		// While the user is typing a filter query, only esc, backspace, enter
+		// and printable characters are handled; everything else is silently
+		// dropped so shortcuts like q, l, r, tab cannot fire mid-filter.
+		if m.isFiltering() {
+			return m.handleFilterKey(msg)
+		}
+
+		// ── Non-filter global keys (suppressed during filter input) ──────────
 		switch msg.String() {
-		case "q", "ctrl+c":
+		case "q":
 			return m, tea.Quit
 		case "l":
 			// Toggle the API Inspector panel.
@@ -402,22 +423,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// Instance info modal intercepts all remaining keys when open.
-		// (q/ctrl+c/l/tab above still work regardless of modal state.)
-		if m.showInstanceInfo {
-			return m.handleInstanceInfoModalKey(msg)
-		}
-
 		// ── Right panel gets all remaining keys when it has focus ────────────
 		if m.debugFocused && m.showDebug {
 			return m.handleDebugPanelKey(msg)
-		}
-
-		// ── Left-panel keys (filter input, then global, then view-specific) ──
-
-		// Filter input mode.
-		if m.isFiltering() {
-			return m.handleFilterKey(msg)
 		}
 
 		// Left-panel global keys.
