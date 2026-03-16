@@ -1,6 +1,40 @@
 version: '3'
 
 tasks:
+  doctor:
+    desc: Verify all required development tools are installed
+    silent: true
+    cmds:
+      - |
+        OK=true
+        check() {
+          if command -v "$1" &>/dev/null; then
+            printf "  ✓ %-14s %s\n" "$1" "$($1 $2 2>&1 | head -1)"
+          else
+            printf "  ✗ %-14s not found — install with: %s\n" "$1" "$3"
+            OK=false
+          fi
+        }
+        echo ""
+        echo "  TFx Development Environment"
+        echo "  ────────────────────────────"
+        check go    "version"        "brew install go"
+        check goreleaser "--version"  "brew install goreleaser"
+        check task   "--version"     "brew install go-task"
+        echo ""
+        if command -v node &>/dev/null; then
+          printf "  ✓ %-14s %s  (optional — docs site)\n" "node" "$(node --version 2>&1)"
+        else
+          printf "  · %-14s not installed  (optional — only for: task serve-docs)\n" "node"
+        fi
+        echo ""
+        if [ "$OK" = true ]; then
+          echo "  All tools installed."
+        else
+          echo "  Install missing tools:  brew install go goreleaser go-task"
+        fi
+        echo ""
+
   go-build:
     desc: Build Go binary (development build with git metadata)
     cmds:
