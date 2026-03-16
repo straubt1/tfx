@@ -73,7 +73,7 @@ fixedLines = 9
 
 ```
 ┌─ org: my-org  /   workspaces ────────────────────────────────────────────────┐
-│  / filter-text                                                               │  ← filter bar (only when filtering active)
+│  / filter-text                                                                │  ← filter bar (only when filtering active)
 │  NAME              PROJECT         TERRAFORM   LOCKED   UPDATED              │  ← table header (colorHeaderBg bg, colorAccent fg, bold)
 │ ──────────────────────────────────────────────────────────────────────────── │  ← accent divider
 │    my-workspace    default         1.9.0       false    2025-06-01           │  ← unselected row
@@ -93,7 +93,7 @@ Tab strip is the first line inside the content box:
 
 ```
 ┌─ org: my-org  /   project: my-proj  /   workspace: my-ws  /   runs ──────────┐
-│   Runs   Variables   Config Versions   State Versions                        │  ← tab strip (active: colorAccent bold underline; inactive: colorDim)
+│   Runs   Variables   Config Versions   State Versions                         │  ← tab strip (active: colorAccent bold underline; inactive: colorDim)
 │  ID               STATUS     MESSAGE              CREATED          DURATION  │
 │ ──────────────────────────────────────────────────────────────────────────── │
 │    run-xyz789     applied    terraform apply       2025-06-01       1m 23s   │
@@ -145,7 +145,7 @@ Tab strip is the first line inside the content box:
 ## Config Version File Browser
 
 ```
-┌─ org: my-org  /  ...  /   config versions  /   cv: cv-abc123  /   files ─────┐
+┌─ org: my-org  /  ...  /   config versions  /   cv: cv-abc123  /   files ───────┐
 │  ├── main.tf                                                                 │
 │  ├── variables.tf                                                            │
 │  ├── outputs.tf                                                              │
@@ -165,7 +165,7 @@ Tab strip is the first line inside the content box:
 ## Config Version File Content Viewer
 
 ```
-┌─ org: my-org  /  ...  /   cv: cv-abc123  /   files  /   main.tf ─────────────┐
+┌─ org: my-org  /  ...  /   cv: cv-abc123  /   files  /   main.tf ──────────────┐
 │  terraform {                                                                 │
 │    required_providers {                                                      │  ← raw file content
 │      aws = {                                                                 │     HCL block keywords: colorPurple
