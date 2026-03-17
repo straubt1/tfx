@@ -5,7 +5,7 @@ go 1.26.1
 require (
 	charm.land/bubbletea/v2 v2.0.2
 	charm.land/lipgloss/v2 v2.0.2
-	code.cloudfoundry.org/bytefmt v0.66.0
+	code.cloudfoundry.org/bytefmt v0.67.0
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/briandowns/spinner v1.23.2
 	github.com/charmbracelet/x/ansi v0.11.6
