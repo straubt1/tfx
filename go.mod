@@ -14,7 +14,7 @@ require (
 	github.com/epilande/go-devicons v0.0.0-20250505162540-0661cab71a28
 	github.com/fatih/color v1.18.0
 	github.com/go-viper/encoding/hcl v0.1.0
-	github.com/google/go-containerregistry v0.21.2
+	github.com/google/go-containerregistry v0.21.3
 	github.com/hashicorp/go-slug v1.0.0
 	github.com/hashicorp/go-tfe v1.101.0
 	github.com/jedib0t/go-pretty/v6 v6.7.8
@@ -57,6 +57,7 @@ require (
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/term v0.41.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
+	gotest.tools/v3 v3.5.2 // indirect
 )
 
 require (
