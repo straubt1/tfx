@@ -6,17 +6,19 @@
 // New profile block format:
 //
 //	profile "default" {
-//	  tfeHostname     = "app.terraform.io"
-//	  tfeOrganization = "my-org"
-//	  tfeToken        = "abc123..."
+//	  hostname            = "app.terraform.io"
+//	  defaultOrganization = "my-org"
+//	  token               = "abc123..."
 //	}
 //
 // The block label is the profile name (a user-editable alias — not the
-// hostname). tfeHostname is an optional key inside the block; it defaults to
+// hostname). hostname is an optional key inside the block; it defaults to
 // DefaultHostname ("app.terraform.io") when omitted.
 //
 // Legacy flat format (no profile blocks) is still read; it is treated as a
 // single profile named DefaultProfileName with hostname DefaultHostname.
+// The old tfe-prefixed keys (tfeHostname, tfeOrganization, tfeToken) are
+// still accepted inside profile blocks for backward compatibility.
 package hclconfig
 
 import (
@@ -39,14 +41,14 @@ const (
 // Profile holds configuration for one TFx profile.
 type Profile struct {
 	Name         string // block label — user-editable alias
-	Hostname     string // tfeHostname value; defaults to DefaultHostname if omitted
-	Organization string // tfeOrganization value; may be empty
-	Token        string // tfeToken value
+	Hostname     string // hostname value; defaults to DefaultHostname if omitted
+	Organization string // defaultOrganization value; may be empty
+	Token        string // token value
 }
 
 var (
 	reProfileStart = regexp.MustCompile(`^profile\s+"([^"]+)"\s*\{`)
-	reKeyValue     = regexp.MustCompile(`^\s+(tfeHostname|tfeOrganization|tfeToken)\s*=\s*"([^"]*)"`)
+	reKeyValue     = regexp.MustCompile(`^\s+(tfeHostname|tfeOrganization|tfeToken|hostname|defaultOrganization|token)\s*=\s*"([^"]*)"`)
 	reFlatHostname = regexp.MustCompile(`^tfeHostname\s*=\s*"([^"]*)"`)
 	reFlatOrg      = regexp.MustCompile(`^tfeOrganization\s*=\s*"([^"]*)"`)
 	reFlatToken    = regexp.MustCompile(`^tfeToken\s*=\s*"([^"]*)"`)
@@ -126,11 +128,11 @@ func ListProfiles(path string) ([]Profile, error) {
 		if current != nil {
 			if m := reKeyValue.FindStringSubmatch(line); m != nil {
 				switch m[1] {
-				case "tfeHostname":
+				case "tfeHostname", "hostname":
 					current.Hostname = m[2]
-				case "tfeOrganization":
+				case "tfeOrganization", "defaultOrganization":
 					current.Organization = m[2]
-				case "tfeToken":
+				case "tfeToken", "token":
 					current.Token = m[2]
 				}
 				continue
@@ -183,12 +185,12 @@ func WriteProfile(path, name, hostname, organization, token string) error {
 
 	var orgLine string
 	if organization != "" {
-		orgLine = fmt.Sprintf("  tfeOrganization = %q", organization)
+		orgLine = fmt.Sprintf("  defaultOrganization = %q", organization)
 	} else {
-		orgLine = `  # tfeOrganization = "" # set this to your organization name`
+		orgLine = `  # defaultOrganization = "" # set this to your organization name`
 	}
 	block := fmt.Sprintf(
-		"\nprofile %q {\n  tfeHostname     = %q\n%s\n  tfeToken        = %q\n}\n",
+		"\nprofile %q {\n  hostname            = %q\n%s\n  token               = %q\n}\n",
 		name, hostname, orgLine, token,
 	)
 

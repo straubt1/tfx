@@ -53,7 +53,7 @@ var rootCmd = &cobra.Command{
 		if viper.GetString("tfeToken") == "" {
 			return fmt.Errorf("no API token found — run 'tfx login' to authenticate")
 		}
-		if viper.GetString("tfeOrganization") == "" {
+		if cmd.Name() != "tui" && viper.GetString("tfeOrganization") == "" {
 			return fmt.Errorf("organization is required (--tfeOrganization, TFE_ORGANIZATION, or run 'tfx login')")
 		}
 		return nil
