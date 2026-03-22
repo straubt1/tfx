@@ -273,21 +273,35 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case orgsLoadedMsg:
 		m.orgs = []*tfe.Organization(msg)
-		m.loading = false
-		m.currentView = viewOrganizations
 		m.errMsg = ""
-		// Pre-highlight the org that matches the configured org name.
+
+		// Auto-select an org and jump straight to projects if:
+		//   1. defaultOrganization is configured and found in the list, OR
+		//   2. The token only has access to exactly one org.
+		var autoOrg *tfe.Organization
 		if m.org != "" {
-			for i, o := range m.orgs {
+			for _, o := range m.orgs {
 				if o.Name == m.org {
-					m.orgCursor = i
-					if i >= m.orgVisibleRows() {
-						m.orgOffset = i - m.orgVisibleRows() + 1
-					}
+					autoOrg = o
 					break
 				}
 			}
+		} else if len(m.orgs) == 1 {
+			autoOrg = m.orgs[0]
 		}
+		if autoOrg != nil {
+			m.selectedOrg = autoOrg
+			m.org = autoOrg.Name
+			m.projCursor = 0
+			m.projOffset = 0
+			m.projFilter = ""
+			m.projFiltering = false
+			return m, loadProjects(m.c, autoOrg.Name)
+		}
+
+		// Multiple orgs with no default — show the org list.
+		m.loading = false
+		m.currentView = viewOrganizations
 
 	case projectsLoadedMsg:
 		m.projects = []*tfe.Project(msg)
