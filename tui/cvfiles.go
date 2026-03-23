@@ -285,7 +285,9 @@ func (m Model) renderConfigVersionFilesContent() string {
 
 			// Build connector string and measure its width (all ASCII → byte len).
 			connStr := buildTreeConnector(m.cvFiles, i)
-			connW := len(connStr)
+			// Box-drawing chars (├ └ │ ─) are multi-byte UTF-8 but 1 terminal cell wide each;
+			// lipgloss.Width is required — len() would overcount and shift the SIZE column left.
+			connW := lipgloss.Width(connStr)
 
 			// Icon lookup (Nerd Font glyph + hex color for this file/dir type).
 			iconGlyph, iconColor := cvFileIcon(f)

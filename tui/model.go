@@ -57,10 +57,10 @@ const (
 	viewProjectDetail            // project detail (d key from project list)
 	viewRunDetail                // run detail (enter from run list) — Phase 7
 	viewVariableDetail           // variable detail (enter from variable list) — Phase 7
-	viewStateVersionDetail       // state version detail (enter from SV list) — Phase 7
-	viewConfigVersionDetail      // config version detail (enter from CV list) — Phase 7
-	viewStateVersionJson         // state version JSON viewer (o from SV detail) — Phase 7b
-	viewConfigVersionFiles       // CV file tree browser (x from CV detail) — Phase 7c
+	viewStateVersionDetail       // state version detail (d from SV list) — Phase 7
+	viewConfigVersionDetail      // config version detail (d from CV list) — Phase 7
+	viewStateVersionViewer       // state version JSON viewer (enter from SV list, o from SV detail) — Phase 7b
+	viewConfigVersionViewer      // CV file tree browser (enter from CV list, o from CV detail) — Phase 7c
 	viewConfigVersionFileContent // CV file content viewer (enter from file browser) — Phase 7c
 )
 
@@ -168,22 +168,24 @@ type Model struct {
 	selectedSV  *tfe.StateVersion
 	svDetScroll int
 
-	// State version JSON viewer state (Phase 7b)
-	svJsonLines   []string
-	svJsonScroll  int
-	svJsonLoading bool
-	svJsonErr     string
+	// State version viewer state (Phase 7b)
+	svJsonLines      []string
+	svJsonScroll     int
+	svJsonLoading    bool
+	svJsonErr        string
+	svViewerPrevView viewType // view to return to when esc-ing from the state version viewer
 
 	// Config version detail state (Phase 7)
 	selectedCV  *tfe.ConfigurationVersion
 	cvDetScroll int
 
-	// Config version file browser state (Phase 7c)
-	cvFiles       []cvFile
-	cvFileCursor  int
-	cvFileOffset  int
-	cvFileLoading bool
-	cvFileErr     string
+	// Config version viewer state (Phase 7c)
+	cvFiles          []cvFile
+	cvFileCursor     int
+	cvFileOffset     int
+	cvFileLoading    bool
+	cvFileErr        string
+	cvViewerPrevView viewType // view to return to when esc-ing from the config version viewer
 
 	// Config version file content viewer state (Phase 7c)
 	cvFileLines  []string
@@ -206,6 +208,10 @@ type Model struct {
 	healthCheck      map[string]string // nil until loaded
 	healthCheckLoad  bool
 	healthCheckErr   string
+
+	// CV archived modal state (shown when enter is pressed on an archived CV)
+	showCVArchivedModal bool
+	cvArchivedCV        *tfe.ConfigurationVersion // the archived CV being shown
 }
 
 func newModel(c *client.TfxClient, profileName string) Model {
@@ -419,6 +425,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handleInstanceInfoModalKey(msg)
 		}
 
+		// CV archived modal intercepts all remaining keys when open.
+		if m.showCVArchivedModal {
+			return m.handleCVArchivedModalKey(msg)
+		}
+
 		// ── Filter input mode — must be checked before panel-toggle / quit ────
 		// While the user is typing a filter query, only esc, backspace, enter
 		// and printable characters are handled; everything else is silently
@@ -512,9 +523,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.handleSVDetailKey(msg)
 			case viewConfigVersionDetail:
 				return m.handleCVDetailKey(msg)
-			case viewStateVersionJson:
+			case viewStateVersionViewer:
 				return m.handleSVJsonKey(msg)
-			case viewConfigVersionFiles:
+			case viewConfigVersionViewer:
 				return m.handleCVFilesKey(msg)
 			case viewConfigVersionFileContent:
 				return m.handleCVFileContentKey(msg)
@@ -560,6 +571,11 @@ func (m Model) View() tea.View {
 	// (Not composited over the help overlay — help takes full priority.)
 	if m.ready && m.showInstanceInfo && !m.showHelp && m.width >= minWidth && m.height >= minHeight {
 		content = m.overlayInstanceInfoModal(content)
+	}
+
+	// Composite the CV archived modal on top when visible.
+	if m.ready && m.showCVArchivedModal && !m.showHelp && m.width >= minWidth && m.height >= minHeight {
+		content = m.overlayCVArchivedModal(content)
 	}
 
 	v := tea.NewView(content)
@@ -626,21 +642,21 @@ func (m Model) navigateBack() (tea.Model, tea.Cmd) {
 		m.currentView = viewStateVersions
 		m.svDetScroll = 0
 		m.selectedSV = nil
-	case viewStateVersionJson:
-		m.currentView = viewStateVersionDetail
+	case viewStateVersionViewer:
+		m.currentView = m.svViewerPrevView
 		m.svJsonLines = nil
 		m.svJsonScroll = 0
 		m.svJsonLoading = false
 		m.svJsonErr = ""
-	case viewConfigVersionFiles:
-		m.currentView = viewConfigVersionDetail
+	case viewConfigVersionViewer:
+		m.currentView = m.cvViewerPrevView
 		m.cvFiles = nil
 		m.cvFileCursor = 0
 		m.cvFileOffset = 0
 		m.cvFileLoading = false
 		m.cvFileErr = ""
 	case viewConfigVersionFileContent:
-		m.currentView = viewConfigVersionFiles
+		m.currentView = viewConfigVersionViewer
 		m.cvFileLines = nil
 		m.cvFileScroll = 0
 		m.cvFileName = ""
@@ -697,7 +713,7 @@ func (m Model) refresh() (tea.Model, tea.Cmd) {
 		if m.selectedWS != nil {
 			cmd = loadStateVersions(m.c, m.org, m.selectedWS.Name)
 		}
-	case viewStateVersionJson:
+	case viewStateVersionViewer:
 		// Force re-download: bypass cache and restart the JSON load.
 		m.loading = false
 		if m.selectedSV != nil {
@@ -707,7 +723,7 @@ func (m Model) refresh() (tea.Model, tea.Cmd) {
 			return m, tea.Batch(loadStateVersionJson(m.c, m.selectedSV.ID, true), tickSpinner())
 		}
 		return m, nil
-	case viewConfigVersionFiles:
+	case viewConfigVersionViewer:
 		// Force re-download: delete cached archive + extracted dir.
 		m.loading = false
 		if m.selectedCV != nil {
@@ -1154,7 +1170,8 @@ func (m Model) handleSVDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.svJsonScroll = 0
 			m.svJsonLoading = true
 			m.svJsonErr = ""
-			m.currentView = viewStateVersionJson
+			m.svViewerPrevView = viewStateVersionDetail
+			m.currentView = viewStateVersionViewer
 			return m, tea.Batch(loadStateVersionJson(m.c, m.selectedSV.ID, false), tickSpinner())
 		}
 	}
@@ -1205,7 +1222,8 @@ func (m Model) handleCVDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.cvFileOffset = 0
 			m.cvFileLoading = true
 			m.cvFileErr = ""
-			m.currentView = viewConfigVersionFiles
+			m.cvViewerPrevView = viewConfigVersionDetail
+			m.currentView = viewConfigVersionViewer
 			return m, tea.Batch(loadCVFiles(m.c, m.selectedCV.ID, false), tickSpinner())
 		}
 	}
@@ -1487,10 +1505,6 @@ func (m Model) handleRunsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.currentView = viewRunDetail
 		// Trigger a background re-fetch to populate Plan/Apply/VCS fields.
 		return m, loadRunDetail(m.c, sel.ID)
-	case "d":
-		m.wsDetScroll = 0
-		m.wsDetPrevView = viewRuns
-		m.currentView = viewWorkspaceDetail
 	case "u":
 		if url := m.wsURL(); url != "" {
 			if err := copyToClipboard(url); err == nil {
@@ -1555,10 +1569,6 @@ func (m Model) handleVariablesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.switchWsTab(viewRuns)
 	case "right":
 		return m.switchWsTab(viewConfigVersions)
-	case "d":
-		m.wsDetScroll = 0
-		m.wsDetPrevView = viewVariables
-		m.currentView = viewWorkspaceDetail
 	case "u":
 		if url := m.wsURL(); url != "" {
 			if err := copyToClipboard(url); err == nil {
@@ -1616,17 +1626,32 @@ func (m Model) handleConfigVersionsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd)
 		if n == 0 || m.cvCursor >= n {
 			break
 		}
-		m.selectedCV = filtered[m.cvCursor]
-		m.cvDetScroll = 0
-		m.currentView = viewConfigVersionDetail
+		cv := filtered[m.cvCursor]
+		if cv.Status == tfe.ConfigurationArchived {
+			m.cvArchivedCV = cv
+			m.showCVArchivedModal = true
+			return m, nil
+		}
+		m.selectedCV = cv
+		m.cvFiles = nil
+		m.cvFileCursor = 0
+		m.cvFileOffset = 0
+		m.cvFileLoading = true
+		m.cvFileErr = ""
+		m.cvViewerPrevView = viewConfigVersions
+		m.currentView = viewConfigVersionViewer
+		return m, tea.Batch(loadCVFiles(m.c, m.selectedCV.ID, false), tickSpinner())
 	case "left":
 		return m.switchWsTab(viewVariables)
 	case "right":
 		return m.switchWsTab(viewStateVersions)
 	case "d":
-		m.wsDetScroll = 0
-		m.wsDetPrevView = viewConfigVersions
-		m.currentView = viewWorkspaceDetail
+		if n == 0 || m.cvCursor >= n {
+			break
+		}
+		m.selectedCV = filtered[m.cvCursor]
+		m.cvDetScroll = 0
+		m.currentView = viewConfigVersionDetail
 	case "u":
 		if url := m.wsURL(); url != "" {
 			if err := copyToClipboard(url); err == nil {
@@ -1685,16 +1710,24 @@ func (m Model) handleStateVersionsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) 
 			break
 		}
 		m.selectedSV = filtered[m.svCursor]
-		m.svDetScroll = 0
-		m.currentView = viewStateVersionDetail
+		m.svJsonLines = nil
+		m.svJsonScroll = 0
+		m.svJsonLoading = true
+		m.svJsonErr = ""
+		m.svViewerPrevView = viewStateVersions
+		m.currentView = viewStateVersionViewer
+		return m, tea.Batch(loadStateVersionJson(m.c, m.selectedSV.ID, false), tickSpinner())
 	case "left":
 		return m.switchWsTab(viewConfigVersions)
 	case "right":
 		// Last tab — nothing to the right.
 	case "d":
-		m.wsDetScroll = 0
-		m.wsDetPrevView = viewStateVersions
-		m.currentView = viewWorkspaceDetail
+		if n == 0 || m.svCursor >= n {
+			break
+		}
+		m.selectedSV = filtered[m.svCursor]
+		m.svDetScroll = 0
+		m.currentView = viewStateVersionDetail
 	case "u":
 		if url := m.wsURL(); url != "" {
 			if err := copyToClipboard(url); err == nil {
@@ -1912,12 +1945,12 @@ func (m Model) currentCliCmd() string {
 			return fmt.Sprintf("tfx workspace state-version show --state-id %s", m.selectedSV.ID)
 		}
 		return "tfx workspace state-version show"
-	case viewStateVersionJson:
+	case viewStateVersionViewer:
 		if m.selectedSV != nil {
 			return fmt.Sprintf("tfx workspace state-version download --state-id %s", m.selectedSV.ID)
 		}
 		return "tfx workspace state-version download"
-	case viewConfigVersionFiles, viewConfigVersionFileContent:
+	case viewConfigVersionViewer, viewConfigVersionFileContent:
 		if m.selectedCV != nil {
 			return fmt.Sprintf("tfx workspace configuration-version download --id %s", m.selectedCV.ID)
 		}
@@ -2042,9 +2075,9 @@ func (m Model) renderContent() string {
 		return m.renderStateVersionDetailContent()
 	case viewConfigVersionDetail:
 		return m.renderConfigVersionDetailContent()
-	case viewStateVersionJson:
+	case viewStateVersionViewer:
 		return m.renderStateVersionJsonContent()
-	case viewConfigVersionFiles:
+	case viewConfigVersionViewer:
 		return m.renderConfigVersionFilesContent()
 	case viewConfigVersionFileContent:
 		return m.renderConfigVersionFileContent()
@@ -2420,7 +2453,7 @@ func (m Model) breadcrumbLine() string {
 			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
 			sep + breadcrumbBarStyle.Render("config versions") +
 			sep + breadcrumbActiveStyle.Render(fmt.Sprintf("cv: %s ", cvID))
-	case viewStateVersionJson:
+	case viewStateVersionViewer:
 		svSerial := ""
 		if m.selectedSV != nil {
 			svSerial = fmt.Sprintf("%d", m.selectedSV.Serial)
@@ -2431,7 +2464,7 @@ func (m Model) breadcrumbLine() string {
 			sep + breadcrumbBarStyle.Render("state versions") +
 			sep + breadcrumbBarStyle.Render(fmt.Sprintf("sv: %s", svSerial)) +
 			sep + breadcrumbActiveStyle.Render("json ")
-	case viewConfigVersionFiles:
+	case viewConfigVersionViewer:
 		cvID := ""
 		if m.selectedCV != nil {
 			cvID = m.selectedCV.ID
@@ -2723,7 +2756,7 @@ func (m Model) renderStatusBar() string {
 		if m.selectedCV != nil {
 			msg = fmt.Sprintf("  config version: %s  •  ↑ ↓ to scroll", m.selectedCV.ID)
 		}
-	case viewStateVersionJson:
+	case viewStateVersionViewer:
 		if m.svJsonLoading {
 			frame := spinnerFrames[m.spinnerIdx]
 			return m.pad(statusLoadingStyle.Render("  "+frame+"  Loading state JSON…"), statusLoadingStyle)
@@ -2747,7 +2780,7 @@ func (m Model) renderStatusBar() string {
 			sizeStr = fmt.Sprintf("%d KB", totalBytes/1024)
 		}
 		msg = fmt.Sprintf("  state JSON  •  line %d of %d  (%s)", cur, numLines, sizeStr)
-	case viewConfigVersionFiles:
+	case viewConfigVersionViewer:
 		if m.cvFileLoading {
 			frame := spinnerFrames[m.spinnerIdx]
 			return m.pad(statusLoadingStyle.Render("  "+frame+"  Downloading config version archive…"), statusLoadingStyle)
@@ -2828,18 +2861,22 @@ func (m Model) renderCliHint() string {
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   u url   U browser   •   ? help   •   q quit")
 	case m.currentView == viewVariableDetail:
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   ? help   •   q quit")
+	case m.currentView == viewConfigVersions:
+		hints = cliHintBarStyle.Render("   •   enter viewer   d detail   •   ← → switch tabs   •   u url   U browser   •   c copy   •   ? help   •   q quit")
+	case m.currentView == viewStateVersions:
+		hints = cliHintBarStyle.Render("   •   enter viewer   d detail   •   ← → switch tabs   •   u url   U browser   •   c copy   •   ? help   •   q quit")
 	case m.currentView == viewStateVersionDetail:
-		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   o json viewer   •   ? help   •   q quit")
-	case m.currentView == viewStateVersionJson:
+		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   o state viewer   •   ? help   •   q quit")
+	case m.currentView == viewStateVersionViewer:
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   shift+↑↓ half page   •   r re-fetch   •   ? help   •   q quit")
 	case m.currentView == viewConfigVersionDetail:
-		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   o archive browser   •   ? help   •   q quit")
-	case m.currentView == viewConfigVersionFiles:
+		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   o config viewer   •   ? help   •   q quit")
+	case m.currentView == viewConfigVersionViewer:
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ navigate   •   enter open   •   p copy path   •   r re-fetch   •   ? help   •   q quit")
 	case m.currentView == viewConfigVersionFileContent:
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   shift+↑↓ half page   •   ? help   •   q quit")
 	case m.isWorkspaceSubView():
-		hints = cliHintBarStyle.Render("   •   enter detail   •   ← → switch tabs   •   d ws detail   •   u url   U browser   •   c copy   •   ? help   •   q quit")
+		hints = cliHintBarStyle.Render("   •   enter detail   •   ← → switch tabs   •   u url   U browser   •   c copy   •   ? help   •   q quit")
 	default:
 		hints = cliHintBarStyle.Render("   •   c copy   •   ? help   •   q quit")
 	}
@@ -2877,11 +2914,11 @@ func (m Model) renderHelpOverlay() string {
 		{"[ws] s", "view state versions tab"},
 		{"[ws] d", "view workspace detail"},
 		{"[ws tab] ← →", "switch tabs"},
+		{"[sv/cv tab] enter", "open viewer"},
+		{"[sv/cv tab] d", "view item detail"},
+		{"[sv/cv detail] o", "open viewer"},
 		{"[ws tab] enter", "view item detail"},
-		{"[sv detail] o", "open state JSON viewer"},
-		{"[cv detail] o", "open archive browser"},
-		{"[cv files] p", "copy cache path to clipboard"},
-		{"[ws tab] d", "view workspace detail"},
+		{"[cv viewer] p", "copy cache path to clipboard"},
 		{"[ws tab] u", "copy workspace URL"},
 		{"[ws tab] U", "open workspace in browser"},
 		// Detail views
