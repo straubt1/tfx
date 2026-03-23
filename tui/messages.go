@@ -106,6 +106,10 @@ const (
 // /api/v2/account/details — one of the accountResourceType constants.
 type accountTypeLoadedMsg accountResourceType
 
+// wsLatestChangeMsg carries the parsed latest-change-at timestamp for the
+// selected workspace. nil means the field was absent or the call failed.
+type wsLatestChangeMsg *time.Time
+
 // fetchErrMsg wraps any error returned from an async fetch.
 type fetchErrMsg struct{ err error }
 
@@ -187,6 +191,39 @@ func loadAccountToken(c *client.TfxClient, userID string) tea.Cmd {
 			}
 		}
 		return accountTokenLoadedMsg(best)
+	}
+}
+
+// loadWorkspaceLatestChange fetches /api/v2/workspaces/:id and extracts the
+// latest-change-at attribute, which go-tfe does not decode into tfe.Workspace.
+// Silently returns nil on any error.
+func loadWorkspaceLatestChange(c *client.TfxClient, wsID string) tea.Cmd {
+	return func() tea.Msg {
+		url := fmt.Sprintf("https://%s/api/v2/workspaces/%s", c.Hostname, wsID)
+		req, err := http.NewRequestWithContext(c.Context, http.MethodGet, url, nil)
+		if err != nil {
+			return wsLatestChangeMsg(nil)
+		}
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+		req.Header.Set("Content-Type", "application/vnd.api+json")
+
+		resp, err := c.HTTPClient.Do(req)
+		if err != nil {
+			return wsLatestChangeMsg(nil)
+		}
+		defer resp.Body.Close()
+
+		var payload struct {
+			Data struct {
+				Attributes struct {
+					LatestChangeAt *time.Time `json:"latest-change-at"`
+				} `json:"attributes"`
+			} `json:"data"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+			return wsLatestChangeMsg(nil)
+		}
+		return wsLatestChangeMsg(payload.Data.Attributes.LatestChangeAt)
 	}
 }
 

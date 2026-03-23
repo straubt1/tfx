@@ -34,6 +34,7 @@ var wsTabs = []struct {
 	label string
 	view  viewType
 }{
+	{"Settings", viewWorkspaceSettings},
 	{"Runs", viewRuns},
 	{"Variables", viewVariables},
 	{"Config Versions", viewConfigVersions},
@@ -46,11 +47,12 @@ const (
 	viewOrganizations viewType = iota // Phase 6: top-level org list (entry point)
 	viewProjects
 	viewWorkspaces
+	viewWorkspaceSettings        // Settings tab (first workspace sub-view tab)
 	viewRuns
 	viewVariables                // Phase 5
 	viewConfigVersions           // Phase 5
 	viewStateVersions            // Phase 5
-	viewWorkspaceDetail          // workspace settings detail (d key from workspace list)
+	viewWorkspaceDetail          // workspace detail (d key from workspace list or sub-views)
 	viewOrgDetail                // organization detail (d key from org list)
 	viewProjectDetail            // project detail (d key from project list)
 	viewRunDetail                // run detail (enter from run list) — Phase 7
@@ -143,8 +145,10 @@ type Model struct {
 	svFiltering   bool
 
 	// Workspace detail state
-	wsDetScroll   int
-	wsDetPrevView viewType // view to return to when esc-ing from workspace detail
+	wsDetScroll        int
+	wsDetPrevView      viewType   // view to return to when esc-ing from workspace detail
+	wsSettingsScroll   int        // scroll offset for the Settings tab
+	wsLatestChange     *time.Time // latest-change-at from API; nil until loaded
 
 	// Organization detail state
 	orgDetScroll int
@@ -272,6 +276,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case accountTokenLoadedMsg:
 		m.accountToken = (*tfe.UserToken)(msg)
+
+	case wsLatestChangeMsg:
+		m.wsLatestChange = (*time.Time)(msg)
 
 	case orgsLoadedMsg:
 		m.orgs = []*tfe.Organization(msg)
@@ -481,6 +488,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.handleProjectsKey(msg)
 			case viewWorkspaces:
 				return m.handleWorkspacesKey(msg)
+			case viewWorkspaceSettings:
+				return m.handleWorkspaceSettingsKey(msg)
 			case viewRuns:
 				return m.handleRunsKey(msg)
 			case viewVariables:
@@ -575,7 +584,7 @@ func (m Model) navigateBack() (tea.Model, tea.Cmd) {
 		m.wsCursor, m.wsOffset = 0, 0
 		m.wsFilter, m.wsFiltering = "", false
 		m.selectedProj = nil
-	case viewRuns, viewVariables, viewConfigVersions, viewStateVersions:
+	case viewWorkspaceSettings, viewRuns, viewVariables, viewConfigVersions, viewStateVersions:
 		// All workspace tab views return to the workspace list and clear sub-view data.
 		m.currentView = viewWorkspaces
 		m.runs = nil
@@ -722,10 +731,10 @@ func (m Model) refresh() (tea.Model, tea.Cmd) {
 }
 
 // isWorkspaceSubView returns true when the current view is one of the
-// workspace tab views (Runs, Variables, Config Versions, State Versions).
+// workspace tab views (Settings, Runs, Variables, Config Versions, State Versions).
 func (m Model) isWorkspaceSubView() bool {
 	switch m.currentView {
-	case viewRuns, viewVariables, viewConfigVersions, viewStateVersions:
+	case viewWorkspaceSettings, viewRuns, viewVariables, viewConfigVersions, viewStateVersions:
 		return true
 	}
 	return false
@@ -738,6 +747,11 @@ func (m Model) switchWsTab(target viewType) (tea.Model, tea.Cmd) {
 	m.errMsg = ""
 
 	switch target {
+	case viewWorkspaceSettings:
+		if m.wsLatestChange == nil && m.selectedWS != nil {
+			return m, loadWorkspaceLatestChange(m.c, m.selectedWS.ID)
+		}
+		return m, nil
 	case viewRuns:
 		if m.runs != nil {
 			return m, nil
@@ -1311,10 +1325,11 @@ func (m Model) handleWorkspacesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		sel := filtered[m.wsCursor]
 		m.selectedWS = sel
-		m.loading = true
 		m.errMsg = ""
-		m.runCursor, m.runOffset, m.runFilter = 0, 0, ""
-		return m, tea.Batch(loadRuns(m.c, sel.ID), tickSpinner())
+		m.wsSettingsScroll = 0
+		m.wsLatestChange = nil
+		m.currentView = viewWorkspaceSettings
+		return m, loadWorkspaceLatestChange(m.c, sel.ID)
 	case "v":
 		if n == 0 || m.wsCursor >= n {
 			break
@@ -1389,6 +1404,44 @@ func (m Model) handleWorkspaceDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd
 	return m, nil
 }
 
+func (m Model) handleWorkspaceSettingsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if m.wsSettingsScroll > 0 {
+			m.wsSettingsScroll--
+		}
+	case "down", "j":
+		m.wsSettingsScroll++
+	case "g":
+		m.wsSettingsScroll = 0
+	case "G":
+		m.wsSettingsScroll = 9999 // clamped to max by renderWorkspaceSettingsContent
+	case "left":
+		// First tab — nothing to the left.
+	case "right":
+		return m.switchWsTab(viewRuns)
+	case "u":
+		if url := m.wsURL(); url != "" {
+			if err := copyToClipboard(url); err == nil {
+				m.clipFeedback = "✓ workspace URL copied"
+			} else {
+				m.clipFeedback = "clipboard unavailable"
+			}
+		}
+		return m, nil
+	case "U":
+		if url := m.wsURL(); url != "" {
+			if err := openBrowser(url); err == nil {
+				m.clipFeedback = "✓ opening in browser"
+			} else {
+				m.clipFeedback = "could not open browser"
+			}
+		}
+		return m, nil
+	}
+	return m, nil
+}
+
 func (m Model) handleRunsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	filtered := filteredRuns(m)
 	n := len(filtered)
@@ -1421,7 +1474,7 @@ func (m Model) handleRunsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "/":
 		m.runFiltering = true
 	case "left":
-		// First tab — nothing to the left.
+		return m.switchWsTab(viewWorkspaceSettings)
 	case "right":
 		return m.switchWsTab(viewVariables)
 	case "enter":
@@ -1965,6 +2018,8 @@ func (m Model) renderContent() string {
 		return m.renderProjectsContent()
 	case viewWorkspaces:
 		return m.renderWorkspacesContent()
+	case viewWorkspaceSettings:
+		return m.renderWorkspaceSettingsContent()
 	case viewRuns:
 		return m.renderRunsContent()
 	case viewVariables:
@@ -2284,6 +2339,11 @@ func (m Model) breadcrumbLine() string {
 		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
 			sep + breadcrumbActiveStyle.Render("workspaces ")
+	case viewWorkspaceSettings:
+		return orgPart + sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbActiveStyle.Render("settings ")
 	case viewRuns:
 		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
