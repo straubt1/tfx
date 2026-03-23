@@ -7,11 +7,11 @@ ASCII diagrams for all views. Edit these diagrams to spec a layout change, then 
 ## Chrome Structure (all views)
 
 ```
-fixedLines = 9
+fixedLines = 10
   Row 1:     header
-  Rows 2–5:  profile bar (4 rows, always present — "…" while loading)
-  Row 6:     content box top border  ┌─ breadcrumb ──────────────────┐
-  Rows 7–N:  content rows            │ ...                           │
+  Rows 2–6:  profile bar (5 rows, always present — "…" while loading)
+  Row 7:     content box top border  ┌─ breadcrumb ──────────────────┐
+  Rows 8–N:  content rows            │ ...                           │
   Row N+1:   content box bot border  └───────────────────────────────┘
   Row N+2:   status bar
   Row N+3:   CLI hint bar
@@ -34,19 +34,22 @@ fixedLines = 9
 
 ---
 
-## Profile Bar (4 rows)
+## Profile Bar (5 rows)
 
 ```
-  profile:   default
-  username:  tstraub
-  email:     tstraub@hashi.com
-  expires:   2027-01-15 (312 days)
+  Profile:            default
+    type:             User Token / Team Token / …
+    username:         tstraub                     API Version:  2.5
+    email:            tstraub@hashi.com           TFE Monthly:  v202501-1  (TFE only, blank on HCP TF)
+    token expiration: 2027-01-15 (312 days)       TFE Numeric:  202501      (TFE only, blank on HCP TF)
 ```
 
 - Background: `colorHeaderBg`
-- Labels (`profile:` etc.) padded to 9 chars, `colorDim`
-- Values: `colorAccent` (blue) when loaded, `colorDim` italic `…` while loading
-- `expires`: `"never"` when zero, `"n/a"` on error, `"YYYY-MM-DD (N days/hours/minutes)"` otherwise
+- Row 1 label `Profile:` padded to 9 chars, indent 2; value `colorAccent`
+- Rows 2–5 labels padded to 18 chars, indent 4; values `colorAccent` when loaded, `colorDim` italic `…` while loading
+- Rows 3–5 right column: label `colorDim`, value `colorAccent`; right column hidden when value is empty (HCP TF)
+- Split point: `max(m.width/2, 44)` — left side occupies that many chars, right side fills the rest
+- `token expiration`: `"never"` when zero, `"n/a"` on error, `"YYYY-MM-DD (N days/hours/minutes)"` otherwise
 - Full terminal width, gap filled with `colorHeaderBg`
 
 ---
@@ -204,10 +207,11 @@ The content box splits into left (main view) and right (inspector) panels.
 
 ```
  TFx   app.terraform.io   ⬥  HCP Terraform                        v0.2.2-local   ← full width
-  profile:   default                                                               ← full width
-  username:  tstraub
-  email:     tstraub@hashi.com
-  expires:   2027-01-15 (312 days)
+  Profile:            default                                                      ← full width
+    type:             User Token
+    username:         tstraub                     API Version:  2.5
+    email:            tstraub@hashi.com
+    token expiration: 2027-01-15 (312 days)
 ┌─ org: my-org  /   workspaces ─────────────────┬── API Inspector ──────────────────┐  ← split top border
 │   NAME              LOCKED   UPDATED          │  GET  /api/v2/organizations  12ms │
 │  ───────────────────────────────────────────  │ ▶ POST /api/v2/runs          34ms │  ← selected row in inspector highlighted

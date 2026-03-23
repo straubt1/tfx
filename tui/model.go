@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	fixedLines = 9 // header(1) + profilebar(4) + box-top(1) + box-bottom(1) + statusbar(1) + clihint(1)
+	fixedLines = 10 // header(1) + profilebar(5) + box-top(1) + box-bottom(1) + statusbar(1) + clihint(1)
 	minWidth   = 60
 	minHeight  = 10
 )
@@ -2120,31 +2120,35 @@ func expiresLabel(t time.Time) string {
 	return fmt.Sprintf("%s (%s)", date, countdown)
 }
 
-// renderProfileBar renders four fixed rows beneath the main header:
+// renderProfileBar renders five fixed rows beneath the main header:
 //
-//	profile   <name>
-//	username  <username>
-//	email     <email>
-//	expires   <token expiry or "never" / "n/a">
+//	Profile:            <name>
+//	  type:             <token type>
+//	  username:         <username>         API Version: <ver>
+//	  email:            <email>            TFE Monthly: <ver>  (TFE only)
+//	  token expiration: <expiry>           TFE Numeric: <ver>  (TFE only)
 //
-// All four rows are always emitted (with "…" placeholders while loading) so
+// All five rows are always emitted (with "…" placeholders while loading) so
 // fixedLines stays constant and the layout does not shift after data arrives.
-// Labels are padded to the same width so values align vertically.
 func (m Model) renderProfileBar() string {
 	bg := lipgloss.NewStyle().Background(colorHeaderBg)
-	label := lipgloss.NewStyle().Background(colorHeaderBg).Foreground(colorDim)
+	lbl := lipgloss.NewStyle().Background(colorHeaderBg).Foreground(colorDim)
 	value := lipgloss.NewStyle().Background(colorHeaderBg).Foreground(colorAccent)
 	dim := lipgloss.NewStyle().Background(colorHeaderBg).Foreground(colorDim)
 	na := lipgloss.NewStyle().Background(colorHeaderBg).Foreground(colorDim)
 
-	// Pad every label to the same width so values line up.
-	const labelW = 9 // "username:" = 9 chars including colon + trailing space
+	// splitAt is the column where the right column begins.
+	splitAt := m.width / 2
+	if splitAt < 44 {
+		splitAt = 44
+	}
 
-	row := func(k, v string, valStyle lipgloss.Style) string {
-		// Right-pad the key so all colons align.
+	// fullRow renders a single full-width row with indent=2 and labelW=9.
+	fullRow := func(k, v string, vs lipgloss.Style) string {
+		const labelW = 9
 		padded := fmt.Sprintf("  %-*s", labelW, k+":")
-		l := label.Render(padded)
-		val := valStyle.Render(v)
+		l := lbl.Render(padded)
+		val := vs.Render(v)
 		used := lipgloss.Width(l) + lipgloss.Width(val)
 		gap := m.width - used
 		if gap < 0 {
@@ -2153,9 +2157,56 @@ func (m Model) renderProfileBar() string {
 		return l + val + bg.Width(gap).Render("")
 	}
 
+	// splitRow renders a row with indent=4, labelW=18, and an optional right
+	// column that starts at splitAt. rk=="" suppresses the right column.
+	splitRow := func(lk, lv string, lvs lipgloss.Style, rk, rv string, rvs lipgloss.Style) string {
+		const labelW = 18
+		leftLabel := fmt.Sprintf("    %-*s", labelW, lk+":")
+		ll := lbl.Render(leftLabel)
+		lval := lvs.Render(lv)
+		leftUsed := lipgloss.Width(ll) + lipgloss.Width(lval)
+
+		if rk == "" {
+			gap := m.width - leftUsed
+			if gap < 0 {
+				gap = 0
+			}
+			return ll + lval + bg.Width(gap).Render("")
+		}
+
+		// Pad left side to splitAt, then render right label+value.
+		leftPad := splitAt - leftUsed
+		if leftPad < 1 {
+			leftPad = 1
+		}
+		const rLabelW = 13
+		rightLabel := fmt.Sprintf("%-*s", rLabelW, rk+":")
+		rl := lbl.Render(rightLabel)
+		rval := rvs.Render(rv)
+		rightUsed := lipgloss.Width(rl) + lipgloss.Width(rval)
+		rightPad := m.width - splitAt - rightUsed
+		if rightPad < 0 {
+			rightPad = 0
+		}
+		return ll + lval + bg.Width(leftPad).Render("") + rl + rval + bg.Width(rightPad).Render("")
+	}
+
+	// ── Left-column values ─────────────────────────────────────────────────
+
 	profName := m.profileName
 	if profName == "" {
 		profName = "default"
+	}
+
+	tokenType, ttStyle := "…", dim
+	if m.accountTokenType != accountResourceTypeUnknown {
+		switch m.accountTokenType {
+		case accountResourceTypeUser:
+			tokenType = "User Token"
+		case accountResourceTypeTeam:
+			tokenType = "Team Token"
+		}
+		ttStyle = value
 	}
 
 	uname, email, expires := "…", "…", "…"
@@ -2175,16 +2226,36 @@ func (m Model) renderProfileBar() string {
 		expires = expiresLabel(m.accountToken.ExpiredAt)
 		xStyle = value
 	} else if m.accountUser != nil {
-		// User loaded but token list returned nothing usable.
 		expires = "n/a"
 		xStyle = na
 	}
 
+	// ── Right-column values ────────────────────────────────────────────────
+
+	apiVer, tfeMonthly, tfeNumeric := "", "", ""
+	if m.c != nil {
+		cl := m.c.Client
+		apiVer = cl.RemoteAPIVersion()
+		tfeMonthly = cl.RemoteTFEVersion()
+		tfeNumeric = cl.RemoteTFENumericVersion()
+	}
+
+	// Only show TFE-specific right-column labels when the value is present
+	// (empty on HCP Terraform).
+	tfeMonthlyKey, tfeNumericKey := "", ""
+	if tfeMonthly != "" {
+		tfeMonthlyKey = "TFE Monthly"
+	}
+	if tfeNumeric != "" {
+		tfeNumericKey = "TFE Numeric"
+	}
+
 	return strings.Join([]string{
-		row("profile", profName, value),
-		row("username", uname, uStyle),
-		row("email", email, eStyle),
-		row("expires", expires, xStyle),
+		fullRow("Profile", profName, value),
+		splitRow("type", tokenType, ttStyle, "", "", dim),
+		splitRow("username", uname, uStyle, "API Version", apiVer, value),
+		splitRow("email", email, eStyle, tfeMonthlyKey, tfeMonthly, value),
+		splitRow("token expiration", expires, xStyle, tfeNumericKey, tfeNumeric, value),
 	}, "\n")
 }
 
