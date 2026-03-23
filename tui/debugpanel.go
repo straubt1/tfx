@@ -410,6 +410,18 @@ func (m Model) buildDebugBody(events []client.APIEvent, cursor int, pw int, ds d
 		lines = append(lines, lbl+ds.punct.Width(rem).Render(strings.Repeat("─", rem)))
 	}
 
+	// addAccentSection renders the same divider but in colorAccent — used for
+	// the RESPONSE section to make it visually distinct from the dim REQUEST header.
+	addAccentSection := func(label string) {
+		accentStyle := lipgloss.NewStyle().Background(ds.panelBg).Foreground(colorAccent)
+		lbl := accentStyle.Render("  ── " + label + " ")
+		rem := pw - lipgloss.Width(lbl)
+		if rem < 0 {
+			rem = 0
+		}
+		lines = append(lines, lbl+accentStyle.Width(rem).Render(strings.Repeat("─", rem)))
+	}
+
 	// addHeaders renders each "Name: value" header line, dim-styled.
 	addHeaders := func(headers []string) {
 		for _, h := range headers {
@@ -464,14 +476,14 @@ func (m Model) buildDebugBody(events []client.APIEvent, cursor int, pw int, ds d
 	if e.ReqBody != "" {
 		lines = append(lines, ds.bg.Width(pw).Render(""))
 		for _, bl := range strings.Split(e.ReqBody, "\n") {
-			lines = append(lines, ds.bg.Render("  ")+colorizeJSONLine(truncateStr(bl, pw-2)))
+			lines = append(lines, ds.bg.Render("  ")+colorizeJSONLineForPanel(truncateStr(bl, pw-2), ds.panelBg))
 		}
 	}
 
 	lines = append(lines, ds.bg.Width(pw).Render(""))
 
 	// ── RESPONSE ──────────────────────────────────────────────────────────
-	addSection("RESPONSE")
+	addAccentSection("RESPONSE")
 
 	if e.Err != "" {
 		lines = append(lines, statusErrorStyle.Render("  ✗  "+e.Err))
@@ -494,7 +506,7 @@ func (m Model) buildDebugBody(events []client.APIEvent, cursor int, pw int, ds d
 	lines = append(lines, ds.bg.Width(pw).Render(""))
 	if e.RespBody != "" {
 		for _, bl := range strings.Split(e.RespBody, "\n") {
-			lines = append(lines, ds.bg.Render("  ")+colorizeJSONLine(truncateStr(bl, pw-2)))
+			lines = append(lines, ds.bg.Render("  ")+colorizeJSONLineForPanel(truncateStr(bl, pw-2), ds.panelBg))
 		}
 	} else {
 		lines = append(lines, ds.punct.Render("  (empty body)"))
@@ -571,5 +583,96 @@ func debugDurLabel(d time.Duration) string {
 		return fmt.Sprintf("%dms", d.Milliseconds())
 	}
 	return fmt.Sprintf("%.1fs", d.Seconds())
+}
+
+// colorizeJSONLineForPanel colorizes a JSON line using the given panel background
+// colour so token backgrounds always match the panel (focused or unfocused).
+// This mirrors colorizeJSONLine / tokenizeJSON in svjson.go but builds styles
+// dynamically rather than using the global jsonXxxStyle vars which hardcode colorBg.
+func colorizeJSONLineForPanel(line string, bg color.Color) string {
+	trimmed := strings.TrimLeft(line, " \t")
+	if trimmed == "" {
+		return line
+	}
+	indent := line[:len(line)-len(trimmed)]
+
+	base := lipgloss.NewStyle().Background(bg)
+	pKey := base.Foreground(colorAccent)
+	pStr := base.Foreground(colorSuccess)
+	pNum := base.Foreground(colorPurple)
+	pKwd := base.Foreground(colorLoading)
+	pPun := base.Foreground(colorDim)
+
+	// colorValue tokenizes a value fragment (everything after a colon, or a
+	// standalone value / array element). Mirrors jsonColorValue from svjson.go.
+	var colorValue func(s string) string
+	colorValue = func(s string) string {
+		var out strings.Builder
+		ws := s[:len(s)-len(strings.TrimLeft(s, " \t"))]
+		if ws != "" {
+			out.WriteString(ws)
+		}
+		s = strings.TrimLeft(s, " \t")
+		if s == "" {
+			return out.String()
+		}
+		trailer := ""
+		if s[len(s)-1] == ',' {
+			trailer = ","
+			s = s[:len(s)-1]
+		}
+		if s == "" {
+			out.WriteString(pPun.Render(trailer))
+			return out.String()
+		}
+		switch s[0] {
+		case '"':
+			out.WriteString(pStr.Render(s))
+		case '{', '[', '}', ']':
+			out.WriteString(pPun.Render(s))
+		case 't', 'f', 'n':
+			out.WriteString(pKwd.Render(s))
+		default:
+			out.WriteString(pNum.Render(s))
+		}
+		if trailer != "" {
+			out.WriteString(pPun.Render(trailer))
+		}
+		return out.String()
+	}
+
+	var out strings.Builder
+	s := trimmed
+	switch s[0] {
+	case '"':
+		end := jsonStringEnd(s, 0)
+		if end < 0 {
+			return line // truncated string — leave unstyled
+		}
+		str := s[:end]
+		rest := s[end:]
+		restTrim := strings.TrimLeft(rest, " ")
+		if len(restTrim) > 0 && restTrim[0] == ':' {
+			out.WriteString(pKey.Render(str))
+			ws := rest[:len(rest)-len(restTrim)]
+			out.WriteString(pPun.Render(ws + ":"))
+			out.WriteString(colorValue(restTrim[1:]))
+		} else {
+			out.WriteString(pStr.Render(str))
+			if rest != "" {
+				out.WriteString(pPun.Render(rest))
+			}
+		}
+	case '{', '}', '[', ']':
+		out.WriteString(pPun.Render(s))
+	default:
+		out.WriteString(colorValue(s))
+	}
+	// Style the indent with the panel background so it matches rather than
+	// falling back to the terminal default after the ANSI reset from ds.bg prefix.
+	if indent != "" {
+		return base.Render(indent) + out.String()
+	}
+	return out.String()
 }
 
