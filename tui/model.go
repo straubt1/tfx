@@ -2849,6 +2849,10 @@ func (m Model) renderCliHint() string {
 
 	var hints string
 	switch {
+	case m.debugFocused && m.showDebug && m.debugDetailMode:
+		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   shift+↑↓ page   •   c copy response   •   esc back to list   •   tab unfocus")
+	case m.debugFocused && m.showDebug:
+		hints = cliHintBarStyle.Render("   •   ↑ ↓ navigate   •   enter detail   /  filter   •   tab unfocus")
 	case m.currentView == viewOrganizations:
 		hints = cliHintBarStyle.Render("   •   enter projects   d detail   •   c copy   •   ? help   •   q quit")
 	case m.currentView == viewProjects:
