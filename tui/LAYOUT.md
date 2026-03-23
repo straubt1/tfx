@@ -77,7 +77,7 @@ fixedLines = 10
 ```
 ┌─ org: my-org  /   workspaces ────────────────────────────────────────────────┐
 │  / filter-text                                                                │  ← filter bar (only when filtering active)
-│  NAME              PROJECT         TERRAFORM   LOCKED   UPDATED              │  ← table header (colorHeaderBg bg, colorAccent fg, bold)
+│  NAME              PROJECT         TERRAFORM   LOCKED   UPDATED              │  ← table header (colorBg bg, colorAccent fg, bold)
 │ ──────────────────────────────────────────────────────────────────────────── │  ← accent divider
 │    my-workspace    default         1.9.0       false    2025-06-01           │  ← unselected row
 │  ▶ prod-infra      networking      1.8.2       true     2025-05-30           │  ← selected row (colorSelected bg, colorAccent fg, bold)
@@ -269,7 +269,7 @@ The content box splits into left (main view) and right (inspector) panels.
 | `colorDim` | `#8B949E` | labels, inactive items, borders |
 | `colorPurple` | `#BC8CFF` | version string, HCL keywords, JSON numbers |
 | `colorBorder` | `#30363D` | box-drawing characters |
-| `colorHeaderBg` | `#161B22` | header, profile bar, status bar, table header row bg |
+| `colorHeaderBg` | `#161B22` | header, profile bar, status bar |
 | `colorAppBg` | `#1F6FEB` | "TFx" app name badge background |
 | `colorSelected` | `#1C2128` | selected table row background |
 | `colorError` | `#F85149` | error messages |

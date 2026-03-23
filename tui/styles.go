@@ -145,8 +145,8 @@ var (
 
 	// Table
 	tableHeaderStyle = lipgloss.NewStyle().
-			Background(colorHeaderBg).
-			Foreground(colorFg).
+			Background(colorBg).
+			Foreground(colorAccent).
 			Bold(true)
 
 	tableRowStyle = lipgloss.NewStyle().
