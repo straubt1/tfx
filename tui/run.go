@@ -27,7 +27,8 @@ func Run() error {
 	}
 
 	profileName := viper.GetString("profile")
-	m := newModel(c, profileName)
+	configFile := viper.ConfigFileUsed()
+	m := newModel(c, profileName, configFile)
 
 	p := tea.NewProgram(m)
 	if _, err := p.Run(); err != nil {

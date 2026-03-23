@@ -900,10 +900,18 @@ tfx workspace list -j
 ### 85. Config File Flag
 
 ```sh
-tfx organization list --config /path/to/custom/.tfx.hcl
+tfx organization list --config-file /path/to/custom/.tfx.hcl
 ```
 
 **Expected:** Command runs using the specified config file (confirmation message includes the config path).
+
+### 85a. Config File Env Var
+
+```sh
+TFX_CONFIG_FILE=/path/to/custom/.tfx.hcl tfx organization list
+```
+
+**Expected:** Same result as `--config-file` — config loaded from the env-var path.
 
 ### 86. Hostname and Token Flags
 

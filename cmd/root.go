@@ -6,6 +6,8 @@ package cmd
 import (
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 
 	"github.com/go-viper/encoding/hcl"
 
@@ -76,7 +78,7 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file, can be used to store common flags, (default is ./.tfx.hcl).")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "Path to config file (env: TFX_CONFIG_FILE). Auto-discovered at ./.tfx.hcl (current dir) or ~/.tfx.hcl (home dir) when not set.")
 	rootCmd.PersistentFlags().String("tfeHostname", "app.terraform.io", "The hostname of TFE without the schema. Can also be set with the environment variable TFE_HOSTNAME.")
 	rootCmd.PersistentFlags().String("tfeOrganization", "", "The name of the TFx Organization. Can also be set with the environment variable TFE_ORGANIZATION.")
 	rootCmd.PersistentFlags().String("tfeToken", "", "The API token used to authenticate to TFx. Can also be set with the environment variable TFE_TOKEN.")
@@ -97,17 +99,26 @@ func init() {
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
+	// Resolve config file: --config-file flag > TFX_CONFIG_FILE env var > auto-search.
+	if cfgFile == "" {
+		cfgFile = os.Getenv("TFX_CONFIG_FILE")
+	}
 	if cfgFile != "" {
-		// Use config file from the flag.
+		// Resolve to an absolute path so the "Using config file:" message and
+		// the TUI profile bar always show the fully-qualified location.
+		if abs, err := filepath.Abs(cfgFile); err == nil {
+			cfgFile = abs
+		}
 		viper.SetConfigFile(cfgFile)
 	} else {
 		// Find home directory.
 		home, err := homedir.Dir()
 		cobra.CheckErr(err)
 
-		// Search config in current & home directory with name ".tfx" (without extension).
-		viper.AddConfigPath(home)
+		// Search current directory first, then home directory.
+		// This lets a local .tfx.hcl override the one in ~/.
 		viper.AddConfigPath(".")
+		viper.AddConfigPath(home)
 		viper.SetConfigName(".tfx")
 	}
 

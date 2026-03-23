@@ -76,6 +76,7 @@ type Model struct {
 	hostname     string
 	org          string         // active org name (may change when user selects from org list)
 	profileName  string         // active profile name from ~/.tfx.hcl
+	configFile   string         // path to the config file (tilde-abbreviated for display)
 	accountUser      *tfe.User      // currently authenticated user; nil until loaded
 	accountToken     *tfe.UserToken // most-recently-used user token; nil until loaded
 	accountTokenType accountResourceType // Unknown until loadAccountType resolves
@@ -214,12 +215,13 @@ type Model struct {
 	cvArchivedCV        *tfe.ConfigurationVersion // the archived CV being shown
 }
 
-func newModel(c *client.TfxClient, profileName string) Model {
+func newModel(c *client.TfxClient, profileName, configFile string) Model {
 	return Model{
 		c:           c,
 		hostname:    c.Hostname,
 		org:         c.OrganizationName,
 		profileName: profileName,
+		configFile:  configFile,
 		loading:     true,
 	}
 }
@@ -2231,20 +2233,6 @@ func (m Model) renderProfileBar() string {
 		splitAt = 44
 	}
 
-	// fullRow renders a single full-width row with indent=2 and labelW=9.
-	fullRow := func(k, v string, vs lipgloss.Style) string {
-		const labelW = 9
-		padded := fmt.Sprintf("  %-*s", labelW, k+":")
-		l := lbl.Render(padded)
-		val := vs.Render(v)
-		used := lipgloss.Width(l) + lipgloss.Width(val)
-		gap := m.width - used
-		if gap < 0 {
-			gap = 0
-		}
-		return l + val + bg.Width(gap).Render("")
-	}
-
 	// splitRow renders a row with indent=4, labelW=18, and an optional right
 	// column that starts at splitAt. rk=="" suppresses the right column.
 	splitRow := func(lk, lv string, lvs lipgloss.Style, rk, rv string, rvs lipgloss.Style) string {
@@ -2284,6 +2272,10 @@ func (m Model) renderProfileBar() string {
 	profName := m.profileName
 	if profName == "" {
 		profName = "default"
+	}
+	profValue := value.Render(profName)
+	if m.configFile != "" {
+		profValue += dim.Render("  ("+m.configFile+")")
 	}
 
 	tokenType, ttStyle := "…", dim
@@ -2338,8 +2330,21 @@ func (m Model) renderProfileBar() string {
 		tfeNumericKey = "TFE Numeric"
 	}
 
+	// Profile row is inlined: name in accent, config path in dim.
+	const profLabelW = 9
+	profRow := func() string {
+		padded := fmt.Sprintf("  %-*s", profLabelW, "Profile:")
+		l := lbl.Render(padded)
+		used := lipgloss.Width(l) + lipgloss.Width(profValue)
+		gap := m.width - used
+		if gap < 0 {
+			gap = 0
+		}
+		return l + profValue + bg.Width(gap).Render("")
+	}
+
 	return strings.Join([]string{
-		fullRow("Profile", profName, value),
+		profRow(),
 		splitRow("type", tokenType, ttStyle, "", "", dim),
 		splitRow("username", uname, uStyle, "API Version", apiVer, value),
 		splitRow("email", email, eStyle, tfeMonthlyKey, tfeMonthly, value),

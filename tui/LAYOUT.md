@@ -37,7 +37,7 @@ fixedLines = 10
 ## Profile Bar (5 rows)
 
 ```
-  Profile:            default
+  Profile:            default  (/Users/person/.tfx.hcl)
     type:             User Token / Team Token / …
     username:         tstraub                     API Version:  2.5
     email:            tstraub@hashi.com           TFE Monthly:  v202501-1  (TFE only, blank on HCP TF)
@@ -45,7 +45,7 @@ fixedLines = 10
 ```
 
 - Background: `colorHeaderBg`
-- Row 1 label `Profile:` padded to 9 chars, indent 2; value `colorAccent`
+- Row 1 label `Profile:` padded to 9 chars, indent 2; profile name in `colorAccent`; config file path appended in `colorDim` as `  (<path>)` (full absolute path); omitted when no config file is in use
 - Rows 2–5 labels padded to 18 chars, indent 4; values `colorAccent` when loaded, `colorDim` italic `…` while loading
 - Rows 3–5 right column: label `colorDim`, value `colorAccent`; right column hidden when value is empty (HCP TF)
 - Split point: `max(m.width/2, 44)` — left side occupies that many chars, right side fills the rest
@@ -207,7 +207,7 @@ The content box splits into left (main view) and right (inspector) panels.
 
 ```
  TFx   app.terraform.io   ⬥  HCP Terraform                        v0.2.2-local   ← full width
-  Profile:            default                                                      ← full width
+  Profile:            default  (/Users/person/.tfx.hcl)                                       ← full width
     type:             User Token
     username:         tstraub                     API Version:  2.5
     email:            tstraub@hashi.com

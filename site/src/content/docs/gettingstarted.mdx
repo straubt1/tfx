@@ -48,7 +48,19 @@ tfeOrganization = "my-awesome-org"
 tfeToken        = "<token from HCP Terraform or TFE>"
 ```
 
-You can also specify a config file explicitly with `--config /path/to/.tfx.hcl`.
+### Config file discovery
+
+TFx looks for `.tfx.hcl` automatically — no flag required:
+
+1. `./.tfx.hcl` — current working directory (checked first)
+2. `~/.tfx.hcl` — home directory (fallback)
+
+To use a specific file instead, set either:
+
+- `--config-file /path/to/.tfx.hcl` flag, or
+- `TFX_CONFIG_FILE=/path/to/.tfx.hcl` environment variable
+
+The flag takes precedence over the env var; both override auto-discovery.
 
 ## Output
 
