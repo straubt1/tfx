@@ -74,8 +74,9 @@ type Model struct {
 	hostname     string
 	org          string         // active org name (may change when user selects from org list)
 	profileName  string         // active profile name from ~/.tfx.hcl
-	accountUser  *tfe.User      // currently authenticated user; nil until loaded
-	accountToken *tfe.UserToken // most-recently-used user token; nil until loaded
+	accountUser      *tfe.User      // currently authenticated user; nil until loaded
+	accountToken     *tfe.UserToken // most-recently-used user token; nil until loaded
+	accountTokenType accountResourceType // Unknown until loadAccountType resolves
 
 	// View routing
 	currentView viewType
@@ -263,7 +264,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// ── Data loads ────────────────────────────────────────────────────────────
 	case accountLoadedMsg:
-		m.accountUser = (*tfe.User)(msg)
+		m.accountUser = msg.user
+		m.accountTokenType = msg.resType
 		if m.accountUser != nil {
 			return m, loadAccountToken(m.c, m.accountUser.ID)
 		}

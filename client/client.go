@@ -19,6 +19,7 @@ type TfxClient struct {
 	Token            string
 	OrganizationName string
 	EventBus         *APIEventBus // non-nil in TUI mode; publishes HTTP events to the inspector panel
+	HTTPClient       *http.Client // the underlying HTTP client; shares the LoggingTransport in TUI mode
 }
 
 // New creates a new TFE client with the provided configuration
@@ -48,8 +49,10 @@ func NewWithContextAndBus(ctx context.Context, hostname, token, organization str
 
 	// Install the logging transport when TFX_LOG/TFX_LOG_PATH is set OR when an
 	// event bus is provided (TUI mode).  A single transport handles both channels.
+	var httpClient *http.Client
 	if IsTFXLogEnabled() || bus != nil {
-		httpClient, _, err := NewHTTPClientWithLogging(bus)
+		var err error
+		httpClient, _, err = NewHTTPClientWithLogging(bus)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create HTTP client with logging: %w", err)
 		}
@@ -59,7 +62,8 @@ func NewWithContextAndBus(ctx context.Context, hostname, token, organization str
 			HTTPClient: httpClient,
 		}
 	} else {
-		// No logging and no event bus — use the default HTTP client.
+		// No logging and no event bus — use a plain HTTP client.
+		httpClient = newHTTPClientNoLogging()
 		config = &tfe.Config{
 			Address: fmt.Sprintf("https://%s", hostname),
 			Token:   token,
@@ -78,6 +82,7 @@ func NewWithContextAndBus(ctx context.Context, hostname, token, organization str
 		Token:            token,
 		OrganizationName: organization,
 		EventBus:         bus,
+		HTTPClient:       httpClient,
 	}, nil
 }
 
