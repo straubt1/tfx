@@ -477,7 +477,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "c":
 			cmd := m.currentCliCmd()
 			if err := copyToClipboard(cmd); err == nil {
-				m.clipFeedback = "✓ copied to clipboard"
+				m.clipFeedback = "✓ copied tfx command to clipboard"
 			} else {
 				m.clipFeedback = "clipboard unavailable"
 			}
@@ -986,6 +986,10 @@ func (m Model) handleOrgsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.errMsg = ""
 		m.projCursor, m.projOffset, m.projFilter = 0, 0, ""
 		return m, tea.Batch(loadProjects(m.c, sel.Name), tickSpinner())
+	case "u":
+		m = m.applyURL(m.hostnameURL(), "hostname", false)
+	case "U":
+		m = m.applyURL(m.hostnameURL(), "hostname", true)
 	}
 	return m, nil
 }
@@ -1003,21 +1007,9 @@ func (m Model) handleOrgDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "G":
 		m.orgDetScroll = 9999
 	case "u":
-		if url := m.orgURL(); url != "" {
-			if err := copyToClipboard(url); err == nil {
-				m.clipFeedback = "✓ org URL copied"
-			} else {
-				m.clipFeedback = "clipboard unavailable"
-			}
-		}
+		m = m.applyURL(m.orgURL(), "org", false)
 	case "U":
-		if url := m.orgURL(); url != "" {
-			if err := openBrowser(url); err == nil {
-				m.clipFeedback = "✓ opening in browser"
-			} else {
-				m.clipFeedback = "could not open browser"
-			}
-		}
+		m = m.applyURL(m.orgURL(), "org", true)
 	}
 	return m, nil
 }
@@ -1070,6 +1062,10 @@ func (m Model) handleProjectsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.errMsg = ""
 		m.wsCursor, m.wsOffset, m.wsFilter = 0, 0, ""
 		return m, tea.Batch(loadWorkspaces(m.c, m.org, sel.ID), tickSpinner())
+	case "u":
+		m = m.applyURL(m.orgProjectsURL(), "projects", false)
+	case "U":
+		m = m.applyURL(m.orgProjectsURL(), "projects", true)
 	}
 	return m, nil
 }
@@ -1087,21 +1083,9 @@ func (m Model) handleProjectDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) 
 	case "G":
 		m.projDetScroll = 9999
 	case "u":
-		if url := m.projURL(); url != "" {
-			if err := copyToClipboard(url); err == nil {
-				m.clipFeedback = "✓ project URL copied"
-			} else {
-				m.clipFeedback = "clipboard unavailable"
-			}
-		}
+		m = m.applyURL(m.projURL(), "project", false)
 	case "U":
-		if url := m.projURL(); url != "" {
-			if err := openBrowser(url); err == nil {
-				m.clipFeedback = "✓ opening in browser"
-			} else {
-				m.clipFeedback = "could not open browser"
-			}
-		}
+		m = m.applyURL(m.projURL(), "project", true)
 	}
 	return m, nil
 }
@@ -1119,21 +1103,9 @@ func (m Model) handleRunDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "G":
 		m.runDetScroll = 9999
 	case "u":
-		if url := m.runURL(); url != "" {
-			if err := copyToClipboard(url); err == nil {
-				m.clipFeedback = "✓ run URL copied"
-			} else {
-				m.clipFeedback = "clipboard unavailable"
-			}
-		}
+		m = m.applyURL(m.runURL(), "run", false)
 	case "U":
-		if url := m.runURL(); url != "" {
-			if err := openBrowser(url); err == nil {
-				m.clipFeedback = "✓ opening in browser"
-			} else {
-				m.clipFeedback = "could not open browser"
-			}
-		}
+		m = m.applyURL(m.runURL(), "run", true)
 	}
 	return m, nil
 }
@@ -1150,6 +1122,10 @@ func (m Model) handleVariableDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd)
 		m.varDetScroll = 0
 	case "G":
 		m.varDetScroll = 9999
+	case "u":
+		m = m.applyURL(m.wsVariablesListURL(), "variables", false)
+	case "U":
+		m = m.applyURL(m.wsVariablesListURL(), "variables", true)
 	}
 	return m, nil
 }
@@ -1176,6 +1152,10 @@ func (m Model) handleSVDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.currentView = viewStateVersionViewer
 			return m, tea.Batch(loadStateVersionJson(m.c, m.selectedSV.ID, false), tickSpinner())
 		}
+	case "u":
+		m = m.applyURL(m.svURL(), "state version", false)
+	case "U":
+		m = m.applyURL(m.svURL(), "state version", true)
 	}
 	return m, nil
 }
@@ -1388,6 +1368,10 @@ func (m Model) handleWorkspacesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.wsDetScroll = 0
 		m.wsDetPrevView = viewWorkspaces
 		m.currentView = viewWorkspaceDetail
+	case "u":
+		m = m.applyURL(m.projURL(), "workspace list", false)
+	case "U":
+		m = m.applyURL(m.projURL(), "workspace list", true)
 	}
 	return m, nil
 }
@@ -1508,22 +1492,10 @@ func (m Model) handleRunsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		// Trigger a background re-fetch to populate Plan/Apply/VCS fields.
 		return m, loadRunDetail(m.c, sel.ID)
 	case "u":
-		if url := m.wsURL(); url != "" {
-			if err := copyToClipboard(url); err == nil {
-				m.clipFeedback = "✓ workspace URL copied"
-			} else {
-				m.clipFeedback = "clipboard unavailable"
-			}
-		}
+		m = m.applyURL(m.wsRunsListURL(), "runs", false)
 		return m, nil
 	case "U":
-		if url := m.wsURL(); url != "" {
-			if err := openBrowser(url); err == nil {
-				m.clipFeedback = "✓ opening in browser"
-			} else {
-				m.clipFeedback = "could not open browser"
-			}
-		}
+		m = m.applyURL(m.wsRunsListURL(), "runs", true)
 		return m, nil
 	}
 	return m, nil
@@ -1572,22 +1544,10 @@ func (m Model) handleVariablesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "right":
 		return m.switchWsTab(viewConfigVersions)
 	case "u":
-		if url := m.wsURL(); url != "" {
-			if err := copyToClipboard(url); err == nil {
-				m.clipFeedback = "✓ workspace URL copied"
-			} else {
-				m.clipFeedback = "clipboard unavailable"
-			}
-		}
+		m = m.applyURL(m.wsVariablesListURL(), "variables", false)
 		return m, nil
 	case "U":
-		if url := m.wsURL(); url != "" {
-			if err := openBrowser(url); err == nil {
-				m.clipFeedback = "✓ opening in browser"
-			} else {
-				m.clipFeedback = "could not open browser"
-			}
-		}
+		m = m.applyURL(m.wsVariablesListURL(), "variables", true)
 		return m, nil
 	}
 	return m, nil
@@ -1654,24 +1614,6 @@ func (m Model) handleConfigVersionsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd)
 		m.selectedCV = filtered[m.cvCursor]
 		m.cvDetScroll = 0
 		m.currentView = viewConfigVersionDetail
-	case "u":
-		if url := m.wsURL(); url != "" {
-			if err := copyToClipboard(url); err == nil {
-				m.clipFeedback = "✓ workspace URL copied"
-			} else {
-				m.clipFeedback = "clipboard unavailable"
-			}
-		}
-		return m, nil
-	case "U":
-		if url := m.wsURL(); url != "" {
-			if err := openBrowser(url); err == nil {
-				m.clipFeedback = "✓ opening in browser"
-			} else {
-				m.clipFeedback = "could not open browser"
-			}
-		}
-		return m, nil
 	}
 	return m, nil
 }
@@ -1731,22 +1673,10 @@ func (m Model) handleStateVersionsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) 
 		m.svDetScroll = 0
 		m.currentView = viewStateVersionDetail
 	case "u":
-		if url := m.wsURL(); url != "" {
-			if err := copyToClipboard(url); err == nil {
-				m.clipFeedback = "✓ workspace URL copied"
-			} else {
-				m.clipFeedback = "clipboard unavailable"
-			}
-		}
+		m = m.applyURL(m.wsSVsListURL(), "state versions", false)
 		return m, nil
 	case "U":
-		if url := m.wsURL(); url != "" {
-			if err := openBrowser(url); err == nil {
-				m.clipFeedback = "✓ opening in browser"
-			} else {
-				m.clipFeedback = "could not open browser"
-			}
-		}
+		m = m.applyURL(m.wsSVsListURL(), "state versions", true)
 		return m, nil
 	}
 	return m, nil
@@ -1917,6 +1847,11 @@ func (m Model) currentCliCmd() string {
 			return fmt.Sprintf("tfx workspace state-version list -n %s", m.selectedWS.Name)
 		}
 		return "tfx workspace state-version list"
+	case viewWorkspaceSettings:
+		if m.selectedWS != nil {
+			return fmt.Sprintf("tfx workspace show -n %s", m.selectedWS.Name)
+		}
+		return "tfx workspace show"
 	case viewWorkspaceDetail:
 		if m.selectedWS != nil {
 			return fmt.Sprintf("tfx workspace show -n %s", m.selectedWS.Name)
@@ -2000,12 +1935,77 @@ func openBrowser(url string) error {
 	return cmd.Start() // Start (not Run) so we don't wait for the browser to exit.
 }
 
+// applyURL copies url to the clipboard (u) or opens it in the browser (U).
+// Returns the updated model with clipFeedback set. label is shown in the
+// "✓ <label> URL copied" message.
+func (m Model) applyURL(url, label string, openInBrowser bool) Model {
+	if url == "" {
+		return m
+	}
+	if openInBrowser {
+		if err := openBrowser(url); err == nil {
+			m.clipFeedback = "✓ opening in browser"
+		} else {
+			m.clipFeedback = "could not open browser"
+		}
+	} else {
+		if err := copyToClipboard(url); err == nil {
+			m.clipFeedback = "✓ " + label + " URL copied"
+		} else {
+			m.clipFeedback = "clipboard unavailable"
+		}
+	}
+	return m
+}
+
+// hostnameURL returns the base URL for the TFE/HCP Terraform instance.
+func (m Model) hostnameURL() string {
+	return fmt.Sprintf("https://%s", m.hostname)
+}
+
+// orgProjectsURL returns the URL for the projects list of the current org.
+func (m Model) orgProjectsURL() string {
+	return fmt.Sprintf("https://%s/app/%s/projects", m.hostname, m.org)
+}
+
 // wsURL returns the HCP Terraform / TFE web URL for the currently selected workspace.
 func (m Model) wsURL() string {
 	if m.selectedWS == nil {
 		return ""
 	}
 	return fmt.Sprintf("https://%s/app/%s/workspaces/%s", m.hostname, m.org, m.selectedWS.Name)
+}
+
+// wsRunsListURL returns the URL for the runs list of the current workspace.
+func (m Model) wsRunsListURL() string {
+	if m.selectedWS == nil {
+		return ""
+	}
+	return fmt.Sprintf("https://%s/app/%s/workspaces/%s/runs", m.hostname, m.org, m.selectedWS.Name)
+}
+
+// wsVariablesListURL returns the URL for the variables list of the current workspace.
+func (m Model) wsVariablesListURL() string {
+	if m.selectedWS == nil {
+		return ""
+	}
+	return fmt.Sprintf("https://%s/app/%s/workspaces/%s/variables", m.hostname, m.org, m.selectedWS.Name)
+}
+
+// wsSVsListURL returns the URL for the state versions list of the current workspace.
+func (m Model) wsSVsListURL() string {
+	if m.selectedWS == nil {
+		return ""
+	}
+	return fmt.Sprintf("https://%s/app/%s/workspaces/%s/states", m.hostname, m.org, m.selectedWS.Name)
+}
+
+// svURL returns the URL for the currently selected state version.
+func (m Model) svURL() string {
+	if m.selectedSV == nil || m.selectedWS == nil {
+		return ""
+	}
+	return fmt.Sprintf("https://%s/app/%s/workspaces/%s/states/%s", m.hostname, m.org, m.selectedWS.Name, m.selectedSV.ID)
 }
 
 // orgURL returns the HCP Terraform / TFE web URL for the currently selected org's settings.
@@ -2859,23 +2859,23 @@ func (m Model) renderCliHint() string {
 	case m.debugFocused && m.showDebug:
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ navigate   •   enter detail   /  filter   •   tab unfocus")
 	case m.currentView == viewOrganizations:
-		hints = cliHintBarStyle.Render("   •   enter projects   d detail   •   c copy   •   ? help   •   q quit")
+		hints = cliHintBarStyle.Render("   •   enter projects   d detail   •   u url   U browser   •   c copy tfx cmd   •   ? help   •   q quit")
 	case m.currentView == viewProjects:
-		hints = cliHintBarStyle.Render("   •   enter workspaces   d detail   •   c copy   •   ? help   •   q quit")
+		hints = cliHintBarStyle.Render("   •   enter workspaces   d detail   •   u url   U browser   •   c copy tfx cmd   •   ? help   •   q quit")
 	case m.currentView == viewWorkspaces:
-		hints = cliHintBarStyle.Render("   •   enter runs   v vars   f cvs   s svs   d detail   •   c copy   •   ? help   •   q quit")
+		hints = cliHintBarStyle.Render("   •   enter ws   v vars   f cvs   s svs   d detail   •   u url   U browser   •   c copy tfx cmd   •   ? help   •   q quit")
 	case m.currentView == viewOrgDetail, m.currentView == viewProjectDetail, m.currentView == viewWorkspaceDetail:
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   u url   U browser   •   ? help   •   q quit")
 	case m.currentView == viewRunDetail:
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   u url   U browser   •   ? help   •   q quit")
 	case m.currentView == viewVariableDetail:
-		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   ? help   •   q quit")
+		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   u url   U browser   •   ? help   •   q quit")
 	case m.currentView == viewConfigVersions:
-		hints = cliHintBarStyle.Render("   •   enter viewer   d detail   •   ← → switch tabs   •   u url   U browser   •   c copy   •   ? help   •   q quit")
+		hints = cliHintBarStyle.Render("   •   enter viewer   d detail   •   ← → switch tabs   •   c copy tfx cmd   •   ? help   •   q quit")
 	case m.currentView == viewStateVersions:
-		hints = cliHintBarStyle.Render("   •   enter viewer   d detail   •   ← → switch tabs   •   u url   U browser   •   c copy   •   ? help   •   q quit")
+		hints = cliHintBarStyle.Render("   •   enter viewer   d detail   •   ← → switch tabs   •   u url   U browser   •   c copy tfx cmd   •   ? help   •   q quit")
 	case m.currentView == viewStateVersionDetail:
-		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   o state viewer   •   ? help   •   q quit")
+		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   o state viewer   •   u url   U browser   •   ? help   •   q quit")
 	case m.currentView == viewStateVersionViewer:
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   shift+↑↓ half page   •   r re-fetch   •   ? help   •   q quit")
 	case m.currentView == viewConfigVersionDetail:
@@ -2885,9 +2885,9 @@ func (m Model) renderCliHint() string {
 	case m.currentView == viewConfigVersionFileContent:
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   shift+↑↓ half page   •   ? help   •   q quit")
 	case m.isWorkspaceSubView():
-		hints = cliHintBarStyle.Render("   •   enter detail   •   ← → switch tabs   •   u url   U browser   •   c copy   •   ? help   •   q quit")
+		hints = cliHintBarStyle.Render("   •   enter detail   •   ← → switch tabs   •   u url   U browser   •   c copy tfx cmd   •   ? help   •   q quit")
 	default:
-		hints = cliHintBarStyle.Render("   •   c copy   •   ? help   •   q quit")
+		hints = cliHintBarStyle.Render("   •   c copy tfx cmd   •   ? help   •   q quit")
 	}
 	return m.pad(label+cmd+hints, cliHintBarStyle)
 }
