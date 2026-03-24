@@ -213,9 +213,12 @@ type Model struct {
 	// CV archived modal state (shown when enter is pressed on an archived CV)
 	showCVArchivedModal bool
 	cvArchivedCV        *tfe.ConfigurationVersion // the archived CV being shown
+
+	// Tape recorder — non-nil when --tape flag is set
+	recorder *TapeRecorder
 }
 
-func newModel(c *client.TfxClient, profileName, configFile string) Model {
+func newModel(c *client.TfxClient, profileName, configFile string, rec *TapeRecorder) Model {
 	return Model{
 		c:           c,
 		hostname:    c.Hostname,
@@ -223,6 +226,7 @@ func newModel(c *client.TfxClient, profileName, configFile string) Model {
 		profileName: profileName,
 		configFile:  configFile,
 		loading:     true,
+		recorder:    rec,
 	}
 }
 
@@ -252,6 +256,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.ready = true
+		if m.recorder != nil {
+			m.recorder.WriteHeader()
+		}
 
 	// ── Spinner ───────────────────────────────────────────────────────────────
 	case spinnerTickMsg:
@@ -403,6 +410,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// ── Key input ─────────────────────────────────────────────────────────────
 	case tea.KeyPressMsg:
+		// Record keypress to tape file if recording is active.
+		if m.recorder != nil {
+			m.recorder.Record(msg)
+		}
+
 		// Clear transient clipboard feedback on next key.
 		m.clipFeedback = ""
 

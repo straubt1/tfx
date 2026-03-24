@@ -13,10 +13,13 @@ var tuiCmd = &cobra.Command{
 	Short: "Launch the interactive TUI",
 	Long:  "Launch an interactive terminal UI for browsing TFE/HCP Terraform resources.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return tui.Run()
+		tapePath, _ := cmd.Flags().GetString("tape")
+		return tui.Run(tapePath)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(tuiCmd)
+	tuiCmd.Flags().String("tape", "", "Record TUI input to a .tape file for VHS (e.g. debug/demo.tape)")
+	tuiCmd.Flags().MarkHidden("tape")
 }
