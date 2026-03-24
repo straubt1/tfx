@@ -27,6 +27,9 @@ func buildRunDetailSections(run *tfe.Run) []wsDetailSection {
 	if run.TriggerReason != "" {
 		general.rows = append(general.rows, wsDetailRow{"Trigger Reason", run.TriggerReason})
 	}
+	if run.ConfigurationVersion != nil && run.ConfigurationVersion.ID != "" {
+		general.rows = append(general.rows, wsDetailRow{"Config Version", run.ConfigurationVersion.ID})
+	}
 	if run.TerraformVersion != "" {
 		general.rows = append(general.rows, wsDetailRow{"Terraform Version", run.TerraformVersion})
 	}

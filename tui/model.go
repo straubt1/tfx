@@ -294,6 +294,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case wsLatestChangeMsg:
 		m.wsLatestChange = (*time.Time)(msg)
+		m.loading = false
 
 	case orgsLoadedMsg:
 		m.orgs = []*tfe.Organization(msg)
@@ -703,6 +704,11 @@ func (m Model) refresh() (tea.Model, tea.Cmd) {
 			projectID = m.selectedProj.ID
 		}
 		cmd = loadWorkspaces(m.c, m.org, projectID)
+	case viewWorkspaceSettings:
+		m.wsLatestChange = nil
+		if m.selectedWS != nil {
+			cmd = loadWorkspaceLatestChange(m.c, m.selectedWS.ID)
+		}
 	case viewRuns:
 		m.runs = nil
 		m.runCursor, m.runOffset = 0, 0
