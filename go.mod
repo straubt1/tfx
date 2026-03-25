@@ -16,7 +16,7 @@ require (
 	github.com/go-viper/encoding/hcl v0.1.0
 	github.com/google/go-containerregistry v0.21.2
 	github.com/hashicorp/go-slug v1.0.0
-	github.com/hashicorp/go-tfe v1.101.0
+	github.com/hashicorp/go-tfe v1.102.0
 	github.com/jedib0t/go-pretty/v6 v6.7.8
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/mitchellh/go-homedir v1.1.0
