@@ -82,7 +82,7 @@ func init() {
 	rootCmd.PersistentFlags().String("tfeHostname", "app.terraform.io", "The hostname of TFE without the schema. Can also be set with the environment variable TFE_HOSTNAME.")
 	rootCmd.PersistentFlags().String("tfeOrganization", "", "The name of the TFx Organization. Can also be set with the environment variable TFE_ORGANIZATION.")
 	rootCmd.PersistentFlags().String("tfeToken", "", "The API token used to authenticate to TFx. Can also be set with the environment variable TFE_TOKEN.")
-	rootCmd.PersistentFlags().String("profile", "", "Named profile to use from ~/.tfx.hcl.")
+	rootCmd.PersistentFlags().StringP("profile", "p", "", "Named profile to use from ~/.tfx.hcl.")
 
 	// Add json output option
 	rootCmd.PersistentFlags().BoolP("json", "j", false, "Will output command results as JSON.")

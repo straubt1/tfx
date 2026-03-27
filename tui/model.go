@@ -2183,11 +2183,7 @@ func (m Model) renderHeader() string {
 	remoteInfo := ""
 	if m.c != nil {
 		if appName := m.c.Client.AppName(); appName != "" {
-			s := appName
-			if tfeVer := m.c.Client.RemoteTFEVersion(); tfeVer != "" {
-				s += "  " + tfeVer
-			}
-			remoteInfo = headerRemoteStyle.Render(" ⬥  " + s + " ")
+			remoteInfo = headerRemoteStyle.Render(" ⬥  " + appName + " ")
 		}
 	}
 
@@ -2233,8 +2229,8 @@ func expiresLabel(t time.Time) string {
 //	Profile:            <name>
 //	  type:             <token type>
 //	  username:         <username>         API Version: <ver>
-//	  email:            <email>            TFE Monthly: <ver>  (TFE only)
-//	  token expiration: <expiry>           TFE Numeric: <ver>  (TFE only)
+//	  email:            <email>            TFE Version: <ver>  (TFE only)
+//	  token expiration: <expiry>
 //
 // All five rows are always emitted (with "…" placeholders while loading) so
 // fixedLines stays constant and the layout does not shift after data arrives.
@@ -2330,22 +2326,17 @@ func (m Model) renderProfileBar() string {
 
 	// ── Right-column values ────────────────────────────────────────────────
 
-	apiVer, tfeMonthly, tfeNumeric := "", "", ""
+	apiVer, tfeVersion := "", ""
 	if m.c != nil {
 		cl := m.c.Client
 		apiVer = cl.RemoteAPIVersion()
-		tfeMonthly = cl.RemoteTFEVersion()
-		tfeNumeric = cl.RemoteTFENumericVersion()
+		tfeVersion = cl.RemoteTFENumericVersion()
 	}
 
-	// Only show TFE-specific right-column labels when the value is present
-	// (empty on HCP Terraform).
-	tfeMonthlyKey, tfeNumericKey := "", ""
-	if tfeMonthly != "" {
-		tfeMonthlyKey = "TFE Monthly"
-	}
-	if tfeNumeric != "" {
-		tfeNumericKey = "TFE Numeric"
+	// Only show the TFE version label when running against TFE (empty on HCP Terraform).
+	tfeVersionKey := ""
+	if tfeVersion != "" {
+		tfeVersionKey = "TFE Version"
 	}
 
 	// Profile row is inlined: name in accent, config path in dim.
@@ -2365,8 +2356,8 @@ func (m Model) renderProfileBar() string {
 		profRow(),
 		splitRow("type", tokenType, ttStyle, "", "", dim),
 		splitRow("username", uname, uStyle, "API Version", apiVer, value),
-		splitRow("email", email, eStyle, tfeMonthlyKey, tfeMonthly, value),
-		splitRow("token expiration", expires, xStyle, tfeNumericKey, tfeNumeric, value),
+		splitRow("email", email, eStyle, tfeVersionKey, tfeVersion, value),
+		splitRow("token expiration", expires, xStyle, "", "", dim),
 	}, "\n")
 }
 
