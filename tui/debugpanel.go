@@ -676,3 +676,34 @@ func colorizeJSONLineForPanel(line string, bg color.Color) string {
 	return out.String()
 }
 
+// buildCurlCommand constructs a curl command string from an APIEvent.
+// The Authorization header is replaced with $TFE_TOKEN; User-Agent is omitted.
+func buildCurlCommand(e client.APIEvent) string {
+	var sb strings.Builder
+	sb.WriteString("curl -s")
+	if e.Method != "" && e.Method != "GET" {
+		sb.WriteString(fmt.Sprintf(" -X %s", e.Method))
+	}
+	// Auth header always uses the env var.
+	sb.WriteString(` \` + "\n  -H \"Authorization: Bearer $TFE_TOKEN\"")
+	// Include relevant request headers (skip Authorization and User-Agent).
+	for _, h := range e.ReqHeaders {
+		colon := strings.Index(h, ": ")
+		if colon < 0 {
+			continue
+		}
+		name := h[:colon]
+		switch strings.ToLower(name) {
+		case "authorization", "user-agent":
+			continue
+		}
+		sb.WriteString(fmt.Sprintf(` \`+"\n  -H %q", h))
+	}
+	// Request body.
+	if e.ReqBody != "" {
+		sb.WriteString(fmt.Sprintf(` \`+"\n  -d %q", e.ReqBody))
+	}
+	sb.WriteString(fmt.Sprintf(` \`+"\n  %q", e.URL))
+	return sb.String()
+}
+

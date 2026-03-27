@@ -431,6 +431,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Only ctrl+c is truly unconditional; all other "global" shortcuts are
 		// suppressed while filter input is active so typed characters don't
 		// accidentally trigger navigation or quit.
+		// shift+c in the inspector detail view copies a curl command.
+		if msg.String() == "C" && m.debugFocused && m.debugDetailMode {
+			events := m.filteredDebugEvents()
+			if m.debugCursor < len(events) {
+				curl := buildCurlCommand(events[m.debugCursor])
+				if err := copyToClipboard(curl); err == nil {
+					m.clipFeedback = "✓ curl command copied to clipboard"
+				} else {
+					m.clipFeedback = "clipboard unavailable"
+				}
+			}
+			return m, nil
+		}
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
@@ -2864,7 +2877,7 @@ func (m Model) renderCliHint() string {
 	var hints string
 	switch {
 	case m.debugFocused && m.showDebug && m.debugDetailMode:
-		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   shift+↑↓ page   •   c copy response   •   esc back to list   •   tab unfocus")
+		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   shift+↑↓ page   •   c copy response   •   C copy curl   •   esc back to list   •   tab unfocus")
 	case m.debugFocused && m.showDebug:
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ navigate   •   enter detail   /  filter   •   tab unfocus")
 	case m.currentView == viewOrganizations:
