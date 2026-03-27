@@ -610,7 +610,7 @@ func colorizeJSONLineForPanel(line string, bg color.Color) string {
 		var out strings.Builder
 		ws := s[:len(s)-len(strings.TrimLeft(s, " \t"))]
 		if ws != "" {
-			out.WriteString(ws)
+			out.WriteString(base.Render(ws))
 		}
 		s = strings.TrimLeft(s, " \t")
 		if s == "" {
