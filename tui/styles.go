@@ -126,6 +126,12 @@ var (
 			Background(colorHeaderBg).
 			Foreground(colorDim)
 
+	helpSectionStyle = lipgloss.NewStyle().
+				Background(colorHeaderBg).
+				Foreground(colorDim).
+				Bold(true).
+				Underline(true)
+
 	// Status bar variants
 	statusLoadingStyle = lipgloss.NewStyle().
 				Background(colorHeaderBg).

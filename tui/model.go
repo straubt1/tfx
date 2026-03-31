@@ -2916,71 +2916,226 @@ func (m Model) renderCliHint() string {
 
 // ── Help overlay ──────────────────────────────────────────────────────────────
 
+type helpBinding struct {
+	key  string
+	desc string
+}
+
+type helpSection struct {
+	title    string
+	bindings []helpBinding
+}
+
+// helpSections returns context-aware shortcut sections based on the current view.
+func (m Model) helpSections() []helpSection {
+	// Navigation — always shown.
+	nav := helpSection{
+		title: "Navigation",
+		bindings: []helpBinding{
+			{"↑ / k", "move up"},
+			{"↓ / j", "move down"},
+			{"enter", "select / drill in"},
+			{"esc", "go back / clear filter"},
+			{"g / shift+g", "jump to top / bottom"},
+		},
+	}
+
+	// View-specific section.
+	var view helpSection
+	switch {
+	case m.debugFocused && m.showDebug && m.debugDetailMode:
+		view = helpSection{
+			title: "API Inspector Detail",
+			bindings: []helpBinding{
+				{"↑ / ↓", "scroll one line"},
+				{"⇧↑ / ⇧↓", "scroll full page"},
+				{"^u / ^d", "scroll half-page"},
+				{"c", "copy response body"},
+				{"shift+c", "copy curl command"},
+				{"esc", "back to call list"},
+				{"tab", "switch to left panel"},
+			},
+		}
+	case m.debugFocused && m.showDebug:
+		view = helpSection{
+			title: "API Inspector",
+			bindings: []helpBinding{
+				{"↑ / ↓", "navigate call list"},
+				{"enter", "open request detail"},
+				{"/", "filter calls"},
+				{"esc", "clear filter / back"},
+				{"tab", "switch to left panel"},
+			},
+		}
+	case m.currentView == viewOrganizations:
+		view = helpSection{
+			title: "Organizations",
+			bindings: []helpBinding{
+				{"enter", "view projects"},
+				{"d", "view org detail"},
+				{"u", "copy URL"},
+				{"shift+u", "open in browser"},
+			},
+		}
+	case m.currentView == viewProjects:
+		view = helpSection{
+			title: "Projects",
+			bindings: []helpBinding{
+				{"enter", "view workspaces"},
+				{"d", "view project detail"},
+				{"u", "copy URL"},
+				{"shift+u", "open in browser"},
+			},
+		}
+	case m.currentView == viewWorkspaces:
+		view = helpSection{
+			title: "Workspaces",
+			bindings: []helpBinding{
+				{"enter", "view runs tab"},
+				{"v", "view variables tab"},
+				{"f", "view config versions tab"},
+				{"s", "view state versions tab"},
+				{"d", "view workspace detail"},
+				{"u", "copy URL"},
+				{"shift+u", "open in browser"},
+			},
+		}
+	case m.currentView == viewConfigVersions:
+		view = helpSection{
+			title: "Config Versions",
+			bindings: []helpBinding{
+				{"enter", "open viewer"},
+				{"d", "view detail"},
+				{"← →", "switch tabs"},
+			},
+		}
+	case m.currentView == viewStateVersions:
+		view = helpSection{
+			title: "State Versions",
+			bindings: []helpBinding{
+				{"enter", "open viewer"},
+				{"d", "view detail"},
+				{"← →", "switch tabs"},
+				{"u", "copy URL"},
+				{"shift+u", "open in browser"},
+			},
+		}
+	case m.isWorkspaceSubView():
+		view = helpSection{
+			title: "Workspace Tabs",
+			bindings: []helpBinding{
+				{"enter", "view detail"},
+				{"← →", "switch tabs"},
+				{"u", "copy URL"},
+				{"shift+u", "open in browser"},
+			},
+		}
+	case m.currentView == viewStateVersionDetail:
+		view = helpSection{
+			title: "State Version Detail",
+			bindings: []helpBinding{
+				{"↑ ↓", "scroll"},
+				{"o", "open state viewer"},
+				{"u", "copy URL"},
+				{"shift+u", "open in browser"},
+			},
+		}
+	case m.currentView == viewConfigVersionDetail:
+		view = helpSection{
+			title: "Config Version Detail",
+			bindings: []helpBinding{
+				{"↑ ↓", "scroll"},
+				{"o", "open config viewer"},
+			},
+		}
+	case m.currentView == viewStateVersionViewer:
+		view = helpSection{
+			title: "State Viewer",
+			bindings: []helpBinding{
+				{"↑ ↓", "scroll one line"},
+				{"⇧↑ / ⇧↓", "scroll half page"},
+				{"r", "re-fetch state JSON"},
+			},
+		}
+	case m.currentView == viewConfigVersionViewer:
+		view = helpSection{
+			title: "Config Viewer",
+			bindings: []helpBinding{
+				{"↑ ↓", "navigate file tree"},
+				{"enter", "open file"},
+				{"p", "copy cache path"},
+				{"r", "re-fetch files"},
+			},
+		}
+	case m.currentView == viewConfigVersionFileContent:
+		view = helpSection{
+			title: "File Viewer",
+			bindings: []helpBinding{
+				{"↑ ↓", "scroll one line"},
+				{"⇧↑ / ⇧↓", "scroll half page"},
+			},
+		}
+	default:
+		// Generic detail views (org, project, workspace, run, variable detail).
+		view = helpSection{
+			title: "Detail View",
+			bindings: []helpBinding{
+				{"↑ ↓", "scroll"},
+				{"u", "copy URL"},
+				{"shift+u", "open in browser"},
+			},
+		}
+	}
+
+	// Tools — always shown.
+	tools := helpSection{
+		title: "Tools",
+		bindings: []helpBinding{
+			{"/", "filter"},
+			{"r", "refresh"},
+			{"c", "copy CLI command"},
+			{"i", "toggle instance info"},
+			{"l", "toggle API inspector"},
+			{"?", "toggle help"},
+			{"q", "quit"},
+		},
+	}
+
+	sections := []helpSection{nav, view, tools}
+
+	// API inspector section — shown when the panel is open but not focused.
+	if m.showDebug && !m.debugFocused {
+		sections = append(sections, helpSection{
+			title: "API Inspector",
+			bindings: []helpBinding{
+				{"tab", "switch to inspector panel"},
+			},
+		})
+	}
+
+	return sections
+}
+
 func (m Model) renderHelpOverlay() string {
-	type binding struct {
-		key  string
-		desc string
-	}
-	bindings := []binding{
-		// Global
-		{"↑ / k", "move up"},
-		{"↓ / j", "move down"},
-		{"enter", "select / drill in"},
-		{"esc", "go back / clear filter"},
-		{"r", "refresh"},
-		{"/", "filter"},
-		{"g / G", "jump to top / bottom"},
-		{"c", "copy CLI command"},
-		{"i", "toggle instance info / health"},
-		{"l", "toggle API inspector"},
-		{"?", "toggle help"},
-		{"q", "quit"},
-		// List views
-		{"", ""},
-		{"[org] d", "view org detail"},
-		{"[project] d", "view project detail"},
-		{"[ws] enter", "view runs tab"},
-		{"[ws] v", "view variables tab"},
-		{"[ws] f", "view config versions tab"},
-		{"[ws] s", "view state versions tab"},
-		{"[ws] d", "view workspace detail"},
-		{"[ws tab] ← →", "switch tabs"},
-		{"[sv/cv tab] enter", "open viewer"},
-		{"[sv/cv tab] d", "view item detail"},
-		{"[sv/cv detail] o", "open viewer"},
-		{"[ws tab] enter", "view item detail"},
-		{"[cv viewer] p", "copy cache path to clipboard"},
-		{"[ws tab] u", "copy workspace URL"},
-		{"[ws tab] U", "open workspace in browser"},
-		// Detail views
-		{"", ""},
-		{"[detail] ↑ ↓", "scroll"},
-		{"[detail] u", "copy URL (run, ws, org, proj)"},
-		{"[detail] U", "open in browser"},
-		// API inspector panel (right side, toggle with l)
-		{"", ""},
-		{"tab", "switch left ↔ right panel"},
-		{"[insp] ↑ / ↓", "navigate call list"},
-		{"[insp] enter", "open request detail"},
-		{"[insp] /", "filter calls"},
-		{"[insp] esc", "clear filter / back"},
-		{"[detail] ↑ / ↓", "scroll one line"},
-		{"[detail] ⇧↑ / ⇧↓", "scroll full page"},
-		{"[detail] ^u / ^d", "scroll half-page"},
-		{"[detail] esc", "back to call list"},
-		{"[detail] c", "copy response body to clipboard"},
-	}
+	sections := m.helpSections()
 
 	lines := make([]string, 0, m.height)
 	lines = append(lines, m.renderHeader())
 	lines = append(lines, m.pad(helpTitleStyle.Render("  Keyboard Shortcuts"), helpTitleStyle))
 	lines = append(lines, helpBarStyle.Width(m.width).Render(""))
 
-	for _, b := range bindings {
-		key := helpKeyStyle.Width(14).Render(b.key)
-		desc := helpDescStyle.Render("  " + b.desc)
-		line := helpBarStyle.Render("  ") + key + desc
-		lines = append(lines, m.pad(line, helpBarStyle))
+	for si, sec := range sections {
+		if si > 0 {
+			lines = append(lines, helpBarStyle.Width(m.width).Render(""))
+		}
+		title := helpBarStyle.Render("  ") + helpSectionStyle.Render(sec.title)
+		lines = append(lines, m.pad(title, helpBarStyle))
+		for _, b := range sec.bindings {
+			key := helpKeyStyle.Width(14).Render(b.key)
+			desc := helpDescStyle.Render("  " + b.desc)
+			line := helpBarStyle.Render("  ") + key + desc
+			lines = append(lines, m.pad(line, helpBarStyle))
+		}
 	}
 
 	lines = append(lines, helpBarStyle.Width(m.width).Render(""))
