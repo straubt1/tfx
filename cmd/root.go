@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/straubt1/tfx/output"
 	"github.com/straubt1/tfx/pkg/hclconfig"
+	"github.com/straubt1/tfx/tui"
 	"github.com/straubt1/tfx/version"
 
 	homedir "github.com/mitchellh/go-homedir"
@@ -44,6 +45,10 @@ var rootCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	Version:       version.String(),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		tapePath, _ := cmd.Flags().GetString("tape")
+		return tui.Run(tapePath)
+	},
 	// PersistentPreRunE binds flags to viper, resolves the active profile, then
 	// validates that credentials are present for all commands except 'login'.
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -55,7 +60,7 @@ var rootCmd = &cobra.Command{
 		if viper.GetString("tfeToken") == "" {
 			return fmt.Errorf("no API token found — run 'tfx login' to authenticate")
 		}
-		if cmd.Name() != "tui" && viper.GetString("tfeOrganization") == "" {
+		if cmd.Name() != "tfx" && viper.GetString("tfeOrganization") == "" {
 			return fmt.Errorf("organization is required (--tfeOrganization, TFE_ORGANIZATION, or run 'tfx login')")
 		}
 		return nil
@@ -92,6 +97,10 @@ func init() {
 	viper.BindEnv("tfeOrganization", "TFE_ORGANIZATION")
 	viper.BindEnv("tfeToken", "TFE_TOKEN")
 	viper.BindEnv("profile", "TFX_PROFILE")
+
+	// Hidden flag for VHS tape recording
+	rootCmd.Flags().String("tape", "", "Record TUI input to a .tape file for VHS (e.g. debug/demo.tape)")
+	rootCmd.Flags().MarkHidden("tape")
 
 	// Turn off completion option
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
