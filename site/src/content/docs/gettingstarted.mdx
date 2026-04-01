@@ -1,6 +1,6 @@
 ---
 title: Getting Started
-description: Install and configure TFx to manage HCP Terraform and Terraform Enterprise from the CLI.
+description: Install TFx and authenticate to HCP Terraform or Terraform Enterprise.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
@@ -30,30 +30,104 @@ Download the latest binary from the [Releases page](https://github.com/straubt1/
   </TabItem>
 </Tabs>
 
-## Configuration
+## Authentication
 
-Each command accepts flags, but the three required flags can be placed in a config file so you don't have to pass them every time.
+The fastest way to authenticate is with `tfx login`. It walks you through creating a profile, validating your API token, and selecting an organization.
 
-| Flag | Environment Variable | Default |
+```sh
+# HCP Terraform (default: app.terraform.io)
+tfx login
+
+# Terraform Enterprise
+tfx login tfe.mycompany.com
+```
+
+The login flow will:
+
+1. Ask for a **profile name** (defaults to `default`)
+2. Let you **open a browser** to create a token or enter one directly
+3. **Validate** the token against the API
+4. Let you **select a default organization**
+5. **Save** the profile to `~/.tfx.hcl`
+
+Once login completes, run `tfx` to launch the TUI or use CLI commands directly.
+
+## TUI vs CLI
+
+TFx provides two ways to interact with your infrastructure:
+
+| | Interactive TUI | CLI Commands |
 |---|---|---|
-| `--tfeHostname` | `TFE_HOSTNAME` | `app.terraform.io` |
-| `--tfeOrganization` | `TFE_ORGANIZATION` | _(required)_ |
-| `--tfeToken` | `TFE_TOKEN` | _(required)_ |
+| **Launch** | `tfx` | `tfx <command>` (e.g., `tfx ws list`) |
+| **Best for** | Exploring, browsing, investigating | Scripting, automation, CI/CD |
+| **Output** | Terminal UI with keyboard navigation | Tables or JSON (`--json`) |
+| **Authentication** | Same config file and profiles | Same config file and profiles |
 
-Create `.tfx.hcl` in your home directory (`~/.tfx.hcl`) or the directory where you run `tfx`:
+Both modes share the same configuration, API client, and authentication. Use whichever fits your workflow — or both.
+
+## Config file
+
+`tfx login` writes profiles to `~/.tfx.hcl`. You can also create or edit this file manually.
+
+### Profile format
+
+Each profile is a named block containing your connection details:
 
 ```hcl
-tfeHostname     = "tfe.rocks"
-tfeOrganization = "my-awesome-org"
-tfeToken        = "<token from HCP Terraform or TFE>"
+profile "default" {
+  hostname            = "app.terraform.io"
+  defaultOrganization = "my-org"
+  token               = "my-token"
+}
 ```
+
+You can define multiple profiles for different environments:
+
+```hcl
+profile "staging" {
+  hostname            = "tfe.staging.myco.internal"
+  defaultOrganization = "my-org-staging"
+  token               = "staging-token"
+}
+
+profile "production" {
+  hostname            = "tfe.myco.internal"
+  defaultOrganization = "my-org"
+  token               = "my-token"
+}
+```
+
+### Profile properties
+
+| Property | HCL key | Default | Required |
+|---|---|---|---|
+| Hostname | `hostname` | `app.terraform.io` | -- |
+| Organization | `defaultOrganization` | _(none)_ | -- |
+| Token | `token` | _(none)_ | Yes |
+
+### Selecting a profile
+
+By default, TFx uses the profile named `default`. To use a different profile:
+
+```sh
+# Launch the TUI with a specific profile
+tfx --profile staging
+
+# Use with CLI commands
+tfx workspace list --profile staging
+
+# Via environment variable
+TFX_PROFILE=staging tfx workspace list
+```
+
+The TUI also reads the active profile and displays it in the profile bar at the top of the screen.
 
 ### Config file discovery
 
-TFx looks for `.tfx.hcl` automatically — no flag required:
+TFx looks for `.tfx.hcl` automatically -- no flag required:
 
-1. `./.tfx.hcl` — current working directory (checked first)
-2. `~/.tfx.hcl` — home directory (fallback)
+1. `./.tfx.hcl` -- current working directory (checked first)
+2. `~/.tfx.hcl` -- home directory (fallback)
 
 To use a specific file instead, set either:
 
@@ -62,22 +136,3 @@ To use a specific file instead, set either:
 
 The flag takes precedence over the env var; both override auto-discovery.
 
-## Output
-
-Most commands output a formatted table by default. Add `--json` (or `-j`) to get machine-readable JSON for scripting and CI pipelines.
-
-```
-$ tfx variable list -w tfx-test
-╭──────────────────────┬───────────┬──────────────┬───────────┬───────┬───────────┬──────────────────────╮
-│ ID                   │ KEY       │ VALUE        │ SENSITIVE │ HCL   │ CATEGORY  │ DESCRIPTION          │
-├──────────────────────┼───────────┼──────────────┼───────────┼───────┼───────────┼──────────────────────┤
-│ var-7XYNuuo4tMjXeXG4 │ variable7 │ {"a":"1"...} │ false     │ true  │ terraform │ I am a map in a file │
-│ var-MJaLJ7czxKuU48eu │ variable3 │ It is friday │ false     │ false │ env       │ I am environmental   │
-╰──────────────────────┴───────────┴──────────────┴───────────┴───────┴───────────┴──────────────────────╯
-```
-
-```sh
-$ tfx variable list -w tfx-test --json | jq '.[].Key'
-"variable7"
-"variable3"
-```

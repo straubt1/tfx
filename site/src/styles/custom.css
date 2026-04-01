@@ -34,6 +34,33 @@ figure.frame code {
   line-height: 1 !important;
 }
 
+/* Inline code: accent-tinted to match brand purple */
+:not(pre) > code {
+  background: rgba(123, 66, 188, 0.15) !important;
+  color: #AC72F0 !important;
+  border: 1px solid rgba(123, 66, 188, 0.25);
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+}
+
+/* Hero layout: 50/50 split between text and video */
+.hero {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 2rem;
+  align-items: center;
+}
+
+.hero .hero-html {
+  width: 100% !important;
+}
+
+@media (max-width: 50rem) {
+  .hero {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 /* Hero page gradient background */
 [data-has-hero] .page {
   background:

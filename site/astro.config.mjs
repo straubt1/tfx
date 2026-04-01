@@ -17,8 +17,17 @@ export default defineConfig({
       sidebar: [
         { label: 'Getting Started', slug: 'gettingstarted' },
         {
-          label: 'Commands',
+          label: 'Interactive TUI',
           items: [
+            { label: 'Overview', slug: 'tui/overview' },
+            { label: 'Navigation', slug: 'tui/navigation' },
+            { label: 'Features', slug: 'tui/features' },
+          ],
+        },
+        {
+          label: 'CLI Commands',
+          items: [
+            { label: 'Overview', slug: 'commands/overview' },
             { label: 'Organization', slug: 'commands/organization' },
             { label: 'Project', slug: 'commands/project' },
             { label: 'Variable Sets', slug: 'commands/variable_set' },
@@ -50,18 +59,18 @@ export default defineConfig({
                 { label: 'Terraform Versions', slug: 'commands/admin_terraformversion' },
               ],
             },
+            {
+              label: 'Debugging',
+              items: [
+                { label: 'TFX_LOG', slug: 'debugging/log-level' },
+                { label: 'TFX_LOG_PATH', slug: 'debugging/log-path' },
+              ],
+            },
           ],
         },
         {
           label: 'Integrations',
           items: [{ label: 'GitLab CI', slug: 'integrations/gitlab' }],
-        },
-        {
-          label: 'Debugging',
-          items: [
-            { label: 'TFX_LOG', slug: 'debugging/log-level' },
-            { label: 'TFX_LOG_PATH', slug: 'debugging/log-path' },
-          ],
         },
         {
           label: 'Testing',

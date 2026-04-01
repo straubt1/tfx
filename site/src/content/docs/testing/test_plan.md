@@ -22,20 +22,24 @@ tfx version
 
 ### 2. Configuration
 
-Create a `.tfx.hcl` config file or export environment variables, then confirm connectivity:
+Authenticate with `tfx login` to create a profile:
 
 ```sh
-# Option A: config file
-cat <<EOF > .tfx.hcl
-tfeHostname     = "app.terraform.io"
-tfeOrganization = "my-org"
-tfeToken        = "my-token"
-EOF
+# HCP Terraform (default: app.terraform.io)
+tfx login
 
-# Option B: environment variables
-export TFE_HOSTNAME=app.terraform.io
-export TFE_ORGANIZATION=my-org
-export TFE_TOKEN=my-token
+# Terraform Enterprise
+tfx login tfe.mycompany.com
+```
+
+This creates a profile in `~/.tfx.hcl`:
+
+```hcl
+profile "default" {
+  hostname            = "app.terraform.io"
+  defaultOrganization = "my-org"
+  token               = "my-token"
+}
 ```
 
 Validate the configuration by listing organizations — this is the simplest authenticated call:
@@ -917,9 +921,9 @@ TFX_CONFIG_FILE=/path/to/custom/.tfx.hcl tfx organization list
 
 ```sh
 tfx organization list \
-  --tfeHostname app.terraform.io \
-  --tfeOrganization <org-name> \
-  --tfeToken <token>
+  --hostname app.terraform.io \
+  --default-organization <org-name> \
+  --token <token>
 ```
 
 **Expected:** Same output as using the config file — confirms inline flags override the config.
@@ -935,7 +939,7 @@ tfx workspace show
 ### 88. Invalid Token Error
 
 ```sh
-tfx organization list --tfeToken invalid-token-value
+tfx organization list --token invalid-token-value
 ```
 
 **Expected:** Authentication error is reported clearly. No panic or unhandled stack trace.

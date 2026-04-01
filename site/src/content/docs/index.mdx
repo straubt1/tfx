@@ -1,10 +1,12 @@
 ---
 title: TFx
-description: A standalone CLI for HCP Terraform and Terraform Enterprise.
+description: A powerful interactive TUI and scriptable CLI for HCP Terraform and Terraform Enterprise.
 template: splash
 hero:
   title: TFx
-  tagline: A powerful standalone CLI for HCP Terraform and Terraform Enterprise. Automate your infrastructure workflows from the terminal.
+  tagline: A powerful interactive TUI and scriptable CLI for HCP Terraform and Terraform Enterprise.
+  image:
+    html: '<video src="/media/tui-demo.mp4" autoplay loop muted playsinline style="width:100%;border-radius:8px;border:1px solid #30363D;" />'
   actions:
     - text: Get Started
       link: /gettingstarted/
@@ -20,15 +22,19 @@ hero:
 
 import { CardGrid, Card, Tabs, TabItem } from '@astrojs/starlight/components';
 
+## Two ways to work
+
+TFx gives you an **interactive TUI** for exploring and a **scriptable CLI** for automation — both powered by the same API client and configuration.
+
 <CardGrid stagger>
-  <Card title="API-Driven" icon="rocket">
-    Leverages the API with HashiCorp's go-tfe SDK via a clean CLI interface.
+  <Card title="Interactive TUI" icon="laptop">
+    Run `tfx` to launch a full terminal UI. Browse organizations, workspaces, runs, state, and more with keyboard-driven navigation.
   </Card>
-  <Card title="HCP Terraform & TFE" icon="laptop">
+  <Card title="Scriptable CLI" icon="rocket">
+    Use commands like `tfx workspace list` for automation, CI/CD pipelines, and scripting. JSON output with `--json` for machine consumption.
+  </Card>
+  <Card title="HCP Terraform & TFE" icon="setting">
     Works with both HCP Terraform (Terraform Cloud) and self-hosted Terraform Enterprise.
-  </Card>
-  <Card title="CI/CD Ready" icon="setting">
-    Integrate with any CI/CD pipeline. First-class support for GitLab CI and scriptable for any environment.
   </Card>
   <Card title="Open Source" icon="open-book">
     MIT licensed and community driven. Contributions welcome and built by engineers who use it daily.
@@ -58,12 +64,19 @@ Download the latest binary from the [Releases page](https://github.com/straubt1/
 **2. Configure**
 ```hcl
 # ~/.tfx.hcl
-tfeHostname     = "app.terraform.io"
-tfeOrganization = "my-org"
-tfeToken        = "my-token"
+hostname            = "app.terraform.io"
+defaultOrganization = "my-org"
+token               = "my-token"
 ```
 
 **3. Run**
+
+Launch the interactive TUI:
+```sh
+tfx
+```
+
+Or use CLI commands directly:
 ```sh
 tfx workspace list
 ```

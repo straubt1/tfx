@@ -2,21 +2,31 @@
 title: Why TFx?
 ---
 
-If you are asking why does this CLI exist, read on...
+TFx exists because working with HCP Terraform and Terraform Enterprise shouldn't require writing custom API scripts for common tasks.
 
-As a consumer of HCP Terraform or Terraform Enterprise I want to leverage the full capabilities without having to write curl/python/(insert other) libraries to call the API.
+## The problem
 
-Often times these tasks are part of a delivery pipeline, but could also be administrative tasks that are done from a local machine.
-The goal of this tool is to allow users to interact with the platform easily without having to create a lot of code to maintain.
+The HCP Terraform and Terraform Enterprise APIs are powerful, but using them directly means writing and maintaining curl commands, Python scripts, or custom libraries for tasks that should be simple. Whether you're managing workspaces, inspecting state, reviewing runs, or automating CI/CD pipelines, the raw API adds friction.
 
-**Common API-Driven Workflow Challenges:**
+Common challenges:
 
-The initial use case for _tfx_ was to bridge the gap from the [CLI-Workflow](https://www.terraform.io/cloud-docs/run/cli) and the [API-Driven Workflow](https://www.terraform.io/cloud-docs/run/api).
+- **The web UI doesn't surface everything** -- the HCP Terraform and Terraform Enterprise UIs don't expose all API capabilities, making some operations impossible without direct API calls.
+- **No single tool covers everything** -- Terraform CLI handles runs but not workspace management, variable bulk operations, registry publishing, or administrative tasks.
+- **CI/CD integration is fragile** -- building platform-specific plugins for every CI system isn't feasible, and ignores the need to run the same commands locally.
 
-- The CLI-Driven workflow presents several challenges when creating more advanced pipelines for a Workspace run, specifically the inability to insert a gate check between a plan and apply, (in other words you must run a `terraform apply -auto-approve`).
-- The CLI driven workflow requires a `terraform init` that forces a download of providers before a plan can be called remotely, these providers are never actually used on the local host and can be difficult to source airgapped environments.
-- Implementing an API-Driven workflow requires several API calls to perform a plan/apply.
-- It is unlikely that the full range of features will be built into [Terraform](https://github.com/hashicorp/terraform).
-- Developing CI/CD specific plugins for even the most common tools is not feasible, and ignores the ability to run the commands locally.
+## What TFx provides
 
-![Terminal Example Plan](/img/terminal-example-plan.gif)
+TFx gives you two ways to work:
+
+**Interactive TUI** -- run `tfx` to browse your organizations, projects, workspaces, runs, variables, state, and configuration versions in a keyboard-driven terminal interface. Ideal for exploring, investigating issues, and day-to-day operations.
+
+**Scriptable CLI** -- use commands like `tfx workspace list` and `tfx variable list` for automation, CI/CD pipelines, and scripting. JSON output with `--json` for machine consumption.
+
+Both share the same configuration, API client, and authentication -- use whichever fits your workflow.
+
+## Who is TFx for?
+
+- **Platform engineers** managing workspaces, variables, and registry modules across multiple organizations
+- **DevOps teams** building CI/CD pipelines that interact with HCP Terraform or Terraform Enterprise
+- **Administrators** performing bulk operations, auditing state, or managing Terraform Enterprise instances
+- **Anyone** who wants to quickly browse and inspect their Terraform infrastructure without clicking through a web UI
