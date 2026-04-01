@@ -20,18 +20,18 @@ func TestNewFromViper(t *testing.T) {
 		{
 			name: "valid viper configuration",
 			setupViper: func() {
-				viper.Set("tfeHostname", "app.terraform.io")
-				viper.Set("tfeToken", "test-token")
-				viper.Set("tfeOrganization", "test-org")
+				viper.Set("hostname", "app.terraform.io")
+				viper.Set("token", "test-token")
+				viper.Set("organization", "test-org")
 			},
 			wantErr: false,
 		},
 		{
 			name: "missing hostname in viper",
 			setupViper: func() {
-				viper.Set("tfeHostname", "")
-				viper.Set("tfeToken", "test-token")
-				viper.Set("tfeOrganization", "test-org")
+				viper.Set("hostname", "")
+				viper.Set("token", "test-token")
+				viper.Set("organization", "test-org")
 			},
 			wantErr: true,
 			errMsg:  "hostname is required",
@@ -39,9 +39,9 @@ func TestNewFromViper(t *testing.T) {
 		{
 			name: "missing token in viper",
 			setupViper: func() {
-				viper.Set("tfeHostname", "app.terraform.io")
-				viper.Set("tfeToken", "")
-				viper.Set("tfeOrganization", "test-org")
+				viper.Set("hostname", "app.terraform.io")
+				viper.Set("token", "")
+				viper.Set("organization", "test-org")
 			},
 			wantErr: true,
 			errMsg:  "token is required",
@@ -78,9 +78,9 @@ func TestNewFromViper(t *testing.T) {
 
 func TestNewFromViperWithContext(t *testing.T) {
 	viper.Reset()
-	viper.Set("tfeHostname", "app.terraform.io")
-	viper.Set("tfeToken", "test-token")
-	viper.Set("tfeOrganization", "test-org")
+	viper.Set("hostname", "app.terraform.io")
+	viper.Set("token", "test-token")
+	viper.Set("organization", "test-org")
 
 	ctx := context.Background()
 	client, err := NewFromViperWithContext(ctx)

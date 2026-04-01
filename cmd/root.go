@@ -57,11 +57,11 @@ var rootCmd = &cobra.Command{
 		if cmd.Name() == "login" {
 			return nil
 		}
-		if viper.GetString("tfeToken") == "" {
+		if viper.GetString("token") == "" {
 			return fmt.Errorf("no API token found — run 'tfx login' to authenticate")
 		}
-		if cmd.Name() != "tfx" && viper.GetString("tfeOrganization") == "" {
-			return fmt.Errorf("organization is required (--tfeOrganization, TFE_ORGANIZATION, or run 'tfx login')")
+		if cmd.Name() != "tfx" && viper.GetString("organization") == "" {
+			return fmt.Errorf("organization is required (--organization, TFE_ORGANIZATION, or run 'tfx login')")
 		}
 		return nil
 	},
@@ -84,18 +84,18 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "Path to config file (env: TFX_CONFIG_FILE). Auto-discovered at ./.tfx.hcl (current dir) or ~/.tfx.hcl (home dir) when not set.")
-	rootCmd.PersistentFlags().String("tfeHostname", "app.terraform.io", "The hostname of TFE without the schema. Can also be set with the environment variable TFE_HOSTNAME.")
-	rootCmd.PersistentFlags().String("tfeOrganization", "", "The name of the TFx Organization. Can also be set with the environment variable TFE_ORGANIZATION.")
-	rootCmd.PersistentFlags().String("tfeToken", "", "The API token used to authenticate to TFx. Can also be set with the environment variable TFE_TOKEN.")
+	rootCmd.PersistentFlags().String("hostname", "app.terraform.io", "The hostname of TFE without the schema. Can also be set with the environment variable TFE_HOSTNAME.")
+	rootCmd.PersistentFlags().String("organization", "", "The name of the TFx Organization. Can also be set with the environment variable TFE_ORGANIZATION.")
+	rootCmd.PersistentFlags().String("token", "", "The API token used to authenticate to TFx. Can also be set with the environment variable TFE_TOKEN.")
 	rootCmd.PersistentFlags().StringP("profile", "p", "", "Named profile to use from ~/.tfx.hcl.")
 
 	// Add json output option
 	rootCmd.PersistentFlags().BoolP("json", "j", false, "Will output command results as JSON.")
 
 	// ENV aliases
-	viper.BindEnv("tfeHostname", "TFE_HOSTNAME")
-	viper.BindEnv("tfeOrganization", "TFE_ORGANIZATION")
-	viper.BindEnv("tfeToken", "TFE_TOKEN")
+	viper.BindEnv("hostname", "TFE_HOSTNAME")
+	viper.BindEnv("organization", "TFE_ORGANIZATION")
+	viper.BindEnv("token", "TFE_TOKEN")
 	viper.BindEnv("profile", "TFX_PROFILE")
 
 	// Hidden flag for VHS tape recording
@@ -162,8 +162,8 @@ func initConfig() {
 }
 
 // resolveActiveProfile reads profile blocks from the loaded config file and
-// promotes the active profile's values to the flat viper keys (tfeHostname,
-// tfeToken, tfeOrganization) that the rest of the app reads.
+// promotes the active profile's values to the flat viper keys (hostname,
+// token, organization) that the rest of the app reads.
 //
 // Profile selection priority:
 //  1. --profile flag (or TFX_PROFILE env var) — use the named profile
@@ -211,10 +211,10 @@ func resolveActiveProfile() {
 	viper.Set("profile", active.Name)
 
 	if active.Hostname != "" {
-		viper.Set("tfeHostname", active.Hostname)
+		viper.Set("hostname", active.Hostname)
 	}
-	viper.Set("tfeToken", active.Token)
-	viper.Set("tfeOrganization", active.Organization)
+	viper.Set("token", active.Token)
+	viper.Set("organization", active.Organization)
 }
 
 // copy.pasta function
