@@ -100,13 +100,13 @@ var (
 func init() {
 	// `tfx registry module version list` arguments
 	registryModuleVersionListCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
-	registryModuleVersionListCmd.Flags().StringP("provider", "p", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
+	registryModuleVersionListCmd.Flags().String("provider", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
 	registryModuleVersionListCmd.MarkFlagRequired("name")
 	registryModuleVersionListCmd.MarkFlagRequired("provider")
 
 	// `tfx registry module version create` arguments
 	registryModuleVersionCreateCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
-	registryModuleVersionCreateCmd.Flags().StringP("provider", "p", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
+	registryModuleVersionCreateCmd.Flags().String("provider", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
 	registryModuleVersionCreateCmd.Flags().StringP("version", "v", "", "Version of module (i.e. 0.0.1)")
 	registryModuleVersionCreateCmd.Flags().StringP("directory", "d", "./", "Directory of Terraform (optional, defaults to current directory)")
 	registryModuleVersionCreateCmd.MarkFlagRequired("name")
@@ -115,7 +115,7 @@ func init() {
 
 	// `tfx registry module version delete` arguments
 	registryModuleVersionDeleteCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
-	registryModuleVersionDeleteCmd.Flags().StringP("provider", "p", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
+	registryModuleVersionDeleteCmd.Flags().String("provider", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
 	registryModuleVersionDeleteCmd.Flags().StringP("version", "v", "", "Version of module (i.e. 0.0.1)")
 	registryModuleVersionDeleteCmd.MarkFlagRequired("name")
 	registryModuleVersionDeleteCmd.MarkFlagRequired("provider")
@@ -123,7 +123,7 @@ func init() {
 
 	// `tfx registry module version download` arguments
 	registryModuleVersionDownloadCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
-	registryModuleVersionDownloadCmd.Flags().StringP("provider", "p", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
+	registryModuleVersionDownloadCmd.Flags().String("provider", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
 	registryModuleVersionDownloadCmd.Flags().StringP("version", "v", "", "Version of module (i.e. 0.0.1)")
 	registryModuleVersionDownloadCmd.Flags().StringP("directory", "d", "", "Directory to download module to (optional, defaults to a temp directory)")
 	registryModuleVersionDownloadCmd.MarkFlagRequired("name")

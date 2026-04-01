@@ -89,19 +89,19 @@ func init() {
 
 	// `tfx registry module create` arguments
 	registryModuleCreateCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
-	registryModuleCreateCmd.Flags().StringP("provider", "p", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
+	registryModuleCreateCmd.Flags().String("provider", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
 	registryModuleCreateCmd.MarkFlagRequired("name")
 	registryModuleCreateCmd.MarkFlagRequired("provider")
 
 	// `tfx registry module show` arguments
 	registryModuleShowCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
-	registryModuleShowCmd.Flags().StringP("provider", "p", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
+	registryModuleShowCmd.Flags().String("provider", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
 	registryModuleShowCmd.MarkFlagRequired("name")
 	registryModuleShowCmd.MarkFlagRequired("provider")
 
 	// `tfx registry module delete` arguments
 	registryModuleDeleteCmd.Flags().StringP("name", "n", "", "Name of the Module (no spaces)")
-	registryModuleDeleteCmd.Flags().StringP("provider", "p", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
+	registryModuleDeleteCmd.Flags().String("provider", "", "Name of the provider (no spaces) (i.e. aws, azure, google)")
 	registryModuleDeleteCmd.MarkFlagRequired("name")
 	registryModuleDeleteCmd.MarkFlagRequired("provider")
 
