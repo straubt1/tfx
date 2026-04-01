@@ -5,28 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.2.2] - TBD
+## [v0.3.0] - 2026-03-31
 
 **Added**
 
-* `tfx tui` — new interactive full-screen TUI browser for HCP Terraform and TFE; navigate organizations → projects → workspaces → runs / variables / configuration versions / state versions using keyboard shortcuts
-* `tfx tui` — detail views for organizations, projects, workspaces, runs, variables, configuration versions, and state versions
-* `tfx tui` — state version JSON viewer with syntax highlighting and line numbers (`o` from state version detail)
-* `tfx tui` — configuration version archive browser: download and browse files inside a config version tarball, with a file content viewer (`x` from config version detail)
-* `tfx tui` — Live API Inspector panel (`l` key): collapsible right-side panel that captures every TFE API call in real-time, showing method, path, HTTP status, and duration; press Enter on a call to see the full request and pretty-printed, syntax-highlighted response body; supports `/` text filter and `Tab` focus switching
-* `tfx tui` — Instance Info modal (`i` key): centered popup overlaid on the current view showing application name, hostname, API version, TFE version, and live health check status (`/_health_check`) with color-coded UP/DOWN indicators
-* `tfx workspace run policy` — show policy check and evaluation details for a run; supports both legacy Sentinel policy checks and newer policy evaluations (OPA/Sentinel via task stages)
-* `--logs` flag for `tfx workspace run policy` — include raw policy output (Sentinel logs and OPA `output.print`)
+* `tfx` now launches the interactive TUI by default — no subcommand needed
+* Interactive TUI: full-screen terminal browser for HCP Terraform and TFE
+  * Navigate organizations → projects → workspaces → runs / variables / config versions / state versions
+  * Detail views for all resource types with scrollable content
+  * State version JSON viewer with syntax highlighting and line numbers
+  * Config version file browser: download and browse uploaded files with a content viewer
+  * Workspace tabs (Settings, Runs, Variables, Config Versions, State Versions) with `←`/`→` switching
+  * API Inspector panel (`l`): live capture of every API call with method, path, status, duration; drill into full response bodies; copy response or curl command
+  * Instance Info modal (`i`): hostname, API version, TFE version, health check status
+  * Profile bar showing active profile, username, email, and token expiry
+  * Context-aware help overlay (`?`): shows only shortcuts relevant to the current view
+  * List filtering (`/`) on all views
+  * Copy CLI command (`c`), copy URL (`u`), open in browser (`shift+u`)
+* `tfx login` — interactive authentication wizard with profile management, token validation, and org selection
+* Profile-based config format in `.tfx.hcl` with named profile blocks and multi-profile support
+* `tfx workspace run policy` — policy check and evaluation details for a run
+* `--logs` flag for `tfx workspace run policy` — raw policy output (Sentinel/OPA)
 
 **Fixed**
 
-* `tfx tui` — CLI hint bar now shows correct command syntax for all detail views (configuration-version, state-version, variable flags)
-* `tfx tui` — multi-line variable values no longer break table layout; collapsed to `↵` in the list view and expanded row-per-line in the detail view
-* `tfx tui` — variable list column order changed to KEY | CATEGORY | SENSITIVE | VALUE
+* State version JSON viewer: consistent background colors on indentation and whitespace
+* API Inspector: background colors now match panel focus state
+* Login token validation: stricter format check detects modified/truncated tokens
+* CLI hint bar shows correct command syntax for all detail views
+* Multi-line variable values collapsed to `↵` in list view, expanded in detail view
 
 **Changed**
 
-* Documentation site migrated to Starlight
+* `tfx tui` subcommand removed — `tfx` launches the TUI directly; all CLI commands unchanged
+* Config keys renamed: `tfeHostname` → `hostname`, `tfeOrganization` → `defaultOrganization`, `tfeToken` → `token` (old keys still supported)
+* Keyboard shortcut labels use `shift+u`/`shift+c`/`shift+g` instead of uppercase letters
+* Documentation site redesigned: new Interactive TUI section, CLI Commands overview, updated Getting Started with `tfx login` flow, "Why TFx?" rewrite, accent-tinted inline code styling
 
 ## [v0.2.1] - 2026-03-01
 
