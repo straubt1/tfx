@@ -6,6 +6,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	tfe "github.com/hashicorp/go-tfe"
 )
@@ -22,6 +23,11 @@ type wsDetailRow struct {
 type wsDetailSection struct {
 	title string
 	rows  []wsDetailRow
+}
+
+// timestampWithRelative formats a time as "2006-01-02 15:04 UTC (Xd/h/m ago)".
+func timestampWithRelative(t time.Time) string {
+	return fmt.Sprintf("%s (%s)", t.UTC().Format("2006-01-02 15:04 UTC"), relativeTime(t))
 }
 
 // boolYesNo returns "yes" or "no" for a bool value.
@@ -44,10 +50,7 @@ func buildWorkspaceDetailSections(ws *tfe.Workspace) []wsDetailSection {
 		general.rows = append(general.rows, wsDetailRow{"Description", ws.Description})
 	}
 	if !ws.CreatedAt.IsZero() {
-		general.rows = append(general.rows, wsDetailRow{"Created", ws.CreatedAt.UTC().Format("2006-01-02 15:04 UTC")})
-	}
-	if !ws.UpdatedAt.IsZero() {
-		general.rows = append(general.rows, wsDetailRow{"Updated", relativeTime(ws.UpdatedAt)})
+		general.rows = append(general.rows, wsDetailRow{"Created", timestampWithRelative(ws.CreatedAt)})
 	}
 
 	// ── Configuration ─────────────────────────────────────────────────────────

@@ -60,7 +60,7 @@ task serve-docs
 
 **Optional:**
 - `TFX_LOG` - Enable HTTP request/response logging for debugging
-- `--config` flag or `~/.tfx.hcl` / `./.tfx.hcl` - Config file in HCL format
+- `--config-file` flag or `TFX_CONFIG_FILE` env var — explicit config file path; auto-discovered at `./.tfx.hcl` (current dir) or `~/.tfx.hcl` (home dir) when neither is set
 
 Integration tests load secrets from `secrets/.env-int` (not in repo).
 

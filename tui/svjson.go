@@ -115,7 +115,12 @@ func colorizeJSONLine(line string) string {
 		return line
 	}
 	indent := line[:len(line)-len(trimmed)]
-	return indent + tokenizeJSON(trimmed)
+	// Style indent with background so it matches the content area rather than
+	// falling back to the terminal default after ANSI resets from token styles.
+	if indent != "" {
+		return jsonPunctStyle.Render(indent) + tokenizeJSON(trimmed)
+	}
+	return tokenizeJSON(trimmed)
 }
 
 // tokenizeJSON colorizes the non-whitespace portion of a JSON line.
@@ -163,10 +168,10 @@ func tokenizeJSON(s string) string {
 func jsonColorValue(s string) string {
 	var out strings.Builder
 
-	// Emit leading whitespace as-is (not styled).
+	// Emit leading whitespace with background so it matches the content area.
 	trimmed := strings.TrimLeft(s, " \t")
 	if ws := s[:len(s)-len(trimmed)]; ws != "" {
-		out.WriteString(ws)
+		out.WriteString(jsonPunctStyle.Render(ws))
 	}
 	s = trimmed
 	if s == "" {

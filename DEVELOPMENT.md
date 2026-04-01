@@ -28,6 +28,7 @@ brew install go goreleaser go-task
 
 ```bash
 brew install node   # only needed for serving the docs site locally (task serve-docs)
+brew install --cask font-roboto-mono-nerd-font  # required for Nerd Font icons in VHS recordings
 ```
 
 Verify everything is installed:

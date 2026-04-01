@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	fixedLines = 9 // header(1) + profilebar(4) + box-top(1) + box-bottom(1) + statusbar(1) + clihint(1)
+	fixedLines = 10 // header(1) + profilebar(5) + box-top(1) + box-bottom(1) + statusbar(1) + clihint(1)
 	minWidth   = 60
 	minHeight  = 10
 )
@@ -34,6 +34,7 @@ var wsTabs = []struct {
 	label string
 	view  viewType
 }{
+	{"Settings", viewWorkspaceSettings},
 	{"Runs", viewRuns},
 	{"Variables", viewVariables},
 	{"Config Versions", viewConfigVersions},
@@ -46,19 +47,20 @@ const (
 	viewOrganizations viewType = iota // Phase 6: top-level org list (entry point)
 	viewProjects
 	viewWorkspaces
+	viewWorkspaceSettings        // Settings tab (first workspace sub-view tab)
 	viewRuns
 	viewVariables                // Phase 5
 	viewConfigVersions           // Phase 5
 	viewStateVersions            // Phase 5
-	viewWorkspaceDetail          // workspace settings detail (d key from workspace list)
+	viewWorkspaceDetail          // workspace detail (d key from workspace list or sub-views)
 	viewOrgDetail                // organization detail (d key from org list)
 	viewProjectDetail            // project detail (d key from project list)
 	viewRunDetail                // run detail (enter from run list) — Phase 7
 	viewVariableDetail           // variable detail (enter from variable list) — Phase 7
-	viewStateVersionDetail       // state version detail (enter from SV list) — Phase 7
-	viewConfigVersionDetail      // config version detail (enter from CV list) — Phase 7
-	viewStateVersionJson         // state version JSON viewer (o from SV detail) — Phase 7b
-	viewConfigVersionFiles       // CV file tree browser (x from CV detail) — Phase 7c
+	viewStateVersionDetail       // state version detail (d from SV list) — Phase 7
+	viewConfigVersionDetail      // config version detail (d from CV list) — Phase 7
+	viewStateVersionViewer       // state version JSON viewer (enter from SV list, o from SV detail) — Phase 7b
+	viewConfigVersionViewer      // CV file tree browser (enter from CV list, o from CV detail) — Phase 7c
 	viewConfigVersionFileContent // CV file content viewer (enter from file browser) — Phase 7c
 )
 
@@ -74,8 +76,10 @@ type Model struct {
 	hostname     string
 	org          string         // active org name (may change when user selects from org list)
 	profileName  string         // active profile name from ~/.tfx.hcl
-	accountUser  *tfe.User      // currently authenticated user; nil until loaded
-	accountToken *tfe.UserToken // most-recently-used user token; nil until loaded
+	configFile   string         // path to the config file (tilde-abbreviated for display)
+	accountUser      *tfe.User      // currently authenticated user; nil until loaded
+	accountToken     *tfe.UserToken // most-recently-used user token; nil until loaded
+	accountTokenType accountResourceType // Unknown until loadAccountType resolves
 
 	// View routing
 	currentView viewType
@@ -142,8 +146,10 @@ type Model struct {
 	svFiltering   bool
 
 	// Workspace detail state
-	wsDetScroll   int
-	wsDetPrevView viewType // view to return to when esc-ing from workspace detail
+	wsDetScroll        int
+	wsDetPrevView      viewType   // view to return to when esc-ing from workspace detail
+	wsSettingsScroll   int        // scroll offset for the Settings tab
+	wsLatestChange     *time.Time // latest-change-at from API; nil until loaded
 
 	// Organization detail state
 	orgDetScroll int
@@ -163,22 +169,24 @@ type Model struct {
 	selectedSV  *tfe.StateVersion
 	svDetScroll int
 
-	// State version JSON viewer state (Phase 7b)
-	svJsonLines   []string
-	svJsonScroll  int
-	svJsonLoading bool
-	svJsonErr     string
+	// State version viewer state (Phase 7b)
+	svJsonLines      []string
+	svJsonScroll     int
+	svJsonLoading    bool
+	svJsonErr        string
+	svViewerPrevView viewType // view to return to when esc-ing from the state version viewer
 
 	// Config version detail state (Phase 7)
 	selectedCV  *tfe.ConfigurationVersion
 	cvDetScroll int
 
-	// Config version file browser state (Phase 7c)
-	cvFiles       []cvFile
-	cvFileCursor  int
-	cvFileOffset  int
-	cvFileLoading bool
-	cvFileErr     string
+	// Config version viewer state (Phase 7c)
+	cvFiles          []cvFile
+	cvFileCursor     int
+	cvFileOffset     int
+	cvFileLoading    bool
+	cvFileErr        string
+	cvViewerPrevView viewType // view to return to when esc-ing from the config version viewer
 
 	// Config version file content viewer state (Phase 7c)
 	cvFileLines  []string
@@ -201,15 +209,24 @@ type Model struct {
 	healthCheck      map[string]string // nil until loaded
 	healthCheckLoad  bool
 	healthCheckErr   string
+
+	// CV archived modal state (shown when enter is pressed on an archived CV)
+	showCVArchivedModal bool
+	cvArchivedCV        *tfe.ConfigurationVersion // the archived CV being shown
+
+	// Tape recorder — non-nil when --tape flag is set
+	recorder *TapeRecorder
 }
 
-func newModel(c *client.TfxClient, profileName string) Model {
+func newModel(c *client.TfxClient, profileName, configFile string, rec *TapeRecorder) Model {
 	return Model{
 		c:           c,
 		hostname:    c.Hostname,
 		org:         c.OrganizationName,
 		profileName: profileName,
+		configFile:  configFile,
 		loading:     true,
+		recorder:    rec,
 	}
 }
 
@@ -239,6 +256,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.ready = true
+		if m.recorder != nil {
+			m.recorder.WriteHeader()
+		}
 
 	// ── Spinner ───────────────────────────────────────────────────────────────
 	case spinnerTickMsg:
@@ -263,7 +283,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// ── Data loads ────────────────────────────────────────────────────────────
 	case accountLoadedMsg:
-		m.accountUser = (*tfe.User)(msg)
+		m.accountUser = msg.user
+		m.accountTokenType = msg.resType
 		if m.accountUser != nil {
 			return m, loadAccountToken(m.c, m.accountUser.ID)
 		}
@@ -271,23 +292,41 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case accountTokenLoadedMsg:
 		m.accountToken = (*tfe.UserToken)(msg)
 
+	case wsLatestChangeMsg:
+		m.wsLatestChange = (*time.Time)(msg)
+		m.loading = false
+
 	case orgsLoadedMsg:
 		m.orgs = []*tfe.Organization(msg)
-		m.loading = false
-		m.currentView = viewOrganizations
 		m.errMsg = ""
-		// Pre-highlight the org that matches the configured org name.
+
+		// Auto-select an org and jump straight to projects if:
+		//   1. defaultOrganization is configured and found in the list, OR
+		//   2. The token only has access to exactly one org.
+		var autoOrg *tfe.Organization
 		if m.org != "" {
-			for i, o := range m.orgs {
+			for _, o := range m.orgs {
 				if o.Name == m.org {
-					m.orgCursor = i
-					if i >= m.orgVisibleRows() {
-						m.orgOffset = i - m.orgVisibleRows() + 1
-					}
+					autoOrg = o
 					break
 				}
 			}
+		} else if len(m.orgs) == 1 {
+			autoOrg = m.orgs[0]
 		}
+		if autoOrg != nil {
+			m.selectedOrg = autoOrg
+			m.org = autoOrg.Name
+			m.projCursor = 0
+			m.projOffset = 0
+			m.projFilter = ""
+			m.projFiltering = false
+			return m, loadProjects(m.c, autoOrg.Name)
+		}
+
+		// Multiple orgs with no default — show the org list.
+		m.loading = false
+		m.currentView = viewOrganizations
 
 	case projectsLoadedMsg:
 		m.projects = []*tfe.Project(msg)
@@ -372,6 +411,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// ── Key input ─────────────────────────────────────────────────────────────
 	case tea.KeyPressMsg:
+		// Record keypress to tape file if recording is active.
+		if m.recorder != nil {
+			m.recorder.Record(msg)
+		}
+
 		// Clear transient clipboard feedback on next key.
 		m.clipFeedback = ""
 
@@ -387,6 +431,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Only ctrl+c is truly unconditional; all other "global" shortcuts are
 		// suppressed while filter input is active so typed characters don't
 		// accidentally trigger navigation or quit.
+		// shift+c in the inspector detail view copies a curl command.
+		if msg.String() == "C" && m.debugFocused && m.debugDetailMode {
+			events := m.filteredDebugEvents()
+			if m.debugCursor < len(events) {
+				curl := buildCurlCommand(events[m.debugCursor])
+				if err := copyToClipboard(curl); err == nil {
+					m.clipFeedback = "✓ curl command copied to clipboard"
+				} else {
+					m.clipFeedback = "clipboard unavailable"
+				}
+			}
+			return m, nil
+		}
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
@@ -394,6 +451,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Instance info modal intercepts all remaining keys when open.
 		if m.showInstanceInfo {
 			return m.handleInstanceInfoModalKey(msg)
+		}
+
+		// CV archived modal intercepts all remaining keys when open.
+		if m.showCVArchivedModal {
+			return m.handleCVArchivedModalKey(msg)
 		}
 
 		// ── Filter input mode — must be checked before panel-toggle / quit ────
@@ -441,7 +503,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "c":
 			cmd := m.currentCliCmd()
 			if err := copyToClipboard(cmd); err == nil {
-				m.clipFeedback = "✓ copied to clipboard"
+				m.clipFeedback = "✓ copied tfx command to clipboard"
 			} else {
 				m.clipFeedback = "clipboard unavailable"
 			}
@@ -465,6 +527,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.handleProjectsKey(msg)
 			case viewWorkspaces:
 				return m.handleWorkspacesKey(msg)
+			case viewWorkspaceSettings:
+				return m.handleWorkspaceSettingsKey(msg)
 			case viewRuns:
 				return m.handleRunsKey(msg)
 			case viewVariables:
@@ -487,9 +551,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.handleSVDetailKey(msg)
 			case viewConfigVersionDetail:
 				return m.handleCVDetailKey(msg)
-			case viewStateVersionJson:
+			case viewStateVersionViewer:
 				return m.handleSVJsonKey(msg)
-			case viewConfigVersionFiles:
+			case viewConfigVersionViewer:
 				return m.handleCVFilesKey(msg)
 			case viewConfigVersionFileContent:
 				return m.handleCVFileContentKey(msg)
@@ -537,6 +601,11 @@ func (m Model) View() tea.View {
 		content = m.overlayInstanceInfoModal(content)
 	}
 
+	// Composite the CV archived modal on top when visible.
+	if m.ready && m.showCVArchivedModal && !m.showHelp && m.width >= minWidth && m.height >= minHeight {
+		content = m.overlayCVArchivedModal(content)
+	}
+
 	v := tea.NewView(content)
 	v.AltScreen = true
 	return v
@@ -559,7 +628,7 @@ func (m Model) navigateBack() (tea.Model, tea.Cmd) {
 		m.wsCursor, m.wsOffset = 0, 0
 		m.wsFilter, m.wsFiltering = "", false
 		m.selectedProj = nil
-	case viewRuns, viewVariables, viewConfigVersions, viewStateVersions:
+	case viewWorkspaceSettings, viewRuns, viewVariables, viewConfigVersions, viewStateVersions:
 		// All workspace tab views return to the workspace list and clear sub-view data.
 		m.currentView = viewWorkspaces
 		m.runs = nil
@@ -601,21 +670,21 @@ func (m Model) navigateBack() (tea.Model, tea.Cmd) {
 		m.currentView = viewStateVersions
 		m.svDetScroll = 0
 		m.selectedSV = nil
-	case viewStateVersionJson:
-		m.currentView = viewStateVersionDetail
+	case viewStateVersionViewer:
+		m.currentView = m.svViewerPrevView
 		m.svJsonLines = nil
 		m.svJsonScroll = 0
 		m.svJsonLoading = false
 		m.svJsonErr = ""
-	case viewConfigVersionFiles:
-		m.currentView = viewConfigVersionDetail
+	case viewConfigVersionViewer:
+		m.currentView = m.cvViewerPrevView
 		m.cvFiles = nil
 		m.cvFileCursor = 0
 		m.cvFileOffset = 0
 		m.cvFileLoading = false
 		m.cvFileErr = ""
 	case viewConfigVersionFileContent:
-		m.currentView = viewConfigVersionFiles
+		m.currentView = viewConfigVersionViewer
 		m.cvFileLines = nil
 		m.cvFileScroll = 0
 		m.cvFileName = ""
@@ -648,6 +717,11 @@ func (m Model) refresh() (tea.Model, tea.Cmd) {
 			projectID = m.selectedProj.ID
 		}
 		cmd = loadWorkspaces(m.c, m.org, projectID)
+	case viewWorkspaceSettings:
+		m.wsLatestChange = nil
+		if m.selectedWS != nil {
+			cmd = loadWorkspaceLatestChange(m.c, m.selectedWS.ID)
+		}
 	case viewRuns:
 		m.runs = nil
 		m.runCursor, m.runOffset = 0, 0
@@ -672,7 +746,7 @@ func (m Model) refresh() (tea.Model, tea.Cmd) {
 		if m.selectedWS != nil {
 			cmd = loadStateVersions(m.c, m.org, m.selectedWS.Name)
 		}
-	case viewStateVersionJson:
+	case viewStateVersionViewer:
 		// Force re-download: bypass cache and restart the JSON load.
 		m.loading = false
 		if m.selectedSV != nil {
@@ -682,7 +756,7 @@ func (m Model) refresh() (tea.Model, tea.Cmd) {
 			return m, tea.Batch(loadStateVersionJson(m.c, m.selectedSV.ID, true), tickSpinner())
 		}
 		return m, nil
-	case viewConfigVersionFiles:
+	case viewConfigVersionViewer:
 		// Force re-download: delete cached archive + extracted dir.
 		m.loading = false
 		if m.selectedCV != nil {
@@ -706,10 +780,10 @@ func (m Model) refresh() (tea.Model, tea.Cmd) {
 }
 
 // isWorkspaceSubView returns true when the current view is one of the
-// workspace tab views (Runs, Variables, Config Versions, State Versions).
+// workspace tab views (Settings, Runs, Variables, Config Versions, State Versions).
 func (m Model) isWorkspaceSubView() bool {
 	switch m.currentView {
-	case viewRuns, viewVariables, viewConfigVersions, viewStateVersions:
+	case viewWorkspaceSettings, viewRuns, viewVariables, viewConfigVersions, viewStateVersions:
 		return true
 	}
 	return false
@@ -722,6 +796,11 @@ func (m Model) switchWsTab(target viewType) (tea.Model, tea.Cmd) {
 	m.errMsg = ""
 
 	switch target {
+	case viewWorkspaceSettings:
+		if m.wsLatestChange == nil && m.selectedWS != nil {
+			return m, loadWorkspaceLatestChange(m.c, m.selectedWS.ID)
+		}
+		return m, nil
 	case viewRuns:
 		if m.runs != nil {
 			return m, nil
@@ -938,6 +1017,10 @@ func (m Model) handleOrgsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.errMsg = ""
 		m.projCursor, m.projOffset, m.projFilter = 0, 0, ""
 		return m, tea.Batch(loadProjects(m.c, sel.Name), tickSpinner())
+	case "u":
+		m = m.applyURL(m.hostnameURL(), "hostname", false)
+	case "U":
+		m = m.applyURL(m.hostnameURL(), "hostname", true)
 	}
 	return m, nil
 }
@@ -955,21 +1038,9 @@ func (m Model) handleOrgDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "G":
 		m.orgDetScroll = 9999
 	case "u":
-		if url := m.orgURL(); url != "" {
-			if err := copyToClipboard(url); err == nil {
-				m.clipFeedback = "✓ org URL copied"
-			} else {
-				m.clipFeedback = "clipboard unavailable"
-			}
-		}
+		m = m.applyURL(m.orgURL(), "org", false)
 	case "U":
-		if url := m.orgURL(); url != "" {
-			if err := openBrowser(url); err == nil {
-				m.clipFeedback = "✓ opening in browser"
-			} else {
-				m.clipFeedback = "could not open browser"
-			}
-		}
+		m = m.applyURL(m.orgURL(), "org", true)
 	}
 	return m, nil
 }
@@ -1022,6 +1093,10 @@ func (m Model) handleProjectsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.errMsg = ""
 		m.wsCursor, m.wsOffset, m.wsFilter = 0, 0, ""
 		return m, tea.Batch(loadWorkspaces(m.c, m.org, sel.ID), tickSpinner())
+	case "u":
+		m = m.applyURL(m.orgProjectsURL(), "projects", false)
+	case "U":
+		m = m.applyURL(m.orgProjectsURL(), "projects", true)
 	}
 	return m, nil
 }
@@ -1039,21 +1114,9 @@ func (m Model) handleProjectDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) 
 	case "G":
 		m.projDetScroll = 9999
 	case "u":
-		if url := m.projURL(); url != "" {
-			if err := copyToClipboard(url); err == nil {
-				m.clipFeedback = "✓ project URL copied"
-			} else {
-				m.clipFeedback = "clipboard unavailable"
-			}
-		}
+		m = m.applyURL(m.projURL(), "project", false)
 	case "U":
-		if url := m.projURL(); url != "" {
-			if err := openBrowser(url); err == nil {
-				m.clipFeedback = "✓ opening in browser"
-			} else {
-				m.clipFeedback = "could not open browser"
-			}
-		}
+		m = m.applyURL(m.projURL(), "project", true)
 	}
 	return m, nil
 }
@@ -1071,21 +1134,9 @@ func (m Model) handleRunDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "G":
 		m.runDetScroll = 9999
 	case "u":
-		if url := m.runURL(); url != "" {
-			if err := copyToClipboard(url); err == nil {
-				m.clipFeedback = "✓ run URL copied"
-			} else {
-				m.clipFeedback = "clipboard unavailable"
-			}
-		}
+		m = m.applyURL(m.runURL(), "run", false)
 	case "U":
-		if url := m.runURL(); url != "" {
-			if err := openBrowser(url); err == nil {
-				m.clipFeedback = "✓ opening in browser"
-			} else {
-				m.clipFeedback = "could not open browser"
-			}
-		}
+		m = m.applyURL(m.runURL(), "run", true)
 	}
 	return m, nil
 }
@@ -1102,6 +1153,10 @@ func (m Model) handleVariableDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd)
 		m.varDetScroll = 0
 	case "G":
 		m.varDetScroll = 9999
+	case "u":
+		m = m.applyURL(m.wsVariablesListURL(), "variables", false)
+	case "U":
+		m = m.applyURL(m.wsVariablesListURL(), "variables", true)
 	}
 	return m, nil
 }
@@ -1124,9 +1179,14 @@ func (m Model) handleSVDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.svJsonScroll = 0
 			m.svJsonLoading = true
 			m.svJsonErr = ""
-			m.currentView = viewStateVersionJson
+			m.svViewerPrevView = viewStateVersionDetail
+			m.currentView = viewStateVersionViewer
 			return m, tea.Batch(loadStateVersionJson(m.c, m.selectedSV.ID, false), tickSpinner())
 		}
+	case "u":
+		m = m.applyURL(m.svURL(), "state version", false)
+	case "U":
+		m = m.applyURL(m.svURL(), "state version", true)
 	}
 	return m, nil
 }
@@ -1175,7 +1235,8 @@ func (m Model) handleCVDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.cvFileOffset = 0
 			m.cvFileLoading = true
 			m.cvFileErr = ""
-			m.currentView = viewConfigVersionFiles
+			m.cvViewerPrevView = viewConfigVersionDetail
+			m.currentView = viewConfigVersionViewer
 			return m, tea.Batch(loadCVFiles(m.c, m.selectedCV.ID, false), tickSpinner())
 		}
 	}
@@ -1295,10 +1356,11 @@ func (m Model) handleWorkspacesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		sel := filtered[m.wsCursor]
 		m.selectedWS = sel
-		m.loading = true
 		m.errMsg = ""
-		m.runCursor, m.runOffset, m.runFilter = 0, 0, ""
-		return m, tea.Batch(loadRuns(m.c, sel.ID), tickSpinner())
+		m.wsSettingsScroll = 0
+		m.wsLatestChange = nil
+		m.currentView = viewWorkspaceSettings
+		return m, loadWorkspaceLatestChange(m.c, sel.ID)
 	case "v":
 		if n == 0 || m.wsCursor >= n {
 			break
@@ -1337,6 +1399,10 @@ func (m Model) handleWorkspacesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.wsDetScroll = 0
 		m.wsDetPrevView = viewWorkspaces
 		m.currentView = viewWorkspaceDetail
+	case "u":
+		m = m.applyURL(m.projURL(), "workspace list", false)
+	case "U":
+		m = m.applyURL(m.projURL(), "workspace list", true)
 	}
 	return m, nil
 }
@@ -1373,6 +1439,44 @@ func (m Model) handleWorkspaceDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd
 	return m, nil
 }
 
+func (m Model) handleWorkspaceSettingsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if m.wsSettingsScroll > 0 {
+			m.wsSettingsScroll--
+		}
+	case "down", "j":
+		m.wsSettingsScroll++
+	case "g":
+		m.wsSettingsScroll = 0
+	case "G":
+		m.wsSettingsScroll = 9999 // clamped to max by renderWorkspaceSettingsContent
+	case "left":
+		// First tab — nothing to the left.
+	case "right":
+		return m.switchWsTab(viewRuns)
+	case "u":
+		if url := m.wsURL(); url != "" {
+			if err := copyToClipboard(url); err == nil {
+				m.clipFeedback = "✓ workspace URL copied"
+			} else {
+				m.clipFeedback = "clipboard unavailable"
+			}
+		}
+		return m, nil
+	case "U":
+		if url := m.wsURL(); url != "" {
+			if err := openBrowser(url); err == nil {
+				m.clipFeedback = "✓ opening in browser"
+			} else {
+				m.clipFeedback = "could not open browser"
+			}
+		}
+		return m, nil
+	}
+	return m, nil
+}
+
 func (m Model) handleRunsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	filtered := filteredRuns(m)
 	n := len(filtered)
@@ -1405,7 +1509,7 @@ func (m Model) handleRunsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "/":
 		m.runFiltering = true
 	case "left":
-		// First tab — nothing to the left.
+		return m.switchWsTab(viewWorkspaceSettings)
 	case "right":
 		return m.switchWsTab(viewVariables)
 	case "enter":
@@ -1418,27 +1522,11 @@ func (m Model) handleRunsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.currentView = viewRunDetail
 		// Trigger a background re-fetch to populate Plan/Apply/VCS fields.
 		return m, loadRunDetail(m.c, sel.ID)
-	case "d":
-		m.wsDetScroll = 0
-		m.wsDetPrevView = viewRuns
-		m.currentView = viewWorkspaceDetail
 	case "u":
-		if url := m.wsURL(); url != "" {
-			if err := copyToClipboard(url); err == nil {
-				m.clipFeedback = "✓ workspace URL copied"
-			} else {
-				m.clipFeedback = "clipboard unavailable"
-			}
-		}
+		m = m.applyURL(m.wsRunsListURL(), "runs", false)
 		return m, nil
 	case "U":
-		if url := m.wsURL(); url != "" {
-			if err := openBrowser(url); err == nil {
-				m.clipFeedback = "✓ opening in browser"
-			} else {
-				m.clipFeedback = "could not open browser"
-			}
-		}
+		m = m.applyURL(m.wsRunsListURL(), "runs", true)
 		return m, nil
 	}
 	return m, nil
@@ -1486,27 +1574,11 @@ func (m Model) handleVariablesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.switchWsTab(viewRuns)
 	case "right":
 		return m.switchWsTab(viewConfigVersions)
-	case "d":
-		m.wsDetScroll = 0
-		m.wsDetPrevView = viewVariables
-		m.currentView = viewWorkspaceDetail
 	case "u":
-		if url := m.wsURL(); url != "" {
-			if err := copyToClipboard(url); err == nil {
-				m.clipFeedback = "✓ workspace URL copied"
-			} else {
-				m.clipFeedback = "clipboard unavailable"
-			}
-		}
+		m = m.applyURL(m.wsVariablesListURL(), "variables", false)
 		return m, nil
 	case "U":
-		if url := m.wsURL(); url != "" {
-			if err := openBrowser(url); err == nil {
-				m.clipFeedback = "✓ opening in browser"
-			} else {
-				m.clipFeedback = "could not open browser"
-			}
-		}
+		m = m.applyURL(m.wsVariablesListURL(), "variables", true)
 		return m, nil
 	}
 	return m, nil
@@ -1547,35 +1619,32 @@ func (m Model) handleConfigVersionsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd)
 		if n == 0 || m.cvCursor >= n {
 			break
 		}
-		m.selectedCV = filtered[m.cvCursor]
-		m.cvDetScroll = 0
-		m.currentView = viewConfigVersionDetail
+		cv := filtered[m.cvCursor]
+		if cv.Status == tfe.ConfigurationArchived {
+			m.cvArchivedCV = cv
+			m.showCVArchivedModal = true
+			return m, nil
+		}
+		m.selectedCV = cv
+		m.cvFiles = nil
+		m.cvFileCursor = 0
+		m.cvFileOffset = 0
+		m.cvFileLoading = true
+		m.cvFileErr = ""
+		m.cvViewerPrevView = viewConfigVersions
+		m.currentView = viewConfigVersionViewer
+		return m, tea.Batch(loadCVFiles(m.c, m.selectedCV.ID, false), tickSpinner())
 	case "left":
 		return m.switchWsTab(viewVariables)
 	case "right":
 		return m.switchWsTab(viewStateVersions)
 	case "d":
-		m.wsDetScroll = 0
-		m.wsDetPrevView = viewConfigVersions
-		m.currentView = viewWorkspaceDetail
-	case "u":
-		if url := m.wsURL(); url != "" {
-			if err := copyToClipboard(url); err == nil {
-				m.clipFeedback = "✓ workspace URL copied"
-			} else {
-				m.clipFeedback = "clipboard unavailable"
-			}
+		if n == 0 || m.cvCursor >= n {
+			break
 		}
-		return m, nil
-	case "U":
-		if url := m.wsURL(); url != "" {
-			if err := openBrowser(url); err == nil {
-				m.clipFeedback = "✓ opening in browser"
-			} else {
-				m.clipFeedback = "could not open browser"
-			}
-		}
-		return m, nil
+		m.selectedCV = filtered[m.cvCursor]
+		m.cvDetScroll = 0
+		m.currentView = viewConfigVersionDetail
 	}
 	return m, nil
 }
@@ -1616,33 +1685,29 @@ func (m Model) handleStateVersionsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) 
 			break
 		}
 		m.selectedSV = filtered[m.svCursor]
-		m.svDetScroll = 0
-		m.currentView = viewStateVersionDetail
+		m.svJsonLines = nil
+		m.svJsonScroll = 0
+		m.svJsonLoading = true
+		m.svJsonErr = ""
+		m.svViewerPrevView = viewStateVersions
+		m.currentView = viewStateVersionViewer
+		return m, tea.Batch(loadStateVersionJson(m.c, m.selectedSV.ID, false), tickSpinner())
 	case "left":
 		return m.switchWsTab(viewConfigVersions)
 	case "right":
 		// Last tab — nothing to the right.
 	case "d":
-		m.wsDetScroll = 0
-		m.wsDetPrevView = viewStateVersions
-		m.currentView = viewWorkspaceDetail
-	case "u":
-		if url := m.wsURL(); url != "" {
-			if err := copyToClipboard(url); err == nil {
-				m.clipFeedback = "✓ workspace URL copied"
-			} else {
-				m.clipFeedback = "clipboard unavailable"
-			}
+		if n == 0 || m.svCursor >= n {
+			break
 		}
+		m.selectedSV = filtered[m.svCursor]
+		m.svDetScroll = 0
+		m.currentView = viewStateVersionDetail
+	case "u":
+		m = m.applyURL(m.wsSVsListURL(), "state versions", false)
 		return m, nil
 	case "U":
-		if url := m.wsURL(); url != "" {
-			if err := openBrowser(url); err == nil {
-				m.clipFeedback = "✓ opening in browser"
-			} else {
-				m.clipFeedback = "could not open browser"
-			}
-		}
+		m = m.applyURL(m.wsSVsListURL(), "state versions", true)
 		return m, nil
 	}
 	return m, nil
@@ -1813,6 +1878,11 @@ func (m Model) currentCliCmd() string {
 			return fmt.Sprintf("tfx workspace state-version list -n %s", m.selectedWS.Name)
 		}
 		return "tfx workspace state-version list"
+	case viewWorkspaceSettings:
+		if m.selectedWS != nil {
+			return fmt.Sprintf("tfx workspace show -n %s", m.selectedWS.Name)
+		}
+		return "tfx workspace show"
 	case viewWorkspaceDetail:
 		if m.selectedWS != nil {
 			return fmt.Sprintf("tfx workspace show -n %s", m.selectedWS.Name)
@@ -1843,12 +1913,12 @@ func (m Model) currentCliCmd() string {
 			return fmt.Sprintf("tfx workspace state-version show --state-id %s", m.selectedSV.ID)
 		}
 		return "tfx workspace state-version show"
-	case viewStateVersionJson:
+	case viewStateVersionViewer:
 		if m.selectedSV != nil {
 			return fmt.Sprintf("tfx workspace state-version download --state-id %s", m.selectedSV.ID)
 		}
 		return "tfx workspace state-version download"
-	case viewConfigVersionFiles, viewConfigVersionFileContent:
+	case viewConfigVersionViewer, viewConfigVersionFileContent:
 		if m.selectedCV != nil {
 			return fmt.Sprintf("tfx workspace configuration-version download --id %s", m.selectedCV.ID)
 		}
@@ -1896,12 +1966,77 @@ func openBrowser(url string) error {
 	return cmd.Start() // Start (not Run) so we don't wait for the browser to exit.
 }
 
+// applyURL copies url to the clipboard (u) or opens it in the browser (U).
+// Returns the updated model with clipFeedback set. label is shown in the
+// "✓ <label> URL copied" message.
+func (m Model) applyURL(url, label string, openInBrowser bool) Model {
+	if url == "" {
+		return m
+	}
+	if openInBrowser {
+		if err := openBrowser(url); err == nil {
+			m.clipFeedback = "✓ opening in browser"
+		} else {
+			m.clipFeedback = "could not open browser"
+		}
+	} else {
+		if err := copyToClipboard(url); err == nil {
+			m.clipFeedback = "✓ " + label + " URL copied"
+		} else {
+			m.clipFeedback = "clipboard unavailable"
+		}
+	}
+	return m
+}
+
+// hostnameURL returns the base URL for the TFE/HCP Terraform instance.
+func (m Model) hostnameURL() string {
+	return fmt.Sprintf("https://%s", m.hostname)
+}
+
+// orgProjectsURL returns the URL for the projects list of the current org.
+func (m Model) orgProjectsURL() string {
+	return fmt.Sprintf("https://%s/app/%s/projects", m.hostname, m.org)
+}
+
 // wsURL returns the HCP Terraform / TFE web URL for the currently selected workspace.
 func (m Model) wsURL() string {
 	if m.selectedWS == nil {
 		return ""
 	}
 	return fmt.Sprintf("https://%s/app/%s/workspaces/%s", m.hostname, m.org, m.selectedWS.Name)
+}
+
+// wsRunsListURL returns the URL for the runs list of the current workspace.
+func (m Model) wsRunsListURL() string {
+	if m.selectedWS == nil {
+		return ""
+	}
+	return fmt.Sprintf("https://%s/app/%s/workspaces/%s/runs", m.hostname, m.org, m.selectedWS.Name)
+}
+
+// wsVariablesListURL returns the URL for the variables list of the current workspace.
+func (m Model) wsVariablesListURL() string {
+	if m.selectedWS == nil {
+		return ""
+	}
+	return fmt.Sprintf("https://%s/app/%s/workspaces/%s/variables", m.hostname, m.org, m.selectedWS.Name)
+}
+
+// wsSVsListURL returns the URL for the state versions list of the current workspace.
+func (m Model) wsSVsListURL() string {
+	if m.selectedWS == nil {
+		return ""
+	}
+	return fmt.Sprintf("https://%s/app/%s/workspaces/%s/states", m.hostname, m.org, m.selectedWS.Name)
+}
+
+// svURL returns the URL for the currently selected state version.
+func (m Model) svURL() string {
+	if m.selectedSV == nil || m.selectedWS == nil {
+		return ""
+	}
+	return fmt.Sprintf("https://%s/app/%s/workspaces/%s/states/%s", m.hostname, m.org, m.selectedWS.Name, m.selectedSV.ID)
 }
 
 // orgURL returns the HCP Terraform / TFE web URL for the currently selected org's settings.
@@ -1949,6 +2084,8 @@ func (m Model) renderContent() string {
 		return m.renderProjectsContent()
 	case viewWorkspaces:
 		return m.renderWorkspacesContent()
+	case viewWorkspaceSettings:
+		return m.renderWorkspaceSettingsContent()
 	case viewRuns:
 		return m.renderRunsContent()
 	case viewVariables:
@@ -1971,9 +2108,9 @@ func (m Model) renderContent() string {
 		return m.renderStateVersionDetailContent()
 	case viewConfigVersionDetail:
 		return m.renderConfigVersionDetailContent()
-	case viewStateVersionJson:
+	case viewStateVersionViewer:
 		return m.renderStateVersionJsonContent()
-	case viewConfigVersionFiles:
+	case viewConfigVersionViewer:
 		return m.renderConfigVersionFilesContent()
 	case viewConfigVersionFileContent:
 		return m.renderConfigVersionFileContent()
@@ -2059,11 +2196,7 @@ func (m Model) renderHeader() string {
 	remoteInfo := ""
 	if m.c != nil {
 		if appName := m.c.Client.AppName(); appName != "" {
-			s := appName
-			if tfeVer := m.c.Client.RemoteTFEVersion(); tfeVer != "" {
-				s += "  " + tfeVer
-			}
-			remoteInfo = headerRemoteStyle.Render(" ⬥  " + s + " ")
+			remoteInfo = headerRemoteStyle.Render(" ⬥  " + appName + " ")
 		}
 	}
 
@@ -2104,42 +2237,83 @@ func expiresLabel(t time.Time) string {
 	return fmt.Sprintf("%s (%s)", date, countdown)
 }
 
-// renderProfileBar renders four fixed rows beneath the main header:
+// renderProfileBar renders five fixed rows beneath the main header:
 //
-//	profile   <name>
-//	username  <username>
-//	email     <email>
-//	expires   <token expiry or "never" / "n/a">
+//	Profile:            <name>
+//	  type:             <token type>
+//	  username:         <username>         API Version: <ver>
+//	  email:            <email>            TFE Version: <ver>  (TFE only)
+//	  token expiration: <expiry>
 //
-// All four rows are always emitted (with "…" placeholders while loading) so
+// All five rows are always emitted (with "…" placeholders while loading) so
 // fixedLines stays constant and the layout does not shift after data arrives.
-// Labels are padded to the same width so values align vertically.
 func (m Model) renderProfileBar() string {
 	bg := lipgloss.NewStyle().Background(colorHeaderBg)
-	label := lipgloss.NewStyle().Background(colorHeaderBg).Foreground(colorDim)
+	lbl := lipgloss.NewStyle().Background(colorHeaderBg).Foreground(colorDim)
 	value := lipgloss.NewStyle().Background(colorHeaderBg).Foreground(colorAccent)
 	dim := lipgloss.NewStyle().Background(colorHeaderBg).Foreground(colorDim)
 	na := lipgloss.NewStyle().Background(colorHeaderBg).Foreground(colorDim)
 
-	// Pad every label to the same width so values line up.
-	const labelW = 9 // "username:" = 9 chars including colon + trailing space
-
-	row := func(k, v string, valStyle lipgloss.Style) string {
-		// Right-pad the key so all colons align.
-		padded := fmt.Sprintf("  %-*s", labelW, k+":")
-		l := label.Render(padded)
-		val := valStyle.Render(v)
-		used := lipgloss.Width(l) + lipgloss.Width(val)
-		gap := m.width - used
-		if gap < 0 {
-			gap = 0
-		}
-		return l + val + bg.Width(gap).Render("")
+	// splitAt is the column where the right column begins.
+	splitAt := m.width / 2
+	if splitAt < 44 {
+		splitAt = 44
 	}
+
+	// splitRow renders a row with indent=4, labelW=18, and an optional right
+	// column that starts at splitAt. rk=="" suppresses the right column.
+	splitRow := func(lk, lv string, lvs lipgloss.Style, rk, rv string, rvs lipgloss.Style) string {
+		const labelW = 18
+		leftLabel := fmt.Sprintf("    %-*s", labelW, lk+":")
+		ll := lbl.Render(leftLabel)
+		lval := lvs.Render(lv)
+		leftUsed := lipgloss.Width(ll) + lipgloss.Width(lval)
+
+		if rk == "" {
+			gap := m.width - leftUsed
+			if gap < 0 {
+				gap = 0
+			}
+			return ll + lval + bg.Width(gap).Render("")
+		}
+
+		// Pad left side to splitAt, then render right label+value.
+		leftPad := splitAt - leftUsed
+		if leftPad < 1 {
+			leftPad = 1
+		}
+		const rLabelW = 13
+		rightLabel := fmt.Sprintf("%-*s", rLabelW, rk+":")
+		rl := lbl.Render(rightLabel)
+		rval := rvs.Render(rv)
+		rightUsed := lipgloss.Width(rl) + lipgloss.Width(rval)
+		rightPad := m.width - splitAt - rightUsed
+		if rightPad < 0 {
+			rightPad = 0
+		}
+		return ll + lval + bg.Width(leftPad).Render("") + rl + rval + bg.Width(rightPad).Render("")
+	}
+
+	// ── Left-column values ─────────────────────────────────────────────────
 
 	profName := m.profileName
 	if profName == "" {
 		profName = "default"
+	}
+	profValue := value.Render(profName)
+	if m.configFile != "" {
+		profValue += dim.Render("  ("+m.configFile+")")
+	}
+
+	tokenType, ttStyle := "…", dim
+	if m.accountTokenType != accountResourceTypeUnknown {
+		switch m.accountTokenType {
+		case accountResourceTypeUser:
+			tokenType = "User Token"
+		case accountResourceTypeTeam:
+			tokenType = "Team Token"
+		}
+		ttStyle = value
 	}
 
 	uname, email, expires := "…", "…", "…"
@@ -2159,16 +2333,44 @@ func (m Model) renderProfileBar() string {
 		expires = expiresLabel(m.accountToken.ExpiredAt)
 		xStyle = value
 	} else if m.accountUser != nil {
-		// User loaded but token list returned nothing usable.
 		expires = "n/a"
 		xStyle = na
 	}
 
+	// ── Right-column values ────────────────────────────────────────────────
+
+	apiVer, tfeVersion := "", ""
+	if m.c != nil {
+		cl := m.c.Client
+		apiVer = cl.RemoteAPIVersion()
+		tfeVersion = cl.RemoteTFENumericVersion()
+	}
+
+	// Only show the TFE version label when running against TFE (empty on HCP Terraform).
+	tfeVersionKey := ""
+	if tfeVersion != "" {
+		tfeVersionKey = "TFE Version"
+	}
+
+	// Profile row is inlined: name in accent, config path in dim.
+	const profLabelW = 9
+	profRow := func() string {
+		padded := fmt.Sprintf("  %-*s", profLabelW, "Profile:")
+		l := lbl.Render(padded)
+		used := lipgloss.Width(l) + lipgloss.Width(profValue)
+		gap := m.width - used
+		if gap < 0 {
+			gap = 0
+		}
+		return l + profValue + bg.Width(gap).Render("")
+	}
+
 	return strings.Join([]string{
-		row("profile", profName, value),
-		row("username", uname, uStyle),
-		row("email", email, eStyle),
-		row("expires", expires, xStyle),
+		profRow(),
+		splitRow("type", tokenType, ttStyle, "", "", dim),
+		splitRow("username", uname, uStyle, "API Version", apiVer, value),
+		splitRow("email", email, eStyle, tfeVersionKey, tfeVersion, value),
+		splitRow("token expiration", expires, xStyle, "", "", dim),
 	}, "\n")
 }
 
@@ -2197,6 +2399,11 @@ func (m Model) breadcrumbLine() string {
 		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
 			sep + breadcrumbActiveStyle.Render("workspaces ")
+	case viewWorkspaceSettings:
+		return orgPart + sep +
+			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
+			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
+			sep + breadcrumbActiveStyle.Render("settings ")
 	case viewRuns:
 		return orgPart + sep +
 			breadcrumbBarStyle.Render(fmt.Sprintf("project: %s", projName)) +
@@ -2273,7 +2480,7 @@ func (m Model) breadcrumbLine() string {
 			sep + breadcrumbBarStyle.Render(fmt.Sprintf("workspace: %s", wsName)) +
 			sep + breadcrumbBarStyle.Render("config versions") +
 			sep + breadcrumbActiveStyle.Render(fmt.Sprintf("cv: %s ", cvID))
-	case viewStateVersionJson:
+	case viewStateVersionViewer:
 		svSerial := ""
 		if m.selectedSV != nil {
 			svSerial = fmt.Sprintf("%d", m.selectedSV.Serial)
@@ -2284,7 +2491,7 @@ func (m Model) breadcrumbLine() string {
 			sep + breadcrumbBarStyle.Render("state versions") +
 			sep + breadcrumbBarStyle.Render(fmt.Sprintf("sv: %s", svSerial)) +
 			sep + breadcrumbActiveStyle.Render("json ")
-	case viewConfigVersionFiles:
+	case viewConfigVersionViewer:
 		cvID := ""
 		if m.selectedCV != nil {
 			cvID = m.selectedCV.ID
@@ -2576,7 +2783,7 @@ func (m Model) renderStatusBar() string {
 		if m.selectedCV != nil {
 			msg = fmt.Sprintf("  config version: %s  •  ↑ ↓ to scroll", m.selectedCV.ID)
 		}
-	case viewStateVersionJson:
+	case viewStateVersionViewer:
 		if m.svJsonLoading {
 			frame := spinnerFrames[m.spinnerIdx]
 			return m.pad(statusLoadingStyle.Render("  "+frame+"  Loading state JSON…"), statusLoadingStyle)
@@ -2600,7 +2807,7 @@ func (m Model) renderStatusBar() string {
 			sizeStr = fmt.Sprintf("%d KB", totalBytes/1024)
 		}
 		msg = fmt.Sprintf("  state JSON  •  line %d of %d  (%s)", cur, numLines, sizeStr)
-	case viewConfigVersionFiles:
+	case viewConfigVersionViewer:
 		if m.cvFileLoading {
 			frame := spinnerFrames[m.spinnerIdx]
 			return m.pad(statusLoadingStyle.Render("  "+frame+"  Downloading config version archive…"), statusLoadingStyle)
@@ -2669,103 +2876,266 @@ func (m Model) renderCliHint() string {
 
 	var hints string
 	switch {
+	case m.debugFocused && m.showDebug && m.debugDetailMode:
+		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   shift+↑↓ page   •   c copy response   •   C copy curl   •   esc back to list   •   tab unfocus")
+	case m.debugFocused && m.showDebug:
+		hints = cliHintBarStyle.Render("   •   ↑ ↓ navigate   •   enter detail   /  filter   •   tab unfocus")
 	case m.currentView == viewOrganizations:
-		hints = cliHintBarStyle.Render("   •   enter projects   d detail   •   c copy   •   ? help   •   q quit")
+		hints = cliHintBarStyle.Render("   •   enter projects   d detail   •   u url   U browser   •   c copy tfx cmd   •   ? help   •   q quit")
 	case m.currentView == viewProjects:
-		hints = cliHintBarStyle.Render("   •   enter workspaces   d detail   •   c copy   •   ? help   •   q quit")
+		hints = cliHintBarStyle.Render("   •   enter workspaces   d detail   •   u url   U browser   •   c copy tfx cmd   •   ? help   •   q quit")
 	case m.currentView == viewWorkspaces:
-		hints = cliHintBarStyle.Render("   •   enter runs   v vars   f cvs   s svs   d detail   •   c copy   •   ? help   •   q quit")
+		hints = cliHintBarStyle.Render("   •   enter ws   v vars   f cvs   s svs   d detail   •   u url   U browser   •   c copy tfx cmd   •   ? help   •   q quit")
 	case m.currentView == viewOrgDetail, m.currentView == viewProjectDetail, m.currentView == viewWorkspaceDetail:
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   u url   U browser   •   ? help   •   q quit")
 	case m.currentView == viewRunDetail:
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   u url   U browser   •   ? help   •   q quit")
 	case m.currentView == viewVariableDetail:
-		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   ? help   •   q quit")
+		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   u url   U browser   •   ? help   •   q quit")
+	case m.currentView == viewConfigVersions:
+		hints = cliHintBarStyle.Render("   •   enter viewer   d detail   •   ← → switch tabs   •   c copy tfx cmd   •   ? help   •   q quit")
+	case m.currentView == viewStateVersions:
+		hints = cliHintBarStyle.Render("   •   enter viewer   d detail   •   ← → switch tabs   •   u url   U browser   •   c copy tfx cmd   •   ? help   •   q quit")
 	case m.currentView == viewStateVersionDetail:
-		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   o json viewer   •   ? help   •   q quit")
-	case m.currentView == viewStateVersionJson:
+		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   o state viewer   •   u url   U browser   •   ? help   •   q quit")
+	case m.currentView == viewStateVersionViewer:
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   shift+↑↓ half page   •   r re-fetch   •   ? help   •   q quit")
 	case m.currentView == viewConfigVersionDetail:
-		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   o archive browser   •   ? help   •   q quit")
-	case m.currentView == viewConfigVersionFiles:
+		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   o config viewer   •   ? help   •   q quit")
+	case m.currentView == viewConfigVersionViewer:
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ navigate   •   enter open   •   p copy path   •   r re-fetch   •   ? help   •   q quit")
 	case m.currentView == viewConfigVersionFileContent:
 		hints = cliHintBarStyle.Render("   •   ↑ ↓ scroll   •   shift+↑↓ half page   •   ? help   •   q quit")
 	case m.isWorkspaceSubView():
-		hints = cliHintBarStyle.Render("   •   enter detail   •   ← → switch tabs   •   d ws detail   •   u url   U browser   •   c copy   •   ? help   •   q quit")
+		hints = cliHintBarStyle.Render("   •   enter detail   •   ← → switch tabs   •   u url   U browser   •   c copy tfx cmd   •   ? help   •   q quit")
 	default:
-		hints = cliHintBarStyle.Render("   •   c copy   •   ? help   •   q quit")
+		hints = cliHintBarStyle.Render("   •   c copy tfx cmd   •   ? help   •   q quit")
 	}
 	return m.pad(label+cmd+hints, cliHintBarStyle)
 }
 
 // ── Help overlay ──────────────────────────────────────────────────────────────
 
+type helpBinding struct {
+	key  string
+	desc string
+}
+
+type helpSection struct {
+	title    string
+	bindings []helpBinding
+}
+
+// helpSections returns context-aware shortcut sections based on the current view.
+func (m Model) helpSections() []helpSection {
+	// Navigation — always shown.
+	nav := helpSection{
+		title: "Navigation",
+		bindings: []helpBinding{
+			{"↑ / k", "move up"},
+			{"↓ / j", "move down"},
+			{"enter", "select / drill in"},
+			{"esc", "go back / clear filter"},
+			{"g / shift+g", "jump to top / bottom"},
+		},
+	}
+
+	// View-specific section.
+	var view helpSection
+	switch {
+	case m.debugFocused && m.showDebug && m.debugDetailMode:
+		view = helpSection{
+			title: "API Inspector Detail",
+			bindings: []helpBinding{
+				{"↑ / ↓", "scroll one line"},
+				{"⇧↑ / ⇧↓", "scroll full page"},
+				{"^u / ^d", "scroll half-page"},
+				{"c", "copy response body"},
+				{"shift+c", "copy curl command"},
+				{"esc", "back to call list"},
+				{"tab", "switch to left panel"},
+			},
+		}
+	case m.debugFocused && m.showDebug:
+		view = helpSection{
+			title: "API Inspector",
+			bindings: []helpBinding{
+				{"↑ / ↓", "navigate call list"},
+				{"enter", "open request detail"},
+				{"/", "filter calls"},
+				{"esc", "clear filter / back"},
+				{"tab", "switch to left panel"},
+			},
+		}
+	case m.currentView == viewOrganizations:
+		view = helpSection{
+			title: "Organizations",
+			bindings: []helpBinding{
+				{"enter", "view projects"},
+				{"d", "view org detail"},
+				{"u", "copy URL"},
+				{"shift+u", "open in browser"},
+			},
+		}
+	case m.currentView == viewProjects:
+		view = helpSection{
+			title: "Projects",
+			bindings: []helpBinding{
+				{"enter", "view workspaces"},
+				{"d", "view project detail"},
+				{"u", "copy URL"},
+				{"shift+u", "open in browser"},
+			},
+		}
+	case m.currentView == viewWorkspaces:
+		view = helpSection{
+			title: "Workspaces",
+			bindings: []helpBinding{
+				{"enter", "view runs tab"},
+				{"v", "view variables tab"},
+				{"f", "view config versions tab"},
+				{"s", "view state versions tab"},
+				{"d", "view workspace detail"},
+				{"u", "copy URL"},
+				{"shift+u", "open in browser"},
+			},
+		}
+	case m.currentView == viewConfigVersions:
+		view = helpSection{
+			title: "Config Versions",
+			bindings: []helpBinding{
+				{"enter", "open viewer"},
+				{"d", "view detail"},
+				{"← →", "switch tabs"},
+			},
+		}
+	case m.currentView == viewStateVersions:
+		view = helpSection{
+			title: "State Versions",
+			bindings: []helpBinding{
+				{"enter", "open viewer"},
+				{"d", "view detail"},
+				{"← →", "switch tabs"},
+				{"u", "copy URL"},
+				{"shift+u", "open in browser"},
+			},
+		}
+	case m.isWorkspaceSubView():
+		view = helpSection{
+			title: "Workspace Tabs",
+			bindings: []helpBinding{
+				{"enter", "view detail"},
+				{"← →", "switch tabs"},
+				{"u", "copy URL"},
+				{"shift+u", "open in browser"},
+			},
+		}
+	case m.currentView == viewStateVersionDetail:
+		view = helpSection{
+			title: "State Version Detail",
+			bindings: []helpBinding{
+				{"↑ ↓", "scroll"},
+				{"o", "open state viewer"},
+				{"u", "copy URL"},
+				{"shift+u", "open in browser"},
+			},
+		}
+	case m.currentView == viewConfigVersionDetail:
+		view = helpSection{
+			title: "Config Version Detail",
+			bindings: []helpBinding{
+				{"↑ ↓", "scroll"},
+				{"o", "open config viewer"},
+			},
+		}
+	case m.currentView == viewStateVersionViewer:
+		view = helpSection{
+			title: "State Viewer",
+			bindings: []helpBinding{
+				{"↑ ↓", "scroll one line"},
+				{"⇧↑ / ⇧↓", "scroll half page"},
+				{"r", "re-fetch state JSON"},
+			},
+		}
+	case m.currentView == viewConfigVersionViewer:
+		view = helpSection{
+			title: "Config Viewer",
+			bindings: []helpBinding{
+				{"↑ ↓", "navigate file tree"},
+				{"enter", "open file"},
+				{"p", "copy cache path"},
+				{"r", "re-fetch files"},
+			},
+		}
+	case m.currentView == viewConfigVersionFileContent:
+		view = helpSection{
+			title: "File Viewer",
+			bindings: []helpBinding{
+				{"↑ ↓", "scroll one line"},
+				{"⇧↑ / ⇧↓", "scroll half page"},
+			},
+		}
+	default:
+		// Generic detail views (org, project, workspace, run, variable detail).
+		view = helpSection{
+			title: "Detail View",
+			bindings: []helpBinding{
+				{"↑ ↓", "scroll"},
+				{"u", "copy URL"},
+				{"shift+u", "open in browser"},
+			},
+		}
+	}
+
+	// Tools — always shown.
+	tools := helpSection{
+		title: "Tools",
+		bindings: []helpBinding{
+			{"/", "filter"},
+			{"r", "refresh"},
+			{"c", "copy CLI command"},
+			{"i", "toggle instance info"},
+			{"l", "toggle API inspector"},
+			{"?", "toggle help"},
+			{"q", "quit"},
+		},
+	}
+
+	sections := []helpSection{nav, view, tools}
+
+	// API inspector section — shown when the panel is open but not focused.
+	if m.showDebug && !m.debugFocused {
+		sections = append(sections, helpSection{
+			title: "API Inspector",
+			bindings: []helpBinding{
+				{"tab", "switch to inspector panel"},
+			},
+		})
+	}
+
+	return sections
+}
+
 func (m Model) renderHelpOverlay() string {
-	type binding struct {
-		key  string
-		desc string
-	}
-	bindings := []binding{
-		// Global
-		{"↑ / k", "move up"},
-		{"↓ / j", "move down"},
-		{"enter", "select / drill in"},
-		{"esc", "go back / clear filter"},
-		{"r", "refresh"},
-		{"/", "filter"},
-		{"g / G", "jump to top / bottom"},
-		{"c", "copy CLI command"},
-		{"i", "toggle instance info / health"},
-		{"l", "toggle API inspector"},
-		{"?", "toggle help"},
-		{"q", "quit"},
-		// List views
-		{"", ""},
-		{"[org] d", "view org detail"},
-		{"[project] d", "view project detail"},
-		{"[ws] enter", "view runs tab"},
-		{"[ws] v", "view variables tab"},
-		{"[ws] f", "view config versions tab"},
-		{"[ws] s", "view state versions tab"},
-		{"[ws] d", "view workspace detail"},
-		{"[ws tab] ← →", "switch tabs"},
-		{"[ws tab] enter", "view item detail"},
-		{"[sv detail] o", "open state JSON viewer"},
-		{"[cv detail] o", "open archive browser"},
-		{"[cv files] p", "copy cache path to clipboard"},
-		{"[ws tab] d", "view workspace detail"},
-		{"[ws tab] u", "copy workspace URL"},
-		{"[ws tab] U", "open workspace in browser"},
-		// Detail views
-		{"", ""},
-		{"[detail] ↑ ↓", "scroll"},
-		{"[detail] u", "copy URL (run, ws, org, proj)"},
-		{"[detail] U", "open in browser"},
-		// API inspector panel (right side, toggle with l)
-		{"", ""},
-		{"tab", "switch left ↔ right panel"},
-		{"[insp] ↑ / ↓", "navigate call list"},
-		{"[insp] enter", "open request detail"},
-		{"[insp] /", "filter calls"},
-		{"[insp] esc", "clear filter / back"},
-		{"[detail] ↑ / ↓", "scroll one line"},
-		{"[detail] ⇧↑ / ⇧↓", "scroll full page"},
-		{"[detail] ^u / ^d", "scroll half-page"},
-		{"[detail] esc", "back to call list"},
-		{"[detail] c", "copy response body to clipboard"},
-	}
+	sections := m.helpSections()
 
 	lines := make([]string, 0, m.height)
 	lines = append(lines, m.renderHeader())
 	lines = append(lines, m.pad(helpTitleStyle.Render("  Keyboard Shortcuts"), helpTitleStyle))
 	lines = append(lines, helpBarStyle.Width(m.width).Render(""))
 
-	for _, b := range bindings {
-		key := helpKeyStyle.Width(14).Render(b.key)
-		desc := helpDescStyle.Render("  " + b.desc)
-		line := helpBarStyle.Render("  ") + key + desc
-		lines = append(lines, m.pad(line, helpBarStyle))
+	for si, sec := range sections {
+		if si > 0 {
+			lines = append(lines, helpBarStyle.Width(m.width).Render(""))
+		}
+		title := helpBarStyle.Render("  ") + helpSectionStyle.Render(sec.title)
+		lines = append(lines, m.pad(title, helpBarStyle))
+		for _, b := range sec.bindings {
+			key := helpKeyStyle.Width(14).Render(b.key)
+			desc := helpDescStyle.Render("  " + b.desc)
+			line := helpBarStyle.Render("  ") + key + desc
+			lines = append(lines, m.pad(line, helpBarStyle))
+		}
 	}
 
 	lines = append(lines, helpBarStyle.Width(m.width).Render(""))

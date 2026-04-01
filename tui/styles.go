@@ -126,6 +126,12 @@ var (
 			Background(colorHeaderBg).
 			Foreground(colorDim)
 
+	helpSectionStyle = lipgloss.NewStyle().
+				Background(colorHeaderBg).
+				Foreground(colorDim).
+				Bold(true).
+				Underline(true)
+
 	// Status bar variants
 	statusLoadingStyle = lipgloss.NewStyle().
 				Background(colorHeaderBg).
@@ -145,8 +151,8 @@ var (
 
 	// Table
 	tableHeaderStyle = lipgloss.NewStyle().
-			Background(colorHeaderBg).
-			Foreground(colorFg).
+			Background(colorBg).
+			Foreground(colorAccent).
 			Bold(true)
 
 	tableRowStyle = lipgloss.NewStyle().

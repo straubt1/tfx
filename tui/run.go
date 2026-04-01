@@ -12,7 +12,8 @@ import (
 )
 
 // Run launches the TUI, reading connection settings from Viper (same source as CLI commands).
-func Run() error {
+// When tapePath is non-empty, all keystrokes are recorded to a VHS-compatible .tape file.
+func Run(tapePath string) error {
 	// Kill the CLI spinner before handing the terminal to Bubble Tea.
 	// Without this, the spinner's goroutine writes "TFx is working..." to stdout
 	// while Bubble Tea is rendering, corrupting the alt-screen display.
@@ -26,12 +27,25 @@ func Run() error {
 		return errors.Wrap(err, "failed to create TFx client")
 	}
 
+	var rec *TapeRecorder
+	if tapePath != "" {
+		rec, err = NewTapeRecorder(tapePath)
+		if err != nil {
+			return errors.Wrap(err, "failed to create tape recorder")
+		}
+	}
+
 	profileName := viper.GetString("profile")
-	m := newModel(c, profileName)
+	configFile := viper.ConfigFileUsed()
+	m := newModel(c, profileName, configFile, rec)
 
 	p := tea.NewProgram(m)
 	if _, err := p.Run(); err != nil {
 		return errors.Wrap(err, "tui error")
+	}
+
+	if rec != nil {
+		rec.Flush()
 	}
 	return nil
 }

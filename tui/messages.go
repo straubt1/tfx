@@ -82,27 +82,95 @@ type configVersionsLoadedMsg []*tfe.ConfigurationVersion
 // stateVersionsLoadedMsg carries the fetched state version list.
 type stateVersionsLoadedMsg []*tfe.StateVersion
 
-// accountLoadedMsg carries the currently authenticated user from the TFE API.
-type accountLoadedMsg *tfe.User
+// accountLoadedMsg carries the currently authenticated user and resource type
+// decoded from a single /api/v2/account/details call.
+type accountLoadedMsg struct {
+	user    *tfe.User
+	resType accountResourceType
+}
 
 // accountTokenLoadedMsg carries the user token whose LastUsedAt is closest to
 // now — a proxy for "the token currently in use". nil when none can be found.
 type accountTokenLoadedMsg *tfe.UserToken
+
+// accountResourceType identifies the authenticated resource behind the API token.
+type accountResourceType int
+
+const (
+	accountResourceTypeUnknown accountResourceType = iota
+	accountResourceTypeUser
+	accountResourceTypeTeam
+)
+
+// accountTypeLoadedMsg carries the authenticated resource type from
+// /api/v2/account/details — one of the accountResourceType constants.
+type accountTypeLoadedMsg accountResourceType
+
+// wsLatestChangeMsg carries the parsed latest-change-at timestamp for the
+// selected workspace. nil means the field was absent or the call failed.
+type wsLatestChangeMsg *time.Time
 
 // fetchErrMsg wraps any error returned from an async fetch.
 type fetchErrMsg struct{ err error }
 
 // ── Commands ──────────────────────────────────────────────────────────────────
 
-// loadAccount fetches the currently authenticated user via Users.ReadCurrent.
+// loadAccount fetches /api/v2/account/details once and returns both the
+// authenticated user and the resource type (user/team).
 // Errors are silently discarded — account info is supplemental, not required.
 func loadAccount(c *client.TfxClient) tea.Cmd {
 	return func() tea.Msg {
-		user, err := c.Client.Users.ReadCurrent(c.Context)
+		url := fmt.Sprintf("https://%s/api/v2/account/details", c.Hostname)
+		req, err := http.NewRequestWithContext(c.Context, http.MethodGet, url, nil)
 		if err != nil {
-			return accountLoadedMsg(nil)
+			return accountLoadedMsg{}
 		}
-		return accountLoadedMsg(user)
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+		req.Header.Set("Content-Type", "application/vnd.api+json")
+
+		resp, err := c.HTTPClient.Do(req)
+		if err != nil {
+			return accountLoadedMsg{}
+		}
+		defer resp.Body.Close()
+
+		var payload struct {
+			Data struct {
+				ID         string `json:"id"`
+				Attributes struct {
+					Username string `json:"username"`
+					Email    string `json:"email"`
+				} `json:"attributes"`
+				Relationships struct {
+					AuthenticatedResource struct {
+						Data struct {
+							Type string `json:"type"`
+						} `json:"data"`
+					} `json:"authenticated-resource"`
+				} `json:"relationships"`
+			} `json:"data"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+			return accountLoadedMsg{}
+		}
+
+		user := &tfe.User{
+			ID:       payload.Data.ID,
+			Username: payload.Data.Attributes.Username,
+			Email:    payload.Data.Attributes.Email,
+		}
+
+		var resType accountResourceType
+		switch payload.Data.Relationships.AuthenticatedResource.Data.Type {
+		case "users":
+			resType = accountResourceTypeUser
+		case "teams":
+			resType = accountResourceTypeTeam
+		default:
+			resType = accountResourceTypeUnknown
+		}
+
+		return accountLoadedMsg{user: user, resType: resType}
 	}
 }
 
@@ -123,6 +191,39 @@ func loadAccountToken(c *client.TfxClient, userID string) tea.Cmd {
 			}
 		}
 		return accountTokenLoadedMsg(best)
+	}
+}
+
+// loadWorkspaceLatestChange fetches /api/v2/workspaces/:id and extracts the
+// latest-change-at attribute, which go-tfe does not decode into tfe.Workspace.
+// Silently returns nil on any error.
+func loadWorkspaceLatestChange(c *client.TfxClient, wsID string) tea.Cmd {
+	return func() tea.Msg {
+		url := fmt.Sprintf("https://%s/api/v2/workspaces/%s", c.Hostname, wsID)
+		req, err := http.NewRequestWithContext(c.Context, http.MethodGet, url, nil)
+		if err != nil {
+			return wsLatestChangeMsg(nil)
+		}
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+		req.Header.Set("Content-Type", "application/vnd.api+json")
+
+		resp, err := c.HTTPClient.Do(req)
+		if err != nil {
+			return wsLatestChangeMsg(nil)
+		}
+		defer resp.Body.Close()
+
+		var payload struct {
+			Data struct {
+				Attributes struct {
+					LatestChangeAt *time.Time `json:"latest-change-at"`
+				} `json:"attributes"`
+			} `json:"data"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+			return wsLatestChangeMsg(nil)
+		}
+		return wsLatestChangeMsg(payload.Data.Attributes.LatestChangeAt)
 	}
 }
 
@@ -385,7 +486,7 @@ func loadHealthCheck(c *client.TfxClient) tea.Cmd {
 			return healthCheckErrMsg{err}
 		}
 		req.Header.Set("Authorization", "Bearer "+c.Token)
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := c.HTTPClient.Do(req)
 		if err != nil {
 			return healthCheckErrMsg{err}
 		}
