@@ -5,7 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.3.1] - 2026.04.01
+## [v0.3.2] - 2026-04-01
+
+**Fixed**
+
+* Profile block parser now recognizes `organization` as a key (in addition to `defaultOrganization` and `tfeOrganization`), fixing "organization is required" errors when using `organization` inside a profile block
+* CLI flags renamed: `--tfeHostname` → `--hostname`, `--tfeOrganization` → `--organization`, `--tfeToken` → `--token` (environment variables `TFE_HOSTNAME`, `TFE_ORGANIZATION`, `TFE_TOKEN` still supported)
+
+## [v0.3.1] - 2026-04-01
 
 **Changed**
 

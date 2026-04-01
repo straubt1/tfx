@@ -28,10 +28,10 @@ tfx project list --all
 List all Projects in all Organizations with a search string:
 tfx project list --all --search "my-project"
 
-List all projects specified in tfeOrganization:
+List all projects for the configured organization:
 tfx project list
 
-List projects specified in tfeOrganization with a search string:
+List projects for the configured organization with a search string:
 tfx project list --search "my-project"`,
 	}
 

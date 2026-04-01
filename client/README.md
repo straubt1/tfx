@@ -28,7 +28,7 @@ workspaces, err := tfxClient.Client.Workspaces.List(
 ```go
 import "github.com/straubt1/tfx/client"
 
-// Create a client from viper configuration (tfeHostname, tfeToken, tfeOrganization)
+// Create a client from viper configuration (hostname, token, organization)
 tfxClient, err := client.NewFromViper()
 if err != nil {
     log.Fatal(err)

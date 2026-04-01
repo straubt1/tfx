@@ -48,7 +48,7 @@ type Profile struct {
 
 var (
 	reProfileStart = regexp.MustCompile(`^profile\s+"([^"]+)"\s*\{`)
-	reKeyValue     = regexp.MustCompile(`^\s+(tfeHostname|tfeOrganization|tfeToken|hostname|defaultOrganization|token)\s*=\s*"([^"]*)"`)
+	reKeyValue     = regexp.MustCompile(`^\s+(tfeHostname|tfeOrganization|tfeToken|hostname|defaultOrganization|organization|token)\s*=\s*"([^"]*)"`)
 	reFlatHostname = regexp.MustCompile(`^tfeHostname\s*=\s*"([^"]*)"`)
 	reFlatOrg      = regexp.MustCompile(`^tfeOrganization\s*=\s*"([^"]*)"`)
 	reFlatToken    = regexp.MustCompile(`^tfeToken\s*=\s*"([^"]*)"`)
@@ -67,11 +67,11 @@ func DefaultConfigPath() (string, error) {
 // ListProfiles parses path and returns all profiles in file order.
 //
 //   - New format (file contains one or more profile blocks): each block
-//     becomes one Profile. Name = block label; Hostname = tfeHostname inside
+//     becomes one Profile. Name = block label; Hostname = hostname inside
 //     the block, or DefaultHostname when the key is absent.
 //   - Legacy flat format (no profile blocks): returns a single Profile with
 //     Name = DefaultProfileName and Hostname = tfeHostname value or
-//     DefaultHostname. Only returned when at least a tfeToken is present.
+//     DefaultHostname. Only returned when at least a token is present.
 //   - File not found: returns nil, nil.
 func ListProfiles(path string) ([]Profile, error) {
 	data, err := os.ReadFile(path)
@@ -130,7 +130,7 @@ func ListProfiles(path string) ([]Profile, error) {
 				switch m[1] {
 				case "tfeHostname", "hostname":
 					current.Hostname = m[2]
-				case "tfeOrganization", "defaultOrganization":
+				case "tfeOrganization", "defaultOrganization", "organization":
 					current.Organization = m[2]
 				case "tfeToken", "token":
 					current.Token = m[2]
@@ -138,7 +138,7 @@ func ListProfiles(path string) ([]Profile, error) {
 				continue
 			}
 			if reBlockEnd.MatchString(line) {
-				// If tfeHostname was absent, apply defaults:
+				// If hostname was absent, apply defaults:
 				//   - Block label looks like a hostname (contains ".") → backward compat
 				//     for files written before name/hostname were separated.
 				//   - Otherwise → DefaultHostname. Never use the profile name as a

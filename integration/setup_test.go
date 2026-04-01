@@ -40,9 +40,9 @@ func executeCommand(t *testing.T, args []string, hostname, token, organization s
 
 	// Build full args with credentials
 	fullArgs := append([]string{
-		"--tfeHostname", hostname,
-		"--tfeToken", token,
-		"--tfeOrganization", organization,
+		"--hostname", hostname,
+		"--token", token,
+		"--organization", organization,
 	}, args...)
 
 	rootCmd.SetArgs(fullArgs)
