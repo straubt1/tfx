@@ -57,7 +57,7 @@ func init() {
 	// `tfx workspace list`
 	workspaceListCmd.Flags().StringP("search", "s", "", "Search string anywhere in the Workspace Name (optional).")
 	workspaceListCmd.Flags().StringP("wildcard-name", "w", "", "Wildcard search string for Workspace Name, Examples: *-prod or prod-* (optional).")
-	workspaceListCmd.Flags().StringP("project-id", "p", "", "Filter on Workspaces in this Project (optional).")
+	workspaceListCmd.Flags().String("project-id", "", "Filter on Workspaces in this Project (optional).")
 	workspaceListCmd.Flags().String("run-status", "", "Filter on Workspaces with this current run status (optional).")
 	workspaceListCmd.Flags().String("tags", "", "Filter on Workspaces with this tag (optional).")
 	workspaceListCmd.Flags().String("exclude-tags", "", "Filter out Workspaces with this tag (optional).")
