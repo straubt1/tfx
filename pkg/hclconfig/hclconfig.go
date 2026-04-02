@@ -49,9 +49,9 @@ type Profile struct {
 var (
 	reProfileStart = regexp.MustCompile(`^profile\s+"([^"]+)"\s*\{`)
 	reKeyValue     = regexp.MustCompile(`^\s+(tfeHostname|tfeOrganization|tfeToken|hostname|defaultOrganization|organization|token)\s*=\s*"([^"]*)"`)
-	reFlatHostname = regexp.MustCompile(`^tfeHostname\s*=\s*"([^"]*)"`)
-	reFlatOrg      = regexp.MustCompile(`^tfeOrganization\s*=\s*"([^"]*)"`)
-	reFlatToken    = regexp.MustCompile(`^tfeToken\s*=\s*"([^"]*)"`)
+	reFlatHostname = regexp.MustCompile(`^(?:tfeHostname|hostname)\s*=\s*"([^"]*)"`)
+	reFlatOrg      = regexp.MustCompile(`^(?:tfeOrganization|defaultOrganization|organization)\s*=\s*"([^"]*)"`)
+	reFlatToken    = regexp.MustCompile(`^(?:tfeToken|token)\s*=\s*"([^"]*)"`)
 	reBlockEnd     = regexp.MustCompile(`^\}`)
 )
 
