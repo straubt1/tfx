@@ -69,15 +69,19 @@ Both modes share the same configuration, API client, and authentication. Use whi
 
 `tfx login` writes profiles to `~/.tfx.hcl`. You can also create or edit this file manually.
 
+:::caution[Migration required]
+Starting in v0.3.3, TFx requires profile blocks in `.tfx.hcl`. Flat key formats and legacy `tfe`-prefixed keys (e.g. `tfeHostname`, `tfeOrganization`, `tfeToken`) are no longer supported. If your config file uses the old format, the easiest way to migrate is to run `tfx login` — it will create a profile block for you automatically.
+:::
+
 ### Profile format
 
 Each profile is a named block containing your connection details:
 
 ```hcl
 profile "default" {
-  hostname            = "app.terraform.io"
-  defaultOrganization = "my-org"
-  token               = "my-token"
+  hostname     = "app.terraform.io"
+  organization = "my-org"
+  token        = "my-token"
 }
 ```
 
@@ -85,15 +89,15 @@ You can define multiple profiles for different environments:
 
 ```hcl
 profile "staging" {
-  hostname            = "tfe.staging.myco.internal"
-  defaultOrganization = "my-org-staging"
-  token               = "staging-token"
+  hostname     = "tfe.staging.myco.internal"
+  organization = "my-org-staging"
+  token        = "staging-token"
 }
 
 profile "production" {
-  hostname            = "tfe.myco.internal"
-  defaultOrganization = "my-org"
-  token               = "my-token"
+  hostname     = "tfe.myco.internal"
+  organization = "my-org"
+  token        = "my-token"
 }
 ```
 
@@ -101,8 +105,8 @@ profile "production" {
 
 | Property | HCL key | Default | Required |
 |---|---|---|---|
-| Hostname | `hostname` | `app.terraform.io` | -- |
-| Organization | `defaultOrganization` | _(none)_ | -- |
+| Hostname | `hostname` | `app.terraform.io` | No |
+| Organization | `organization` | _(none)_ | No |
 | Token | `token` | _(none)_ | Yes |
 
 ### Selecting a profile
@@ -135,4 +139,14 @@ To use a specific file instead, set either:
 - `TFX_CONFIG_FILE=/path/to/.tfx.hcl` environment variable
 
 The flag takes precedence over the env var; both override auto-discovery.
+
+### Configuration precedence
+
+When the same setting is specified in multiple places, the highest-precedence source wins:
+
+1. **CLI flags** (`--hostname`, `--organization`, `--token`) — highest
+2. **Environment variables** (`TFE_HOSTNAME`, `TFE_ORGANIZATION`, `TFE_TOKEN`)
+3. **Profile values** from `.tfx.hcl`
+4. **Defaults** (`hostname` defaults to `app.terraform.io`)
+
 

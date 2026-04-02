@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.3.3] - 2026-04-02
+
+**Changed**
+
+* Profile-only configuration: `.tfx.hcl` now requires `profile` blocks; legacy flat-format keys and `tfe`-prefixed key names are no longer supported
+* Configuration precedence: CLI flags > environment variables > profile values > defaults (legacy flat-format config values are ignored)
+
+**Fixed**
+
+* Profile values no longer override CLI flags and environment variables (was using `viper.Set()` which has highest Viper priority)
+
 ## [v0.3.2] - 2026-04-01
 
 **Fixed**
@@ -51,7 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **Changed**
 
 * `tfx tui` subcommand removed — `tfx` launches the TUI directly; all CLI commands unchanged
-* Config keys renamed: `tfeHostname` → `hostname`, `tfeOrganization` → `defaultOrganization`, `tfeToken` → `token` (old keys still supported)
+* Config keys renamed: `tfeHostname` → `hostname`, `tfeOrganization` → `defaultOrganization`, `tfeToken` → `token` (legacy keys removed in v0.3.3)
 * Keyboard shortcut labels use `shift+u`/`shift+c`/`shift+g` instead of uppercase letters
 * Documentation site redesigned: new Interactive TUI section, CLI Commands overview, updated Getting Started with `tfx login` flow, "Why TFx?" rewrite, accent-tinted inline code styling
 

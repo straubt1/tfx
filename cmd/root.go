@@ -26,6 +26,12 @@ import (
 var (
 	cfgFile string
 
+	// userChangedFlags records which persistent flags were explicitly set on the
+	// command line. We snapshot this in initConfig() *before* postInitCommands
+	// runs, because postInitCommands calls cmd.Flags().Set() which marks flags
+	// as Changed even though the user didn't provide them.
+	userChangedFlags map[string]bool
+
 	// Required to leverage viper defaults for optional Flags
 	bindPFlags = func(cmd *cobra.Command, args []string) {
 		err := viper.BindPFlags(cmd.Flags())
@@ -53,9 +59,13 @@ var rootCmd = &cobra.Command{
 	// validates that credentials are present for all commands except 'login'.
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		bindPFlags(cmd, args)
-		resolveActiveProfile()
+
 		if cmd.Name() == "login" {
 			return nil
+		}
+
+		if err := resolveProfile(); err != nil {
+			return err
 		}
 		if viper.GetString("token") == "" {
 			return fmt.Errorf("no API token found — run 'tfx login' to authenticate")
@@ -87,7 +97,7 @@ func init() {
 	rootCmd.PersistentFlags().String("hostname", "app.terraform.io", "The hostname of TFE without the schema. Can also be set with the environment variable TFE_HOSTNAME.")
 	rootCmd.PersistentFlags().String("organization", "", "The name of the TFx Organization. Can also be set with the environment variable TFE_ORGANIZATION.")
 	rootCmd.PersistentFlags().String("token", "", "The API token used to authenticate to TFx. Can also be set with the environment variable TFE_TOKEN.")
-	rootCmd.PersistentFlags().StringP("profile", "p", "", "Named profile to use from ~/.tfx.hcl.")
+	rootCmd.PersistentFlags().StringP("profile", "p", "", "Named profile to use from the config file. Defaults to \"default\". Can also be set with the environment variable TFX_PROFILE.")
 
 	// Add json output option
 	rootCmd.PersistentFlags().BoolP("json", "j", false, "Will output command results as JSON.")
@@ -140,61 +150,70 @@ func initConfig() {
 	viper.AutomaticEnv()
 
 	// If a config file is found, read it in.
-	isConfigFile := false
-	err := viper.ReadInConfig()
-	if err == nil {
-		isConfigFile = true // Capture information here to bring after all flags are loaded (namely which output type)
-	} else {
+	if err := viper.ReadInConfig(); err != nil {
 		output.Get().Logger().Warn("Unable to parse config file, will continue without it.")
 	}
+
+	// Snapshot which persistent flags were explicitly set by the user on the
+	// command line. Must happen BEFORE postInitCommands, which calls
+	// cmd.Flags().Set() and marks flags as Changed even for config-file values.
+	captureUserFlags()
 
 	// Some hacking here to let viper use the cobra required flags, simplifies this checking
 	// in one place rather than each command
 	// More info: https://github.com/spf13/viper/issues/397
 	postInitCommands(rootCmd.Commands())
 
-	// Output system initializes automatically on first use via output.Get()
-	// Show config file message if found
-	if isConfigFile {
-		out := output.Get()
-		out.Message("Using config file: %s", viper.ConfigFileUsed())
-	}
 }
 
-// resolveActiveProfile reads profile blocks from the loaded config file and
-// promotes the active profile's values to the flat viper keys (hostname,
-// token, organization) that the rest of the app reads.
+// captureUserFlags snapshots which persistent flags were explicitly set on the
+// command line. Called in initConfig before postInitCommands corrupts Changed.
+func captureUserFlags() {
+	userChangedFlags = make(map[string]bool)
+	rootCmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
+		if f.Changed {
+			userChangedFlags[f.Name] = true
+		}
+	})
+}
+
+// resolveProfile loads profile blocks from the config file and merges the
+// active profile's values into Viper with correct precedence:
 //
-// Profile selection priority:
-//  1. --profile flag (or TFX_PROFILE env var) — use the named profile
-//  2. No flag — use the first profile block in the file
-//  3. Old flat format (no profile blocks) — nothing to do; flat keys already set
-func resolveActiveProfile() {
+//	CLI flags (--hostname, --organization, --token)  — highest
+//	Environment variables (TFE_HOSTNAME, etc.)
+//	Profile values from .tfx.hcl
+//	Defaults                                         — lowest
+func resolveProfile() error {
 	configPath := viper.ConfigFileUsed()
 	if configPath == "" {
-		return
+		return nil
 	}
 
 	profiles, err := hclconfig.ListProfiles(configPath)
 	if err != nil || len(profiles) == 0 {
-		return
+		// Config file exists but can't be parsed or has no profiles.
+		// Not fatal — flags or env vars may still provide credentials.
+		return nil
 	}
 
-	profileFlag := viper.GetString("profile")
+	// Select profile: --profile flag > "default" name
+	profileName := viper.GetString("profile")
 	var active *hclconfig.Profile
-	if profileFlag != "" {
+	if profileName != "" {
+		// User explicitly asked for a profile — error if not found.
 		for i := range profiles {
-			if profiles[i].Name == profileFlag {
+			if profiles[i].Name == profileName {
 				active = &profiles[i]
 				break
 			}
 		}
-		// Unknown profile — let validation in PersistentPreRunE report the error.
 		if active == nil {
-			return
+			return fmt.Errorf("profile %q not found in %s", profileName, configPath)
 		}
 	} else {
-		// No --profile flag: prefer a profile named "default", fall back to first.
+		// Look for "default" profile. If not found, silently skip —
+		// flags or env vars may still provide credentials.
 		for i := range profiles {
 			if profiles[i].Name == "default" {
 				active = &profiles[i]
@@ -202,19 +221,42 @@ func resolveActiveProfile() {
 			}
 		}
 		if active == nil {
-			active = &profiles[0]
+			return nil
 		}
 	}
 
-	// Store the resolved profile name so callers (e.g. the TUI) can read it
-	// back from Viper even when --profile was not explicitly provided.
+	// Store the resolved profile name so callers (e.g. the TUI) can read it back.
 	viper.Set("profile", active.Name)
 
-	if active.Hostname != "" {
-		viper.Set("hostname", active.Hostname)
+	// Print config file and profile (unless JSON mode).
+	if !viper.GetBool("json") {
+		output.Get().Message("Using config file: %s (profile: %s)", aurora.Blue(configPath), aurora.Blue(active.Name))
 	}
-	viper.Set("token", active.Token)
-	viper.Set("organization", active.Organization)
+
+	// Merge profile values with correct precedence.
+	// Only set when no higher-precedence source (flag or env var) exists.
+	type mapping struct {
+		viperKey string
+		envVar   string
+		value    string
+	}
+	for _, m := range []mapping{
+		{"hostname", "TFE_HOSTNAME", active.Hostname},
+		{"token", "TFE_TOKEN", active.Token},
+		{"organization", "TFE_ORGANIZATION", active.Organization},
+	} {
+		if userChangedFlags[m.viperKey] {
+			continue // CLI flag wins
+		}
+		if os.Getenv(m.envVar) != "" {
+			continue // env var wins (already in Viper via BindEnv)
+		}
+		if m.value != "" {
+			viper.Set(m.viperKey, m.value)
+		}
+	}
+
+	return nil
 }
 
 // copy.pasta function

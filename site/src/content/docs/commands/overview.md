@@ -24,10 +24,12 @@ Profiles are the recommended approach, but you can also configure TFx with envir
 | Flag | Environment Variable | Default |
 |---|---|---|
 | `--hostname` | `TFE_HOSTNAME` | `app.terraform.io` |
-| `--default-organization` | `TFE_ORGANIZATION` | _(none)_ |
+| `--organization` | `TFE_ORGANIZATION` | _(none)_ |
 | `--token` | `TFE_TOKEN` | _(none)_ |
 
 This is useful in CI/CD pipelines where you set credentials via environment variables rather than a config file.
+
+See [Getting Started — Configuration precedence](/gettingstarted/#configuration-precedence) for the full resolution order when multiple sources are configured.
 
 ## Output
 

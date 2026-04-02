@@ -225,47 +225,34 @@ The login flow is an **inline** Bubble Tea TUI (no alt-screen) implemented in `t
 | Property | HCL key | Default | Required |
 |---|---|---|---|
 | Name | block label | `"default"` | — |
-| Hostname | `tfeHostname` | `"app.terraform.io"` | — |
-| Organization | `tfeOrganization` | (commented placeholder) | — |
-| Token | `tfeToken` | — | ✓ |
-
-`tfe-license-path` is a valid key in the block but is **not** written by `tfx login` and is not populated in the `Profile` struct — it passes through untouched in the raw file.
+| Hostname | `hostname` | `"app.terraform.io"` | — |
+| Organization | `organization` | (commented placeholder) | — |
+| Token | `token` | — | ✓ |
 
 ### HCL Config Format (`pkg/hclconfig/`)
 
-**New format** — one or more named profile blocks:
+Profile blocks only — legacy flat format and `tfe`-prefixed keys are no longer supported:
 
 ```hcl
 profile "default" {
-  tfeHostname     = "app.terraform.io"
-  tfeOrganization = "my-org"
-  tfeToken        = "abc123..."
+  hostname     = "app.terraform.io"
+  organization = "my-org"
+  token        = "abc123..."
 }
 
 profile "staging" {
-  tfeHostname     = "tfe.myco.internal"
-  tfeOrganization = "my-org"
-  tfeToken        = "xyz..."
+  hostname     = "tfe.myco.internal"
+  organization = "my-org"
+  token        = "xyz..."
 }
 ```
 
 - Block label = profile **name** (a user-editable alias — NOT the hostname).
-- `tfeHostname` inside the block = hostname. Always independent of the name.
-- `tfeHostname` is optional; defaults to `DefaultHostname` (`"app.terraform.io"`) when absent.
-- `tfeOrganization` is optional; when empty `WriteProfile` writes a commented placeholder:
+- `hostname` is optional; defaults to `DefaultHostname` (`"app.terraform.io"`) when absent.
+- `organization` is optional; when empty `WriteProfile` writes a commented placeholder:
   ```
-    # tfeOrganization = "" # set this to your organization name
+    # organization = "" # set this to your organization name
   ```
-
-**Legacy flat format** (no `profile` blocks) — still supported for reading:
-
-```hcl
-tfeHostname     = "app.terraform.io"   # optional, defaults to app.terraform.io
-tfeOrganization = "my-org"
-tfeToken        = "abc123..."
-```
-
-Parsed as a single profile with `Name = DefaultProfileName` and `Hostname = tfeHostname` value (or `DefaultHostname` if absent). Only returned when `tfeToken` is non-empty.
 
 **Key constants:**
 - `hclconfig.DefaultProfileName = "default"`
@@ -273,23 +260,23 @@ Parsed as a single profile with `Name = DefaultProfileName` and `Hostname = tfeH
 
 **Key functions:**
 - `Profile` struct: `Name`, `Hostname`, `Organization`, `Token string`
-- `ListProfiles(path string) ([]Profile, error)` — `nil, nil` when file not found or empty
+- `ListProfiles(path string) ([]Profile, error)` — `nil, nil` when file not found or has no profile blocks
 - `WriteProfile(path, name, hostname, organization, token string) error` — name/hostname default to constants when empty
-
-**Backward compat for old block-label-as-hostname files:**
-If `tfeHostname` is absent AND the block label contains a dot (e.g. `profile "app.terraform.io" {}`), the label is used as hostname. Aliases without dots (`"default"`, `"prod"`) fall back to `DefaultHostname`. The profile name is **never** used as hostname for name-only aliases.
 
 ### Profile Resolution in `cmd/root.go`
 
-`resolveActiveProfile()` runs in `PersistentPreRunE` (after `bindPFlags`):
+`resolveProfile()` runs in `PersistentPreRunE` (after `bindPFlags`, skipped for `login`):
 
 1. Load profiles from `viper.ConfigFileUsed()` via `hclconfig.ListProfiles`
-2. If `--profile` flag set → find profile by `Profile.Name`, promote values to Viper
-3. If `--profile` not set → prefer a profile named `"default"`, then fall back to `profiles[0]`
-4. Always calls `viper.Set("profile", active.Name)` so the TUI can read it back
-5. Calls `viper.Set("tfeHostname", active.Hostname)` **only when `Hostname != ""`** (avoids overriding env/flag defaults with an empty value)
-6. Always sets `tfeToken` and `tfeOrganization`
-7. Hostname is **NEVER** derived from the profile name — always from `tfeHostname` inside the block
+2. If no config file or no profiles → return nil (flags/env may provide credentials)
+3. If `--profile` flag set → find profile by name; error if not found
+4. If `--profile` not set → look for profile named `"default"`; if not found return nil
+5. Print `Using config file: <path> (profile: <name>)` (suppressed in `--json` mode)
+6. Merge profile values with correct precedence — only set when no higher-priority source exists:
+   - CLI flags (`--hostname`, `--organization`, `--token`) — highest
+   - Environment variables (`TFE_HOSTNAME`, `TFE_ORGANIZATION`, `TFE_TOKEN`)
+   - Profile values from config file
+   - Defaults — lowest
 
 ### State Machine
 
