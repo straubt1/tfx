@@ -81,3 +81,5 @@ require (
 	golang.org/x/text v0.35.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 )
+
+replace github.com/straubt1/tfx => /Users/fatimamojaddidy/git/tfx

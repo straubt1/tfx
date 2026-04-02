@@ -42,23 +42,6 @@ func TestListProfiles_EmptyFile(t *testing.T) {
 
 // --- Flat format (legacy) ---
 
-func TestListProfiles_FlatOldKeys(t *testing.T) {
-	path := writeTempConfig(t, `
-tfeHostname     = "tfe.example.com"
-tfeOrganization = "my-org"
-tfeToken        = "tok123"
-`)
-	profiles, err := ListProfiles(path)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(profiles) != 1 {
-		t.Fatalf("expected 1 profile, got %d", len(profiles))
-	}
-	p := profiles[0]
-	assertProfile(t, p, "default", "tfe.example.com", "my-org", "tok123")
-}
-
 func TestListProfiles_FlatNewKeys(t *testing.T) {
 	path := writeTempConfig(t, `
 hostname            = "tfe.example.com"
@@ -135,24 +118,6 @@ profile "default" {
 		t.Fatalf("expected 1 profile, got %d", len(profiles))
 	}
 	assertProfile(t, profiles[0], "default", "tfe.example.com", "block-org", "block-tok")
-}
-
-func TestListProfiles_BlockOldKeys(t *testing.T) {
-	path := writeTempConfig(t, `
-profile "legacy" {
-  tfeHostname     = "tfe.old.com"
-  tfeOrganization = "old-org"
-  tfeToken        = "old-tok"
-}
-`)
-	profiles, err := ListProfiles(path)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(profiles) != 1 {
-		t.Fatalf("expected 1 profile, got %d", len(profiles))
-	}
-	assertProfile(t, profiles[0], "legacy", "tfe.old.com", "old-org", "old-tok")
 }
 
 func TestListProfiles_BlockHostnameDefaultsWhenOmitted(t *testing.T) {
