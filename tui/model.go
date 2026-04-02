@@ -301,7 +301,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.errMsg = ""
 
 		// Auto-select an org and jump straight to projects if:
-		//   1. defaultOrganization is configured and found in the list, OR
+		//   1. organization is configured and found in the list, OR
 		//   2. The token only has access to exactly one org.
 		var autoOrg *tfe.Organization
 		if m.org != "" {
