@@ -76,7 +76,7 @@ Once complete, verify:
 To validate the full build without publishing anything:
 
 ```bash
-task release-dry-run
+task release:dry-run
 ```
 
 This runs `goreleaser release --snapshot --clean --skip=announce,validate`. In snapshot mode:

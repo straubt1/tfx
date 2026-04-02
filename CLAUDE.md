@@ -29,26 +29,23 @@ After completing a task, compose and display the intended commit message describ
 
 ```bash
 # Build
-task go-build
+task go:build
 
 # Cross-platform build (via goreleaser)
-task go-build-all
+task go:build-all
 
 # Run unit tests
-task test
+go test ./...
 
 # Run integration tests (requires secrets/.env-int with TFE_HOSTNAME, TFE_TOKEN, TFE_ORGANIZATION)
-task test-integration-data
-task test-integration-cmd
-
-# Run all tests
-task test-all
+task test:integration-data
+task test:integration-cmd
 
 # Upgrade dependencies
-task go-upgrade
+task go:upgrade
 
 # Serve documentation site
-task serve-docs
+task development:serve-docs
 ```
 
 ## Configuration & Environment Variables
@@ -445,7 +442,7 @@ Before confirming, update `CHANGELOG.md` with release notes for the new version.
 ### Testing the Release Pipeline Locally
 
 ```bash
-task release-dry-run
+task release:dry-run
 ```
 
 Runs `goreleaser release --snapshot --clean --skip=announce,validate` — builds all artifacts without requiring a tag. The Homebrew formula is generated and written to `dist/` (not pushed to the tap) because `skip_upload: "{{ .IsSnapshot }}"` is set in `.goreleaser.yml`. Goreleaser v2 may emit 2 informational `dockers_v2` warnings; these are a known goreleaser quirk and can be ignored.
@@ -454,7 +451,7 @@ Runs `goreleaser release --snapshot --clean --skip=announce,validate` — builds
 
 `version/version.go` defaults to `"dev"`. Goreleaser injects the actual version at build time via ldflags from the git tag — `version.go` never needs manual editing for releases.
 
-Local dev builds (`task go-build`) embed the short git hash, UTC date, and `BuiltBy=local`.
+Local dev builds (`task go:build`) embed the short git hash, UTC date, and `BuiltBy=local`.
 
 ### GitHub Actions
 

@@ -27,7 +27,7 @@ brew install go goreleaser go-task
 ### Optional
 
 ```bash
-brew install node   # only needed for serving the docs site locally (task serve-docs)
+brew install node   # only needed for serving the docs site locally (task development:serve-docs)
 brew install --cask font-roboto-mono-nerd-font  # required for Nerd Font icons in VHS recordings
 ```
 
@@ -43,31 +43,34 @@ task doctor
 git clone https://github.com/straubt1/tfx.git
 cd tfx
 go mod download
-task go-build
+task go:build
 ./tfx version
 ```
 
 ## Common Tasks
 
-Run `task --list` to see all available tasks. Key ones:
+Run `task --list` to see all available tasks:
 
 | Task | Description |
 |---|---|
-| `task doctor` | Verify all required tools are installed |
-| `task go-build` | Build the `tfx` binary for local development |
-| `task go-build-all` | Cross-platform snapshot build via goreleaser |
-| `task test` | Run unit tests |
-| `task test-all` | Run unit + integration tests |
-| `task go-upgrade` | Upgrade Go toolchain and all module dependencies |
-| `task serve-docs` | Serve the documentation site locally |
-| `task release-dry-run` | Simulate the full release pipeline locally |
+| `task development:doctor` | Verify all required development tools are installed |
+| `task development:serve-docs` | Serve documentation site locally (Starlight/Astro) |
+| `task go:build` | Build Go binary (development build with git metadata) |
+| `task go:build-all` | Cross-platform snapshot build via goreleaser (same as release:dry-run) |
+| `task go:upgrade` | Upgrade Go toolchain (via brew) and all module dependencies |
+| `task release:dry-run` | Simulate the full release pipeline locally (no publish, no tag required) |
+| `task release:major` | Cut a major release (X+1.0.0) — for breaking changes |
+| `task release:minor` | Cut a minor release (x.Y+1.0) — for new features |
+| `task release:patch` | Cut a patch release (x.y.Z+1) — for bugfixes |
+| `task test:integration-cmd` | Run integration tests for commands only |
+| `task test:integration-data` | Run integration tests (requires TFE_HOSTNAME, TFE_TOKEN, TFE_ORGANIZATION env vars) |
 
 ## Upgrading Dependencies
 
 To upgrade Go, goreleaser, and all module dependencies:
 
 ```bash
-task go-upgrade
+task go:upgrade
 ```
 
 This will:
@@ -92,8 +95,8 @@ EOF
 Then run integration tests:
 
 ```bash
-task test-integration-data
-task test-integration-cmd
+task test:integration-data
+task test:integration-cmd
 ```
 
 ## Project Structure
