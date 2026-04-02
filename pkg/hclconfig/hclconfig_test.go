@@ -1,5 +1,5 @@
-// Copyright (c) Tom Straub (github.com/straubt1) 2025
 // SPDX-License-Identifier: MIT
+// Copyright © 2025 Tom Straub <github.com/straubt1>
 
 package hclconfig
 
