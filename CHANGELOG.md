@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Fixed**
 
-* Flat-format config files (without `profile` blocks) now recognize new key names (`hostname`, `defaultOrganization`, `organization`, `token`) in addition to the legacy `tfe`-prefixed keys (#248)
+* Flat-format config files (without `profile` blocks) now use new key names (`hostname`, `defaultOrganization`, `organization`, `token`), replacing the deprecated `tfe`-prefixed keys (#248)
 
 **Added**
 
