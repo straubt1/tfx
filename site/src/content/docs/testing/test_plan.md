@@ -36,9 +36,9 @@ This creates a profile in `~/.tfx.hcl`:
 
 ```hcl
 profile "default" {
-  hostname            = "app.terraform.io"
-  defaultOrganization = "my-org"
-  token               = "my-token"
+  hostname     = "app.terraform.io"
+  organization = "my-org"
+  token        = "my-token"
 }
 ```
 

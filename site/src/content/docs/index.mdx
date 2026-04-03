@@ -64,9 +64,11 @@ Download the latest binary from the [Releases page](https://github.com/straubt1/
 **2. Configure**
 ```hcl
 # ~/.tfx.hcl
-hostname            = "app.terraform.io"
-defaultOrganization = "my-org"
-token               = "my-token"
+profile "default" {
+  hostname     = "app.terraform.io"
+  organization = "my-org"
+  token        = "my-token"
+}
 ```
 
 **3. Run**
