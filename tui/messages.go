@@ -475,38 +475,95 @@ type healthCheckLoadedMsg map[string]string
 // healthCheckErrMsg carries an error from the health check fetch.
 type healthCheckErrMsg struct{ err error }
 
-// loadHealthCheck fetches /_health_check?full=1 from the configured host.
-// The endpoint returns a JSON object whose values may be strings (e.g. "UP")
-// or booleans; all values are coerced to strings for display.
+// loadHealthCheck tries the new /api/v1/health/readiness endpoint first
+// (available on TFE), falling back to the legacy /_health_check?full=1
+// endpoint (available on both HCP Terraform and older TFE).
 func loadHealthCheck(c *client.TfxClient) tea.Cmd {
 	return func() tea.Msg {
-		url := fmt.Sprintf("https://%s/_health_check?full=1", c.Hostname)
-		req, err := http.NewRequestWithContext(c.Context, http.MethodGet, url, nil)
-		if err != nil {
-			return healthCheckErrMsg{err}
+		result, err := fetchReadiness(c)
+		if err == nil {
+			return healthCheckLoadedMsg(result)
 		}
-		req.Header.Set("Authorization", "Bearer "+c.Token)
-		resp, err := c.HTTPClient.Do(req)
-		if err != nil {
-			return healthCheckErrMsg{err}
-		}
-		defer resp.Body.Close()
 
-		// Decode into interface{} to handle any JSON shape (string, bool, etc.).
-		var raw map[string]interface{}
-		if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+		// Fallback to legacy endpoint.
+		result, err = fetchLegacyHealthCheck(c)
+		if err != nil {
 			return healthCheckErrMsg{err}
-		}
-		result := make(map[string]string, len(raw))
-		for k, v := range raw {
-			switch val := v.(type) {
-			case string:
-				result[k] = val
-			default:
-				b, _ := json.Marshal(val)
-				result[k] = string(b)
-			}
 		}
 		return healthCheckLoadedMsg(result)
 	}
+}
+
+// fetchReadiness calls GET /api/v1/health/readiness (TFE only).
+// Returns an error if the endpoint is not available (404) or on any failure.
+func fetchReadiness(c *client.TfxClient) (map[string]string, error) {
+	url := fmt.Sprintf("https://%s/api/v1/health/readiness", c.Hostname)
+	req, err := http.NewRequestWithContext(c.Context, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("readiness endpoint not available")
+	}
+
+	var body struct {
+		Node   string `json:"node"`
+		Status string `json:"status"`
+		Checks []struct {
+			Check  string `json:"check"`
+			Status string `json:"status"`
+		} `json:"checks"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]string, len(body.Checks)+2)
+	result["status"] = body.Status
+	if body.Node != "" {
+		result["node"] = body.Node
+	}
+	for _, ch := range body.Checks {
+		result[ch.Check] = ch.Status
+	}
+	return result, nil
+}
+
+// fetchLegacyHealthCheck calls GET /_health_check?full=1 (HCP Terraform and older TFE).
+// The endpoint returns a flat JSON object whose values may be strings or booleans.
+func fetchLegacyHealthCheck(c *client.TfxClient) (map[string]string, error) {
+	url := fmt.Sprintf("https://%s/_health_check?full=1", c.Hostname)
+	req, err := http.NewRequestWithContext(c.Context, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var raw map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+		return nil, err
+	}
+	result := make(map[string]string, len(raw))
+	for k, v := range raw {
+		switch val := v.(type) {
+		case string:
+			result[k] = val
+		default:
+			b, _ := json.Marshal(val)
+			result[k] = string(b)
+		}
+	}
+	return result, nil
 }

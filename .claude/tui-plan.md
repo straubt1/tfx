@@ -225,7 +225,7 @@ Navigation pattern: Enter drills in, Esc goes up one level.
 ```
 
 > **Why does the header show `vdev`?**
-> The header renders `v{version.Version}`. The `version.Version` variable (in `version/version.go`) defaults to the string `"dev"` in source. Goreleaser injects the real git tag at release time via ldflags (`-X github.com/straubt1/tfx/version.Version=v1.2.3`). In local development builds (`task go-build`), goreleaser is not invoked, so the version stays as `"dev"` and the header shows `vdev`. This is expected and correct — no action needed.
+> The header renders `v{version.Version}`. The `version.Version` variable (in `version/version.go`) defaults to the string `"dev"` in source. Goreleaser injects the real git tag at release time via ldflags (`-X github.com/straubt1/tfx/version.Version=v1.2.3`). In local development builds (`task go:build`), goreleaser is not invoked, so the version stays as `"dev"` and the header shows `vdev`. This is expected and correct — no action needed.
 
 **CLI hint bar** (bottom): always shows the equivalent `tfx` CLI command for the current view. This is a core UX requirement — users who want to script or automate can easily discover the right command.
 

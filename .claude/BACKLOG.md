@@ -16,4 +16,4 @@ Future skills to build for Claude Code. Pick one up with: "look at my backlog an
 
 - [ ] **go-tfe-pr** — Guide for contributing to the `hashicorp/go-tfe` SDK (fork workflow, struct field additions, jsonapi tags, test patterns, PR conventions)
 
-- [ ] **prepare-release** — Pre-release checklist: verify docs are up to date for new/changed commands, run linting (`go vet`, `staticcheck`), run unit tests (`task test`), run build (`task go-build`), check CHANGELOG.md has an entry, run `task release-dry-run` to validate goreleaser
+- [ ] **prepare-release** — Pre-release checklist: verify docs are up to date for new/changed commands, run linting (`go vet`, `staticcheck`), run unit tests (`task test`), run build (`task go:build`), check CHANGELOG.md has an entry, run `task release:dry-run` to validate goreleaser

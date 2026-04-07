@@ -37,6 +37,9 @@ site/cinder_del
 dist/
 logs/
 
+# Version manager
+.tool-versions
+
 # Starlight/Astro docs build artifacts
 site/node_modules/
 site/dist/
