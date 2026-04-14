@@ -8,7 +8,7 @@ require (
 	code.cloudfoundry.org/bytefmt v0.67.0
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/briandowns/spinner v1.23.2
-	github.com/charmbracelet/x/ansi v0.11.6
+	github.com/charmbracelet/x/ansi v0.11.7
 	github.com/coreos/go-semver v0.3.1
 	github.com/dustin/go-humanize v1.0.1
 	github.com/epilande/go-devicons v0.0.0-20250505162540-0661cab71a28
@@ -69,7 +69,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mattn/go-runewidth v0.0.21 // indirect
+	github.com/mattn/go-runewidth v0.0.23 // indirect
 	github.com/pelletier/go-toml/v2 v2.3.0 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
