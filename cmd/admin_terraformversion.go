@@ -42,7 +42,16 @@ Enable specific versions:
 tfx admin terraform-version enable --versions 1.5.0,1.5.1
 
 Disable specific versions:
-tfx admin terraform-version disable --versions 1.4.0,1.4.1`,
+tfx admin terraform-version disable --versions 1.4.0,1.4.1
+
+Disable all versions except a keep-list:
+tfx admin terraform-version disable all --except 1.12.0,1.13.0
+
+Disable all unused versions:
+tfx admin terraform-version disable all --not-in-use
+
+Disable all versions before 1.12.0:
+tfx admin terraform-version disable all --before 1.12.0`,
 	}
 
 	// `tfx admin terraform-version list` command
@@ -149,11 +158,19 @@ tfx admin terraform-version disable --versions 1.4.0,1.4.1`,
 	tfvDisableAllCmd = &cobra.Command{
 		Use:   "all",
 		Short: "Disable All Terraform Versions",
-		Long:  "Disable All Terraform Versions in a TFE Installation.",
+		Long:  "Disable All Terraform Versions in a TFE Installation. Optional filter flags select a subset.",
 		Example: `
-tfx admin terraform-version disable all`,
+tfx admin terraform-version disable all
+
+tfx admin terraform-version disable all --except 1.12.0,1.13.0
+
+tfx admin terraform-version disable all --not-in-use
+
+tfx admin terraform-version disable all --beta
+
+tfx admin terraform-version disable all --before 1.12.0`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmdConfig, err := flags.ParseAdminTerraformVersionEnableDisableFlags(cmd)
+			cmdConfig, err := flags.ParseAdminTerraformVersionDisableAllFlags(cmd)
 			if err != nil {
 				return err
 			}
@@ -181,11 +198,17 @@ tfx admin terraform-version enable --versions 1.5.0,1.5.1`,
 	tfvEnableAllCmd = &cobra.Command{
 		Use:   "all",
 		Short: "Enable All Terraform Versions",
-		Long:  "Enable All Terraform Versions in a TFE Installation.",
+		Long:  "Enable All Terraform Versions in a TFE Installation. Optional filter flags select a subset.",
 		Example: `
-tfx admin terraform-version enable all`,
+tfx admin terraform-version enable all
+
+tfx admin terraform-version enable all --include 1.12.0,1.13.0
+
+tfx admin terraform-version enable all --except 1.12.0,1.13.0
+
+tfx admin terraform-version enable all --beta`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmdConfig, err := flags.ParseAdminTerraformVersionEnableDisableFlags(cmd)
+			cmdConfig, err := flags.ParseAdminTerraformVersionEnableAllFlags(cmd)
 			if err != nil {
 				return err
 			}
@@ -227,9 +250,25 @@ func init() {
 	tfvDisableCmd.Flags().StringSliceP("versions", "v", []string{}, "Versions to disable, can be comma separated (e.g., 1.4.0,1.4.1)")
 	tfvDisableCmd.MarkFlagRequired("versions")
 
+	// `tfx admin terraform-version disable all` flags
+	tfvDisableAllCmd.Flags().StringSlice("except", []string{}, "Versions to keep enabled; disable all others (comma separated)")
+	tfvDisableAllCmd.Flags().String("before", "", "Disable all versions strictly before this semver (e.g., 1.12.0)")
+	tfvDisableAllCmd.Flags().Bool("not-in-use", false, "Disable only versions with no workspace usage")
+	tfvDisableAllCmd.Flags().Bool("beta", false, "Disable only beta versions")
+	tfvDisableAllCmd.Flags().Bool("deprecated", false, "Disable only deprecated versions")
+	tfvDisableAllCmd.Flags().Bool("unofficial", false, "Disable only unofficial versions")
+	tfvDisableAllCmd.Flags().Bool("official", false, "Disable only official versions")
+
 	// `tfx admin terraform-version enable` flags
 	tfvEnableCmd.Flags().StringSliceP("versions", "v", []string{}, "Versions to enable, can be comma separated (e.g., 1.5.0,1.5.1)")
 	tfvEnableCmd.MarkFlagRequired("versions")
+
+	// `tfx admin terraform-version enable all` flags
+	tfvEnableAllCmd.Flags().StringSlice("include", []string{}, "Enable only these versions (comma separated)")
+	tfvEnableAllCmd.Flags().StringSlice("except", []string{}, "Enable all versions except these (comma separated)")
+	tfvEnableAllCmd.Flags().Bool("beta", false, "Enable only beta versions")
+	tfvEnableAllCmd.Flags().Bool("unofficial", false, "Enable only unofficial versions")
+	tfvEnableAllCmd.Flags().Bool("official", false, "Enable only official versions")
 
 	adminCmd.AddCommand(tfvCmd)
 	tfvCmd.AddCommand(tfvListCmd)
@@ -374,7 +413,7 @@ func tfvDisable(cmdConfig *flags.AdminTerraformVersionEnableDisableFlags) error 
 	return v.Render(results)
 }
 
-func tfvDisableAll(cmdConfig *flags.AdminTerraformVersionEnableDisableFlags) error {
+func tfvDisableAll(cmdConfig *flags.AdminTerraformVersionDisableAllFlags) error {
 	// Create view for rendering
 	v := view.NewAdminTerraformVersionUpdateView()
 
@@ -383,8 +422,24 @@ func tfvDisableAll(cmdConfig *flags.AdminTerraformVersionEnableDisableFlags) err
 		return v.RenderError(err)
 	}
 
-	// Print command header
-	v.PrintCommandHeader("Disabling all Terraform versions")
+	switch {
+	case len(cmdConfig.Except) > 0:
+		v.PrintCommandHeader("Disabling all Terraform versions except: %v", cmdConfig.Except)
+	case cmdConfig.Before != "":
+		v.PrintCommandHeader("Disabling all Terraform versions before %s", cmdConfig.Before)
+	case cmdConfig.NotInUse:
+		v.PrintCommandHeader("Disabling unused Terraform versions")
+	case cmdConfig.Beta:
+		v.PrintCommandHeader("Disabling beta Terraform versions")
+	case cmdConfig.Deprecated:
+		v.PrintCommandHeader("Disabling deprecated Terraform versions")
+	case cmdConfig.Unofficial:
+		v.PrintCommandHeader("Disabling unofficial Terraform versions")
+	case cmdConfig.Official:
+		v.PrintCommandHeader("Disabling official Terraform versions")
+	default:
+		v.PrintCommandHeader("Disabling all Terraform versions")
+	}
 
 	// Fetch all versions
 	items, err := data.FetchTerraformVersions(c, "", "")
@@ -392,13 +447,21 @@ func tfvDisableAll(cmdConfig *flags.AdminTerraformVersionEnableDisableFlags) err
 		return v.RenderError(errors.Wrap(err, "failed to list terraform versions"))
 	}
 
-	// Extract version strings
-	versions := make([]string, len(items))
-	for i, v := range items {
-		versions[i] = v.Version
+	filter := data.TerraformVersionDisableFilter{
+		Except:     cmdConfig.Except,
+		Before:     cmdConfig.Before,
+		NotInUse:   cmdConfig.NotInUse,
+		Deprecated: cmdConfig.Deprecated,
+		Unofficial: cmdConfig.Unofficial,
+		Official:   cmdConfig.Official,
+		Beta:       cmdConfig.Beta,
+	}
+	versions := data.FilterVersionsForDisable(items, filter)
+	if len(versions) == 0 {
+		return v.RenderError(errors.New("no terraform versions matched filter"))
 	}
 
-	// Disable all versions
+	// Disable selected versions
 	results, err := data.UpdateTerraformVersions(c, versions, false)
 	if err != nil {
 		return v.RenderError(err)
@@ -428,7 +491,7 @@ func tfvEnable(cmdConfig *flags.AdminTerraformVersionEnableDisableFlags) error {
 	return v.Render(results)
 }
 
-func tfvEnableAll(cmdConfig *flags.AdminTerraformVersionEnableDisableFlags) error {
+func tfvEnableAll(cmdConfig *flags.AdminTerraformVersionEnableAllFlags) error {
 	// Create view for rendering
 	v := view.NewAdminTerraformVersionUpdateView()
 
@@ -437,8 +500,20 @@ func tfvEnableAll(cmdConfig *flags.AdminTerraformVersionEnableDisableFlags) erro
 		return v.RenderError(err)
 	}
 
-	// Print command header
-	v.PrintCommandHeader("Enabling all Terraform versions")
+	switch {
+	case len(cmdConfig.Include) > 0:
+		v.PrintCommandHeader("Enabling Terraform versions: %v", cmdConfig.Include)
+	case len(cmdConfig.Except) > 0:
+		v.PrintCommandHeader("Enabling all Terraform versions except: %v", cmdConfig.Except)
+	case cmdConfig.Beta:
+		v.PrintCommandHeader("Enabling beta Terraform versions")
+	case cmdConfig.Unofficial:
+		v.PrintCommandHeader("Enabling unofficial Terraform versions")
+	case cmdConfig.Official:
+		v.PrintCommandHeader("Enabling official Terraform versions")
+	default:
+		v.PrintCommandHeader("Enabling all Terraform versions")
+	}
 
 	// Fetch all versions
 	items, err := data.FetchTerraformVersions(c, "", "")
@@ -446,13 +521,19 @@ func tfvEnableAll(cmdConfig *flags.AdminTerraformVersionEnableDisableFlags) erro
 		return v.RenderError(errors.Wrap(err, "failed to list terraform versions"))
 	}
 
-	// Extract version strings
-	versions := make([]string, len(items))
-	for i, v := range items {
-		versions[i] = v.Version
+	filter := data.TerraformVersionEnableFilter{
+		Include:    cmdConfig.Include,
+		Except:     cmdConfig.Except,
+		Unofficial: cmdConfig.Unofficial,
+		Official:   cmdConfig.Official,
+		Beta:       cmdConfig.Beta,
+	}
+	versions := data.FilterVersionsForEnable(items, filter)
+	if len(versions) == 0 {
+		return v.RenderError(errors.New("no terraform versions matched filter"))
 	}
 
-	// Enable all versions
+	// Enable selected versions
 	results, err := data.UpdateTerraformVersions(c, versions, true)
 	if err != nil {
 		return v.RenderError(err)

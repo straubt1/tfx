@@ -38,7 +38,7 @@ Check out our docs site [tfx.rocks](https://tfx.rocks)
 | `tfx release tfe` | `list`, `show` |
 | `tfx admin gpg` | `list`, `show`, `create`, `delete` |
 | `tfx admin metrics` | `workspace` |
-| `tfx admin terraformversion` | `list`, `show`, `create`, `update`, `delete` |
+| `tfx admin terraform-version` | `list`, `show`, `create`, `create official`, `delete`, `enable`, `enable all`, `disable`, `disable all` |
 
 ## Roadmap
 

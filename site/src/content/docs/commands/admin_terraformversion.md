@@ -12,6 +12,22 @@ These commands will only work with Terraform Enterprise
 All commands below can be used with a `tfv` alias.
 :::
 
+## Command overview
+
+| Subcommand | Description |
+|---|---|
+| `list` | List all Terraform versions (`--search` for substring filter) |
+| `show` | Show details for one version |
+| `create` | Create a custom version from URL and SHA |
+| `create official` | Create a version from HashiCorp releases |
+| `delete` | Delete a version |
+| `disable` | Disable specific versions (`--versions`) |
+| `disable all` | Bulk disable; optional filter flags select a subset |
+| `enable` | Enable specific versions (`--versions`) |
+| `enable all` | Bulk enable; optional filter flags select a subset |
+
+Bulk `disable all` and `enable all` accept at most one filter flag per invocation. See the sections below for flag details and examples.
+
 ## `tfx admin terraform-version list`
 
 List all Terraform Versions for a Terraform Enterprise install.
@@ -159,7 +175,9 @@ Beta:    false
 ## `tfx admin terraform-version disable`
 
 Disable a Terraform Version(s), accepts comma separated list.
-This command will attempt to enable all given versions even if there are failures.
+This command will attempt to disable all given versions even if there are failures.
+
+Successful disables report `Disabled` in the result output.
 
 **Basic Example**
 
@@ -167,9 +185,9 @@ This command will attempt to enable all given versions even if there are failure
 $ tfx admin terraform-version disable --versions 1.2.0-beta1,1.2.0-rc1,1.2.0-rc2
 Using config file: /Users/tstraub/.tfx.hcl
 Disable Terraform Versions: [1.2.0-beta1 1.2.0-rc1 1.2.0-rc2]
-1.2.0-beta1: false
-1.2.0-rc1:   false
-1.2.0-rc2:   false
+1.2.0-beta1: Disabled
+1.2.0-rc1:   Disabled
+1.2.0-rc2:   Disabled
 ```
 
 **Error Example**
@@ -178,41 +196,113 @@ Disable Terraform Versions: [1.2.0-beta1 1.2.0-rc1 1.2.0-rc2]
 $ tfx admin terraform-version disable --versions 1.2.0-beta1,1.2.0-rc1,1.2.0-nope
 Using config file: /Users/tstraub/.tfx.hcl
 Disable Terraform Versions: [1.2.0-beta1 1.2.0-rc1 1.2.0-nope]
-1.2.0-beta1: false
-1.2.0-rc1:   false
+1.2.0-beta1: Disabled
+1.2.0-rc1:   Disabled
 1.2.0-nope:  failed to find terraform version
 ```
 
 ## `tfx admin terraform-version disable all`
 
-Disable all Terraform Versions within the Terraform Enterprise install.
-This command will attempt to enable all given versions even if there are failures.
+Disable Terraform Versions within the Terraform Enterprise install. With no filter flags, every version is targeted. Optional filter flags select a subset; only one filter flag may be used per invocation.
+
+This command will attempt to disable all matching versions even if there are failures. Versions currently in use by workspaces cannot be disabled and are reported with `unable to disable a terraform version in use`.
+
+| Flag | Description |
+|---|---|
+| `--except` | Comma-separated keep-list; disable all versions **not** in the list |
+| `--before` | Disable all versions strictly before the given semver (e.g., `1.12.0` disables `1.11.x` and older) |
+| `--not-in-use` | Disable only versions with `Usage == 0` |
+| `--beta` | Disable only versions marked as beta |
+| `--deprecated` | Disable only deprecated versions |
+| `--unofficial` | Disable only unofficial versions |
+| `--official` | Disable only official versions |
 
 :::note
 This command can take up to a minute to run (or longer depending on network latency).
 :::
 
-**Example**
+**Disable all**
 
 ```sh
 $ tfx admin terraform-version disable all
 Using config file: /Users/tstraub/.tfx.hcl
-Disable All Terraform Versions 
-2.0.0:                 false
-1.2.1:                 false
-1.2.0:                 false
-1.2.0-rc2:             false
-1.2.0-rc1:             false
-1.2.0-beta1:           false
-1.1.9:                 false
+Disabling all Terraform versions
+2.0.0:                 Disabled
+1.2.1:                 Disabled
+1.2.0:                 Disabled
+1.1.6:                 unable to disable a terraform version in use
 <redacted for brevity>
-0.6.12:                false
-0.6.11:                false
-0.6.10:                false
-0.6.9:                 false
-0.6.8:                 false
-0.6.7:                 false
-0.6.6:                 false
+```
+
+**Disable all except a keep-list**
+
+```sh
+$ tfx admin terraform-version disable all --except 1.12.0,1.13.0
+Using config file: /Users/tstraub/.tfx.hcl
+Disabling all Terraform versions except: [1.12.0 1.13.0]
+2.0.0: Disabled
+1.2.1: Disabled
+<redacted for brevity>
+1.12.0: (not targeted — kept enabled)
+1.13.0: (not targeted — kept enabled)
+```
+
+**Disable all versions before a semver**
+
+```sh
+$ tfx admin terraform-version disable all --before 1.12.0
+Using config file: /Users/tstraub/.tfx.hcl
+Disabling all Terraform versions before 1.12.0
+1.11.4: Disabled
+1.11.3: Disabled
+1.10.5: Disabled
+<redacted for brevity>
+```
+
+Versions that cannot be parsed as semver (or are equal to or after the cutoff) are skipped.
+
+**Disable unused versions only**
+
+```sh
+$ tfx admin terraform-version disable all --not-in-use
+Using config file: /Users/tstraub/.tfx.hcl
+Disabling unused Terraform versions
+2.0.0: Disabled
+1.2.1: Disabled
+<redacted for brevity>
+```
+
+**Disable beta versions only**
+
+```sh
+$ tfx admin terraform-version disable all --beta
+Using config file: /Users/tstraub/.tfx.hcl
+Disabling beta Terraform versions
+1.6.0-beta1: Disabled
+```
+
+**Disable deprecated versions only**
+
+```sh
+$ tfx admin terraform-version disable all --deprecated
+Using config file: /Users/tstraub/.tfx.hcl
+Disabling deprecated Terraform versions
+```
+
+**Disable unofficial versions only**
+
+```sh
+$ tfx admin terraform-version disable all --unofficial
+Using config file: /Users/tstraub/.tfx.hcl
+Disabling unofficial Terraform versions
+```
+
+**Disable official versions only**
+
+```sh
+$ tfx admin terraform-version disable all --official
+Using config file: /Users/tstraub/.tfx.hcl
+Disabling official Terraform versions
 ```
 
 ## `tfx admin terraform-version enable`
@@ -220,14 +310,16 @@ Disable All Terraform Versions
 Enables a Terraform Version(s), accepts comma separated list.
 This command will attempt to enable all given versions even if there are failures.
 
+Successful enables report `Enabled` in the result output.
+
 **Basic Example**
 
 ```sh
 $ tfx admin terraform-version enable --versions 1.2.0-beta1,1.2.0-rc1,1.2.0-rc2 
 Using config file: /Users/tstraub/.tfx.hcl
 Enable Terraform Versions: [1.2.0-beta1 1.2.0-rc1 1.2.0-rc2]
-1.2.0-beta1: true
-1.2.0-rc1:   true
+1.2.0-beta1: Enabled
+1.2.0-rc1:   Enabled
 ```
 
 **Error Example**
@@ -236,35 +328,85 @@ Enable Terraform Versions: [1.2.0-beta1 1.2.0-rc1 1.2.0-rc2]
 $ tfx admin terraform-version enable --versions 1.2.0-beta1,1.2.0-rc1,1.2.0-nope
 Using config file: /Users/tstraub/.tfx.hcl
 Enable Terraform Versions: [1.2.0-beta1 1.2.0-rc1 1.2.0-nope]
-1.2.0-beta1: true
-1.2.0-rc1:   true
+1.2.0-beta1: Enabled
+1.2.0-rc1:   Enabled
 1.2.0-nope:  failed to find terraform version
 ```
 
 ## `tfx admin terraform-version enable all`
 
-Disable all Terraform Versions within the Terraform Enterprise install.
-This command will attempt to enable all given versions even if there are failures.
+Enable Terraform Versions within the Terraform Enterprise install. With no filter flags, every version is targeted. Optional filter flags select a subset; only one filter flag may be used per invocation.
 
-**Example**
+This command will attempt to enable all matching versions even if there are failures.
+
+| Flag | Description |
+|---|---|
+| `--include` | Comma-separated allow-list; enable only these versions |
+| `--except` | Comma-separated skip-list; enable all versions **not** in the list |
+| `--beta` | Enable only versions marked as beta |
+| `--unofficial` | Enable only unofficial versions |
+| `--official` | Enable only official versions |
+
+:::note
+This command can take up to a minute to run (or longer depending on network latency).
+:::
+
+**Enable all**
 
 ```sh
 $ tfx admin terraform-version enable all
 Using config file: /Users/tstraub/.tfx.hcl
-Enable All Terraform Versions 
-2.0.0:                 true
-1.2.1:                 true
-1.2.0:                 true
-1.2.0-rc2:             true
-1.2.0-rc1:             true
-1.2.0-beta1:           true
-1.1.9:                 true
+Enabling all Terraform versions
+2.0.0:                 Enabled
+1.2.1:                 Enabled
+1.2.0:                 Enabled
 <redacted for brevity>
-0.6.12:                true
-0.6.11:                true
-0.6.10:                true
-0.6.9:                 true
-0.6.8:                 true
-0.6.7:                 true
-0.6.6:                 true
+```
+
+**Enable only specific versions**
+
+```sh
+$ tfx admin terraform-version enable all --include 1.12.0,1.13.0
+Using config file: /Users/tstraub/.tfx.hcl
+Enabling Terraform versions: [1.12.0 1.13.0]
+1.12.0: Enabled
+1.13.0: Enabled
+```
+
+**Enable all except a skip-list**
+
+```sh
+$ tfx admin terraform-version enable all --except 1.12.0,1.13.0
+Using config file: /Users/tstraub/.tfx.hcl
+Enabling all Terraform versions except: [1.12.0 1.13.0]
+2.0.0: Enabled
+1.2.1: Enabled
+<redacted for brevity>
+1.12.0: (not targeted — left disabled)
+1.13.0: (not targeted — left disabled)
+```
+
+**Enable beta versions only**
+
+```sh
+$ tfx admin terraform-version enable all --beta
+Using config file: /Users/tstraub/.tfx.hcl
+Enabling beta Terraform versions
+1.6.0-beta1: Enabled
+```
+
+**Enable unofficial versions only**
+
+```sh
+$ tfx admin terraform-version enable all --unofficial
+Using config file: /Users/tstraub/.tfx.hcl
+Enabling unofficial Terraform versions
+```
+
+**Enable official versions only**
+
+```sh
+$ tfx admin terraform-version enable all --official
+Using config file: /Users/tstraub/.tfx.hcl
+Enabling official Terraform versions
 ```

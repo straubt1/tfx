@@ -879,7 +879,30 @@ tfx admin terraform-version disable --versions 1.9.9
 
 **Expected:** Version is now disabled.
 
-### 83. Delete Terraform Version (cleanup)
+### 83. Bulk Enable/Disable Filters
+
+Exercise the bulk filter flags on `disable all` and `enable all`. Pick versions present in your TFE install and adjust the semver values below as needed.
+
+```sh
+# Disable all versions not in a keep-list
+tfx admin terraform-version disable all --except 1.9.0,1.9.9
+
+# Disable versions strictly before a semver cutoff
+tfx admin terraform-version disable all --before 1.9.0
+
+# Disable only unused versions
+tfx admin terraform-version disable all --not-in-use
+
+# Enable only specific versions
+tfx admin terraform-version enable all --include 1.9.0,1.9.9
+
+# Enable all except a skip-list
+tfx admin terraform-version enable all --except 1.9.0
+```
+
+**Expected:** Matching versions report `Disabled` or `Enabled`. Versions in use by workspaces cannot be disabled and report `unable to disable a terraform version in use`. Combining multiple filter flags on one command returns an error.
+
+### 84. Delete Terraform Version (cleanup)
 
 ```sh
 tfx admin terraform-version delete --version 1.9.9
@@ -893,7 +916,7 @@ tfx admin terraform-version delete --version 1.9.9
 
 Use a unique prefix in variable set names (e.g. `tfx-test-<date>`) so cleanup is easy to identify.
 
-### 84. List Variable Sets (organization scope)
+### 85. List Variable Sets (organization scope)
 
 ```sh
 tfx varset list
@@ -901,7 +924,7 @@ tfx varset list
 
 **Expected:** Table of variable sets with `NAME`, `ID`, `GLOBAL`, `PRIORITY`, and `PARENT` columns.
 
-### 85. List Variable Sets (search)
+### 86. List Variable Sets (search)
 
 ```sh
 tfx varset list --search aws
@@ -909,7 +932,7 @@ tfx varset list --search aws
 
 **Expected:** Filtered list matching the search term.
 
-### 86. List Variable Sets (project scope)
+### 87. List Variable Sets (project scope)
 
 ```sh
 tfx varset list --project-name <project-name>
@@ -917,7 +940,7 @@ tfx varset list --project-name <project-name>
 
 **Expected:** Variable sets assigned to the named project.
 
-### 87. Create an Organization-Owned Variable Set
+### 88. Create an Organization-Owned Variable Set
 
 ```sh
 tfx varset create \
@@ -927,7 +950,7 @@ tfx varset create \
 
 **Expected:** Confirmation with variable set ID. Record the name for later steps.
 
-### 88. Show Variable Set by Name
+### 89. Show Variable Set by Name
 
 ```sh
 tfx varset show --name tfx-test-varset
@@ -935,7 +958,7 @@ tfx varset show --name tfx-test-varset
 
 **Expected:** Detail view including parent, workspaces, projects, and variables (empty initially).
 
-### 89. Create a Terraform Variable in the Set
+### 90. Create a Terraform Variable in the Set
 
 ```sh
 tfx varset variable create \
@@ -947,7 +970,7 @@ tfx varset variable create \
 
 **Expected:** Confirmation showing `Category: terraform`.
 
-### 90. Create an Environment Variable in the Set
+### 91. Create an Environment Variable in the Set
 
 ```sh
 tfx varset variable create \
@@ -959,7 +982,7 @@ tfx varset variable create \
 
 **Expected:** Confirmation showing `Category: env`. Keys for environment variables must use letters, numbers, and underscores only (no hyphens).
 
-### 91. List Variables in the Set
+### 92. List Variables in the Set
 
 ```sh
 tfx varset variable list --varset-name tfx-test-varset
@@ -967,7 +990,7 @@ tfx varset variable list --varset-name tfx-test-varset
 
 **Expected:** Table showing both variables created above.
 
-### 92. Show a Variable
+### 93. Show a Variable
 
 ```sh
 tfx varset variable show --varset-name tfx-test-varset --key TFX_TEST_REGION
@@ -975,7 +998,7 @@ tfx varset variable show --varset-name tfx-test-varset --key TFX_TEST_REGION
 
 **Expected:** Detail view for the variable.
 
-### 93. Update a Variable
+### 94. Update a Variable
 
 ```sh
 tfx varset variable update \
@@ -986,7 +1009,7 @@ tfx varset variable update \
 
 **Expected:** Confirmation that the variable was updated.
 
-### 94. Delete Variables (cleanup)
+### 95. Delete Variables (cleanup)
 
 ```sh
 tfx varset variable delete --varset-name tfx-test-varset --key TFX_TEST_REGION
@@ -995,7 +1018,7 @@ tfx varset variable delete --varset-name tfx-test-varset --key TFX_TEST_ENV
 
 **Expected:** Each deletion confirmed with no errors.
 
-### 95. Delete Variable Set (cleanup)
+### 96. Delete Variable Set (cleanup)
 
 ```sh
 tfx varset delete --name tfx-test-varset
@@ -1009,7 +1032,7 @@ tfx varset delete --name tfx-test-varset
 
 These tests verify cross-cutting behavior available on all commands.
 
-### 96. JSON Output Flag (short form)
+### 97. JSON Output Flag (short form)
 
 ```sh
 tfx workspace list -j
@@ -1017,7 +1040,7 @@ tfx workspace list -j
 
 **Expected:** Same JSON output as `--json`.
 
-### 97. Config File Flag
+### 98. Config File Flag
 
 ```sh
 tfx organization list --config-file /path/to/custom/.tfx.hcl
@@ -1025,7 +1048,7 @@ tfx organization list --config-file /path/to/custom/.tfx.hcl
 
 **Expected:** Command runs using the specified config file (confirmation message includes the config path).
 
-### 97a. Config File Env Var
+### 99. Config File Env Var
 
 ```sh
 TFX_CONFIG_FILE=/path/to/custom/.tfx.hcl tfx organization list
@@ -1033,7 +1056,7 @@ TFX_CONFIG_FILE=/path/to/custom/.tfx.hcl tfx organization list
 
 **Expected:** Same result as `--config-file` — config loaded from the env-var path.
 
-### 98. Hostname and Token Flags
+### 100. Hostname and Token Flags
 
 ```sh
 tfx organization list \
@@ -1044,7 +1067,7 @@ tfx organization list \
 
 **Expected:** Same output as using the config file — confirms inline flags override the config.
 
-### 99. Missing Required Flag Error
+### 101. Missing Required Flag Error
 
 ```sh
 tfx workspace show
@@ -1052,7 +1075,7 @@ tfx workspace show
 
 **Expected:** Error message indicating `--name` is required. Exit code is non-zero.
 
-### 100. Invalid Token Error
+### 102. Invalid Token Error
 
 ```sh
 tfx organization list --token invalid-token-value
