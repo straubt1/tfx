@@ -4,8 +4,6 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/straubt1/tfx/client"
@@ -424,7 +422,24 @@ func tfvDisableAll(cmdConfig *flags.AdminTerraformVersionDisableAllFlags) error 
 		return v.RenderError(err)
 	}
 
-	v.PrintCommandHeader(disableAllHeader(cmdConfig))
+	switch {
+	case len(cmdConfig.Except) > 0:
+		v.PrintCommandHeader("Disabling all Terraform versions except: %v", cmdConfig.Except)
+	case cmdConfig.Before != "":
+		v.PrintCommandHeader("Disabling all Terraform versions before %s", cmdConfig.Before)
+	case cmdConfig.NotInUse:
+		v.PrintCommandHeader("Disabling unused Terraform versions")
+	case cmdConfig.Beta:
+		v.PrintCommandHeader("Disabling beta Terraform versions")
+	case cmdConfig.Deprecated:
+		v.PrintCommandHeader("Disabling deprecated Terraform versions")
+	case cmdConfig.Unofficial:
+		v.PrintCommandHeader("Disabling unofficial Terraform versions")
+	case cmdConfig.Official:
+		v.PrintCommandHeader("Disabling official Terraform versions")
+	default:
+		v.PrintCommandHeader("Disabling all Terraform versions")
+	}
 
 	// Fetch all versions
 	items, err := data.FetchTerraformVersions(c, "", "")
@@ -453,27 +468,6 @@ func tfvDisableAll(cmdConfig *flags.AdminTerraformVersionDisableAllFlags) error 
 	}
 
 	return v.Render(results)
-}
-
-func disableAllHeader(cmdConfig *flags.AdminTerraformVersionDisableAllFlags) string {
-	switch {
-	case len(cmdConfig.Except) > 0:
-		return fmt.Sprintf("Disabling all Terraform versions except: %v", cmdConfig.Except)
-	case cmdConfig.Before != "":
-		return fmt.Sprintf("Disabling all Terraform versions before %s", cmdConfig.Before)
-	case cmdConfig.NotInUse:
-		return "Disabling unused Terraform versions"
-	case cmdConfig.Beta:
-		return "Disabling beta Terraform versions"
-	case cmdConfig.Deprecated:
-		return "Disabling deprecated Terraform versions"
-	case cmdConfig.Unofficial:
-		return "Disabling unofficial Terraform versions"
-	case cmdConfig.Official:
-		return "Disabling official Terraform versions"
-	default:
-		return "Disabling all Terraform versions"
-	}
 }
 
 func tfvEnable(cmdConfig *flags.AdminTerraformVersionEnableDisableFlags) error {
@@ -506,7 +500,20 @@ func tfvEnableAll(cmdConfig *flags.AdminTerraformVersionEnableAllFlags) error {
 		return v.RenderError(err)
 	}
 
-	v.PrintCommandHeader(enableAllHeader(cmdConfig))
+	switch {
+	case len(cmdConfig.Include) > 0:
+		v.PrintCommandHeader("Enabling Terraform versions: %v", cmdConfig.Include)
+	case len(cmdConfig.Except) > 0:
+		v.PrintCommandHeader("Enabling all Terraform versions except: %v", cmdConfig.Except)
+	case cmdConfig.Beta:
+		v.PrintCommandHeader("Enabling beta Terraform versions")
+	case cmdConfig.Unofficial:
+		v.PrintCommandHeader("Enabling unofficial Terraform versions")
+	case cmdConfig.Official:
+		v.PrintCommandHeader("Enabling official Terraform versions")
+	default:
+		v.PrintCommandHeader("Enabling all Terraform versions")
+	}
 
 	// Fetch all versions
 	items, err := data.FetchTerraformVersions(c, "", "")
@@ -533,21 +540,4 @@ func tfvEnableAll(cmdConfig *flags.AdminTerraformVersionEnableAllFlags) error {
 	}
 
 	return v.Render(results)
-}
-
-func enableAllHeader(cmdConfig *flags.AdminTerraformVersionEnableAllFlags) string {
-	switch {
-	case len(cmdConfig.Include) > 0:
-		return fmt.Sprintf("Enabling Terraform versions: %v", cmdConfig.Include)
-	case len(cmdConfig.Except) > 0:
-		return fmt.Sprintf("Enabling all Terraform versions except: %v", cmdConfig.Except)
-	case cmdConfig.Beta:
-		return "Enabling beta Terraform versions"
-	case cmdConfig.Unofficial:
-		return "Enabling unofficial Terraform versions"
-	case cmdConfig.Official:
-		return "Enabling official Terraform versions"
-	default:
-		return "Enabling all Terraform versions"
-	}
 }
