@@ -328,6 +328,8 @@ Create a variable in a variable set.
 | `--hcl` | Value is HCL | No |
 | `--sensitive` / `-s` | Sensitive variable | No |
 
+Environment variable keys (`--env`) must begin with a letter or underscore and contain only letters, numbers, and underscores (no hyphens).
+
 ```sh
 $ tfx varset variable create --varset-name aws-credentials -k AWS_REGION -v us-east-1 -d "Default AWS region"
 Using config file: /Users/tstraub/.tfx.hcl

@@ -99,6 +99,34 @@ task test:integration-data
 task test:integration-cmd
 ```
 
+### Profile-based varset lifecycle test
+
+For a local TFE instance (e.g. `local.tfe.rocks`), add a profile to `~/.tfx.hcl` and run the lifecycle test:
+
+```hcl
+profile "local" {
+  hostname     = "local.tfe.rocks"
+  organization = "your-org"
+  token        = "your-token"
+}
+```
+
+```bash
+export TFX_INTEGRATION_PROFILE=local
+task test:integration-cmd -- -run TestVariableSetLocalProfileLifecycle -v
+```
+
+Optional environment variables:
+
+| Variable | Purpose |
+|---|---|
+| `TEST_PROJECT_NAME` | Also create a project-owned variable set |
+| `TEST_WORKSPACE_NAME` | Also create a workspace-assigned variable set |
+| `TFX_INTEGRATION_NO_CLEANUP=1` | Skip delete steps; leave varsets for manual inspection |
+| `TFX_CONFIG_FILE` | Explicit config file path (when not using default discovery) |
+
+See [integration/README.md](integration/README.md) for full details.
+
 ## Project Structure
 
 ```

@@ -97,7 +97,7 @@ The test logs the search prefix and varset names so you can find them in the UI 
 
 ## Notes
 
-- Tests use real API calls - they require valid credentials
-- Tests do not create/destroy resources (read-only operations)
-- Success criteria: command executes without error
+- Tests use real API calls — they require valid credentials
+- Most tests are read-only; `TestVariableSetLocalProfileLifecycle` creates and deletes variable sets (unless `TFX_INTEGRATION_NO_CLEANUP=1`)
+- Success criteria: command executes without error (non-zero exit on CLI failure)
 - Tests are skipped if required environment variables are not set
