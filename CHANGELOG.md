@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Health check now uses `/api/v1/health/readiness` endpoint (TFE), falling back to `/_health_check` for HCP Terraform and older TFE (#244)
 * Updated task names in docs to match current Taskfile (`go-build` → `go:build`, etc.)
 * Fixed config examples in site docs to use profile block format
+* Upgraded Go to 1.26.4 and refreshed module dependencies
 
 ## [v0.3.3] - 2026-04-02
 
