@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/coreos/go-semver/semver"
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
 	"github.com/straubt1/tfx/client"
@@ -182,6 +183,184 @@ func DeleteTerraformVersion(c *client.TfxClient, version string) error {
 	return nil
 }
 
+// TerraformVersionDisableFilter selects which versions to disable in a bulk disable operation.
+type TerraformVersionDisableFilter struct {
+	Except     []string
+	Before     string
+	NotInUse   bool
+	Deprecated bool
+	Unofficial bool
+	Official   bool
+	Beta       bool
+}
+
+// FilterVersionsForDisable returns version strings from items matching the given filter.
+func FilterVersionsForDisable(items []*tfe.AdminTerraformVersion, f TerraformVersionDisableFilter) []string {
+	if len(f.Except) > 0 {
+		keep := make(map[string]struct{}, len(f.Except))
+		for _, v := range f.Except {
+			keep[v] = struct{}{}
+		}
+		var versions []string
+		for _, item := range items {
+			if _, ok := keep[item.Version]; !ok {
+				versions = append(versions, item.Version)
+			}
+		}
+		return versions
+	}
+
+	if f.Before != "" {
+		cutoff, err := semver.NewVersion(f.Before)
+		if err != nil {
+			return nil
+		}
+		var versions []string
+		for _, item := range items {
+			v, err := semver.NewVersion(item.Version)
+			if err != nil {
+				continue
+			}
+			if v.LessThan(*cutoff) {
+				versions = append(versions, item.Version)
+			}
+		}
+		return versions
+	}
+
+	if f.NotInUse {
+		var versions []string
+		for _, item := range items {
+			if item.Usage == 0 {
+				versions = append(versions, item.Version)
+			}
+		}
+		return versions
+	}
+
+	if f.Deprecated {
+		var versions []string
+		for _, item := range items {
+			if item.Deprecated {
+				versions = append(versions, item.Version)
+			}
+		}
+		return versions
+	}
+
+	if f.Unofficial {
+		var versions []string
+		for _, item := range items {
+			if !item.Official {
+				versions = append(versions, item.Version)
+			}
+		}
+		return versions
+	}
+
+	if f.Official {
+		var versions []string
+		for _, item := range items {
+			if item.Official {
+				versions = append(versions, item.Version)
+			}
+		}
+		return versions
+	}
+
+	if f.Beta {
+		var versions []string
+		for _, item := range items {
+			if item.Beta {
+				versions = append(versions, item.Version)
+			}
+		}
+		return versions
+	}
+
+	versions := make([]string, len(items))
+	for i, item := range items {
+		versions[i] = item.Version
+	}
+	return versions
+}
+
+// TerraformVersionEnableFilter selects which versions to enable in a bulk enable operation.
+type TerraformVersionEnableFilter struct {
+	Include    []string
+	Except     []string
+	Unofficial bool
+	Official   bool
+	Beta       bool
+}
+
+// FilterVersionsForEnable returns version strings from items matching the given filter.
+func FilterVersionsForEnable(items []*tfe.AdminTerraformVersion, f TerraformVersionEnableFilter) []string {
+	if len(f.Include) > 0 {
+		allow := make(map[string]struct{}, len(f.Include))
+		for _, v := range f.Include {
+			allow[v] = struct{}{}
+		}
+		var versions []string
+		for _, item := range items {
+			if _, ok := allow[item.Version]; ok {
+				versions = append(versions, item.Version)
+			}
+		}
+		return versions
+	}
+
+	if len(f.Except) > 0 {
+		skip := make(map[string]struct{}, len(f.Except))
+		for _, v := range f.Except {
+			skip[v] = struct{}{}
+		}
+		var versions []string
+		for _, item := range items {
+			if _, ok := skip[item.Version]; !ok {
+				versions = append(versions, item.Version)
+			}
+		}
+		return versions
+	}
+
+	if f.Unofficial {
+		var versions []string
+		for _, item := range items {
+			if !item.Official {
+				versions = append(versions, item.Version)
+			}
+		}
+		return versions
+	}
+
+	if f.Official {
+		var versions []string
+		for _, item := range items {
+			if item.Official {
+				versions = append(versions, item.Version)
+			}
+		}
+		return versions
+	}
+
+	if f.Beta {
+		var versions []string
+		for _, item := range items {
+			if item.Beta {
+				versions = append(versions, item.Version)
+			}
+		}
+		return versions
+	}
+
+	versions := make([]string, len(items))
+	for i, item := range items {
+		versions[i] = item.Version
+	}
+	return versions
+}
+
 // UpdateTerraformVersions enables or disables multiple Terraform versions
 func UpdateTerraformVersions(c *client.TfxClient, versions []string, enabled bool) (map[string]string, error) {
 	output.Get().Logger().Debug("Updating Terraform versions", "count", len(versions), "enabled", enabled)
@@ -215,7 +394,11 @@ func UpdateTerraformVersions(c *client.TfxClient, versions []string, enabled boo
 			return results, errors.Wrap(err, "failed to update terraform version")
 		}
 
-		results[v] = fmt.Sprintf("%t", tfv.Enabled)
+		if enabled {
+			results[v] = "Enabled"
+		} else {
+			results[v] = "Disabled"
+		}
 	}
 
 	output.Get().Logger().Debug("Terraform versions updated successfully", "results", len(results))

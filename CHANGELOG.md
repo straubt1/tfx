@@ -16,8 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Profile-based local varset lifecycle integration test (`TestVariableSetLocalProfileLifecycle`; set `TFX_INTEGRATION_PROFILE=local`)
 * `TFX_INTEGRATION_NO_CLEANUP` env var to retain varsets/variables after the lifecycle integration test
 * Profile `ssl_skip_verify` setting for self-signed TFE TLS certificates (also `--ssl-skip-verify` / `TFE_SSL_SKIP_VERIFY`)
+* `tfx admin terraform-version disable all` filter flags: `--except`, `--before`, `--not-in-use`, `--beta`, `--deprecated`, `--official`, `--unofficial`
+* `tfx admin terraform-version enable all` filter flags: `--include`, `--except`, `--beta`, `--official`, `--unofficial`
 
 **Changed**
+
+* Bulk terraform-version enable/disable results now report `Enabled` / `Disabled` instead of raw boolean values
 
 * Health check now uses `/api/v1/health/readiness` endpoint (TFE), falling back to `/_health_check` for HCP Terraform and older TFE (#244)
 * Updated task names in docs to match current Taskfile (`go-build` → `go:build`, etc.)
