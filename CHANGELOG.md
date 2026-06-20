@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v0.3.4] - Unreleased
 
+**Added**
+
+* Scoped variable set list: organization (default), `--project-name`, `--workspace-name`, `--all`, and `--organization-name` (#219)
+* Variable set show and delete by `--name` with scope flags for name resolution (#219)
+* Variable set create with project ownership (`--project-name`) and workspace assignment (`--workspace-name`) (#219)
+* `tfx varset variable` subcommands: `list`, `create`, `update`, `show`, `delete` (#219)
+
 **Changed**
 
 * Health check now uses `/api/v1/health/readiness` endpoint (TFE), falling back to `/_health_check` for HCP Terraform and older TFE (#244)

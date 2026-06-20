@@ -7,7 +7,7 @@ Priority may change — please [open an issue](https://github.com/straubt1/tfx/i
 
 New commands and capabilities for users.
 
-- [ ] Variable Sets support
+- [x] Variable Sets support
 - [ ] `tfx team` command group
 - [ ] Cloud Agents support
 - [ ] Sentinel Publishing support
