@@ -889,11 +889,127 @@ tfx admin terraform-version delete --version 1.9.9
 
 ---
 
+## Variable Sets
+
+Use a unique prefix in variable set names (e.g. `tfx-test-<date>`) so cleanup is easy to identify.
+
+### 84. List Variable Sets (organization scope)
+
+```sh
+tfx varset list
+```
+
+**Expected:** Table of variable sets with `NAME`, `ID`, `GLOBAL`, `PRIORITY`, and `PARENT` columns.
+
+### 85. List Variable Sets (search)
+
+```sh
+tfx varset list --search aws
+```
+
+**Expected:** Filtered list matching the search term.
+
+### 86. List Variable Sets (project scope)
+
+```sh
+tfx varset list --project-name <project-name>
+```
+
+**Expected:** Variable sets assigned to the named project.
+
+### 87. Create an Organization-Owned Variable Set
+
+```sh
+tfx varset create \
+  --name tfx-test-varset \
+  --description "TFx test plan variable set"
+```
+
+**Expected:** Confirmation with variable set ID. Record the name for later steps.
+
+### 88. Show Variable Set by Name
+
+```sh
+tfx varset show --name tfx-test-varset
+```
+
+**Expected:** Detail view including parent, workspaces, projects, and variables (empty initially).
+
+### 89. Create a Terraform Variable in the Set
+
+```sh
+tfx varset variable create \
+  --varset-name tfx-test-varset \
+  --key TFX_TEST_REGION \
+  --value us-east-1 \
+  --description "Test terraform variable"
+```
+
+**Expected:** Confirmation showing `Category: terraform`.
+
+### 90. Create an Environment Variable in the Set
+
+```sh
+tfx varset variable create \
+  --varset-name tfx-test-varset \
+  --key TFX_TEST_ENV \
+  --value test-value \
+  --env
+```
+
+**Expected:** Confirmation showing `Category: env`. Keys for environment variables must use letters, numbers, and underscores only (no hyphens).
+
+### 91. List Variables in the Set
+
+```sh
+tfx varset variable list --varset-name tfx-test-varset
+```
+
+**Expected:** Table showing both variables created above.
+
+### 92. Show a Variable
+
+```sh
+tfx varset variable show --varset-name tfx-test-varset --key TFX_TEST_REGION
+```
+
+**Expected:** Detail view for the variable.
+
+### 93. Update a Variable
+
+```sh
+tfx varset variable update \
+  --varset-name tfx-test-varset \
+  --key TFX_TEST_REGION \
+  --value us-west-2
+```
+
+**Expected:** Confirmation that the variable was updated.
+
+### 94. Delete Variables (cleanup)
+
+```sh
+tfx varset variable delete --varset-name tfx-test-varset --key TFX_TEST_REGION
+tfx varset variable delete --varset-name tfx-test-varset --key TFX_TEST_ENV
+```
+
+**Expected:** Each deletion confirmed with no errors.
+
+### 95. Delete Variable Set (cleanup)
+
+```sh
+tfx varset delete --name tfx-test-varset
+```
+
+**Expected:** Variable set deleted without error.
+
+---
+
 ## Global Flags
 
 These tests verify cross-cutting behavior available on all commands.
 
-### 84. JSON Output Flag (short form)
+### 96. JSON Output Flag (short form)
 
 ```sh
 tfx workspace list -j
@@ -901,7 +1017,7 @@ tfx workspace list -j
 
 **Expected:** Same JSON output as `--json`.
 
-### 85. Config File Flag
+### 97. Config File Flag
 
 ```sh
 tfx organization list --config-file /path/to/custom/.tfx.hcl
@@ -909,7 +1025,7 @@ tfx organization list --config-file /path/to/custom/.tfx.hcl
 
 **Expected:** Command runs using the specified config file (confirmation message includes the config path).
 
-### 85a. Config File Env Var
+### 97a. Config File Env Var
 
 ```sh
 TFX_CONFIG_FILE=/path/to/custom/.tfx.hcl tfx organization list
@@ -917,7 +1033,7 @@ TFX_CONFIG_FILE=/path/to/custom/.tfx.hcl tfx organization list
 
 **Expected:** Same result as `--config-file` — config loaded from the env-var path.
 
-### 86. Hostname and Token Flags
+### 98. Hostname and Token Flags
 
 ```sh
 tfx organization list \
@@ -928,7 +1044,7 @@ tfx organization list \
 
 **Expected:** Same output as using the config file — confirms inline flags override the config.
 
-### 87. Missing Required Flag Error
+### 99. Missing Required Flag Error
 
 ```sh
 tfx workspace show
@@ -936,7 +1052,7 @@ tfx workspace show
 
 **Expected:** Error message indicating `--name` is required. Exit code is non-zero.
 
-### 88. Invalid Token Error
+### 100. Invalid Token Error
 
 ```sh
 tfx organization list --token invalid-token-value
@@ -952,7 +1068,8 @@ After completing all sections, confirm:
 
 - [ ] All `list` commands return results or a clear empty-state message
 - [ ] All `show` commands display structured detail views
-- [ ] All `create` → `show` → `delete` workflows complete without error
+- [ ] All `create` → `show` → `delete` workflows complete without error (including variable sets)
 - [ ] `--json` flag produces valid JSON on every command tested
 - [ ] Authentication and config errors produce clear, human-readable messages
+- [ ] Failed commands exit with a non-zero status code
 - [ ] No panics or unhandled exceptions were encountered

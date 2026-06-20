@@ -4,8 +4,6 @@
 //go:build integration
 // +build integration
 
-// Copyright © 2025 Tom Straub <github.com/straubt1>
-
 package integration
 
 import (
@@ -14,6 +12,8 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 	"github.com/straubt1/tfx/cmd"
 )
 
@@ -31,31 +31,64 @@ func setupTest(t *testing.T) (hostname, token, organization string) {
 	return hostname, token, organization
 }
 
-// executeCommand runs a tfx command with the given arguments and credentials
-// Returns error if command failed
-func executeCommand(t *testing.T, args []string, hostname, token, organization string) error {
-	// Get the root command
-	// Note: This requires exposing cmd.GetRootCommand() or using cmd.Execute directly
-	rootCmd := getRootCommand()
+const localIntegrationProfile = "local"
 
-	// Build full args with credentials
-	fullArgs := append([]string{
+// integrationSkipCleanup reports whether integration tests should leave created resources
+// in place. Set TFX_INTEGRATION_NO_CLEANUP=1 (or "true"/"yes") to skip delete steps
+// and t.Cleanup removal.
+func integrationSkipCleanup() bool {
+	switch os.Getenv("TFX_INTEGRATION_NO_CLEANUP") {
+	case "1", "true", "yes":
+		return true
+	default:
+		return false
+	}
+}
+
+// setupProfileIntegrationTest skips unless TFX_INTEGRATION_PROFILE matches profileName.
+// Use with a ~/.tfx.hcl profile (e.g. "local" for local.tfe.rocks).
+func setupProfileIntegrationTest(t *testing.T, profileName string) {
+	t.Helper()
+	if os.Getenv("TFX_INTEGRATION_PROFILE") != profileName {
+		t.Skipf("Skipping profile integration test: set TFX_INTEGRATION_PROFILE=%q (requires profile %q in .tfx.hcl)", profileName, profileName)
+	}
+}
+
+// executeCommand runs a tfx command with the given arguments and credentials.
+func executeCommand(t *testing.T, args []string, hostname, token, organization string) error {
+	t.Helper()
+	prefix := []string{
 		"--hostname", hostname,
 		"--token", token,
 		"--organization", organization,
-	}, args...)
+	}
+	return runRootCommand(t, append(prefix, args...))
+}
 
-	rootCmd.SetArgs(fullArgs)
+// executeCommandWithProfile runs a tfx command using a named config profile.
+func executeCommandWithProfile(t *testing.T, profileName string, args []string) error {
+	t.Helper()
+	prefix := []string{"--profile", profileName}
+	if configFile := os.Getenv("TFX_CONFIG_FILE"); configFile != "" {
+		prefix = append(prefix, "--config-file", configFile)
+	}
+	return runRootCommand(t, append(prefix, args...))
+}
 
-	// Capture output for debugging
+func runRootCommand(t *testing.T, args []string) error {
+	t.Helper()
+	viper.Reset()
+
+	rootCmd := getRootCommand()
+	resetCommandFlags(rootCmd)
+	rootCmd.SetArgs(args)
+
 	var stdout, stderr bytes.Buffer
 	rootCmd.SetOut(&stdout)
 	rootCmd.SetErr(&stderr)
 
-	// Execute the command
 	err := rootCmd.Execute()
 
-	// Log output for debugging (visible with -v flag)
 	if stdout.Len() > 0 {
 		t.Logf("STDOUT:\n%s", stdout.String())
 	}
@@ -64,6 +97,16 @@ func executeCommand(t *testing.T, args []string, hostname, token, organization s
 	}
 
 	return err
+}
+
+func resetCommandFlags(cmd *cobra.Command) {
+	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		_ = f.Value.Set(f.DefValue)
+		f.Changed = false
+	})
+	for _, sub := range cmd.Commands() {
+		resetCommandFlags(sub)
+	}
 }
 
 // getRootCommand returns the root command for testing

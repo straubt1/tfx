@@ -7,12 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v0.3.4] - Unreleased
 
+**Added**
+
+* Scoped variable set list: organization (default), `--project-name`, `--workspace-name`, `--all`, and `--organization-name` (#219)
+* Variable set show and delete by `--name` with scope flags for name resolution (#219)
+* Variable set create with project ownership (`--project-name`) and workspace assignment (`--workspace-name`) (#219)
+* `tfx varset variable` subcommands: `list`, `create`, `update`, `show`, `delete` (#219)
+* Profile-based local varset lifecycle integration test (`TestVariableSetLocalProfileLifecycle`; set `TFX_INTEGRATION_PROFILE=local`)
+* `TFX_INTEGRATION_NO_CLEANUP` env var to retain varsets/variables after the lifecycle integration test
+
 **Changed**
 
 * Health check now uses `/api/v1/health/readiness` endpoint (TFE), falling back to `/_health_check` for HCP Terraform and older TFE (#244)
 * Updated task names in docs to match current Taskfile (`go-build` → `go:build`, etc.)
 * Fixed config examples in site docs to use profile block format
 * Upgraded Go to 1.26.4 and refreshed module dependencies
+
+**Fixed**
+
+* CLI commands now exit non-zero when an operation fails (`RenderError` propagates the error instead of swallowing it)
+* Integration test harness resets Cobra flag state between command invocations (fixes sticky `--env` / `--hcl` / `--sensitive` flags)
 
 ## [v0.3.3] - 2026-04-02
 

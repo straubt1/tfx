@@ -40,23 +40,45 @@ func parseVariableSetParent(vs *tfe.VariableSet) (out variableSetParentOutput) {
 }
 
 type variableSetListOutput struct {
-	ID          string                  `json:"id"`
-	Name        string                  `json:"name"`
-	Description string                  `json:"description"`
-	Global      bool                    `json:"global"`
-	Priority    bool                    `json:"priority"`
-	Parent      variableSetParentOutput `json:"parent"`
+	Organization string                  `json:"organization,omitempty"`
+	ID           string                  `json:"id"`
+	Name         string                  `json:"name"`
+	Description  string                  `json:"description"`
+	Global       bool                    `json:"global"`
+	Priority     bool                    `json:"priority"`
+	Parent       variableSetParentOutput `json:"parent"`
 }
 
-func (v *VariableSetListView) Render(items []*tfe.VariableSet) error {
+// Render renders variable sets for a single organization or across all organizations.
+// If includeOrgColumn is true, the organization column will be included in the terminal output.
+func (v *VariableSetListView) Render(items []*tfe.VariableSet, includeOrgColumn bool) error {
 	if v.IsJSON() {
 		out := make([]variableSetListOutput, len(items))
 		for i, vs := range items {
-			out[i] = variableSetListOutput{ID: vs.ID, Name: vs.Name, Description: vs.Description, Global: vs.Global, Priority: vs.Priority, Parent: parseVariableSetParent(vs)}
+			orgName := ""
+			if vs.Organization != nil {
+				orgName = vs.Organization.Name
+			}
+			out[i] = variableSetListOutput{
+				Organization: orgName,
+				ID:           vs.ID,
+				Name:         vs.Name,
+				Description:  vs.Description,
+				Global:       vs.Global,
+				Priority:     vs.Priority,
+				Parent:       parseVariableSetParent(vs),
+			}
 		}
 		return v.Output().RenderJSON(out)
 	}
-	headers := []string{"Name", "ID", "Global", "Priority", "Parent"}
+
+	var headers []string
+	if includeOrgColumn {
+		headers = []string{"Organization", "Name", "ID", "Global", "Priority", "Parent"}
+	} else {
+		headers = []string{"Name", "ID", "Global", "Priority", "Parent"}
+	}
+
 	rows := make([][]interface{}, len(items))
 	for i, vs := range items {
 		parent := parseVariableSetParent(vs)
@@ -64,7 +86,15 @@ func (v *VariableSetListView) Render(items []*tfe.VariableSet) error {
 		if parent.Type != "" {
 			parentDisplay = parent.Type + ":" + parent.ID
 		}
-		rows[i] = []interface{}{vs.Name, vs.ID, vs.Global, vs.Priority, parentDisplay}
+		if includeOrgColumn {
+			orgName := ""
+			if vs.Organization != nil {
+				orgName = vs.Organization.Name
+			}
+			rows[i] = []interface{}{orgName, vs.Name, vs.ID, vs.Global, vs.Priority, parentDisplay}
+		} else {
+			rows[i] = []interface{}{vs.Name, vs.ID, vs.Global, vs.Priority, parentDisplay}
+		}
 	}
 	return v.Output().RenderTable(headers, rows)
 }

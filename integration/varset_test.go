@@ -11,6 +11,11 @@ import (
 	"testing"
 )
 
+const (
+	integrationVarsetName = "tfx-integration-test-varset"
+	integrationVarKey    = "tfx-integration-test-key"
+)
+
 func TestVariableSetList(t *testing.T) {
 	hostname, token, org := setupTest(t)
 
@@ -30,6 +35,10 @@ func TestVariableSetList(t *testing.T) {
 			name: "list variable sets via alias",
 			args: []string{"varset", "list"},
 		},
+		{
+			name: "list variable sets across all organizations",
+			args: []string{"varset", "list", "--all"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -40,16 +49,48 @@ func TestVariableSetList(t *testing.T) {
 			}
 		})
 	}
+
+	testProjectName := os.Getenv("TEST_PROJECT_NAME")
+	if testProjectName != "" {
+		t.Run("list variable sets for project", func(t *testing.T) {
+			err := executeCommand(t,
+				[]string{"varset", "list", "--project-name", testProjectName},
+				hostname, token, org,
+			)
+			if err != nil {
+				t.Errorf("Command failed: %v", err)
+			}
+		})
+	} else {
+		t.Run("list variable sets for project", func(t *testing.T) {
+			t.Skip("TEST_PROJECT_NAME not set — skipping project-scoped list test")
+		})
+	}
+
+	testWorkspaceName := os.Getenv("TEST_WORKSPACE_NAME")
+	if testWorkspaceName != "" {
+		t.Run("list variable sets for workspace", func(t *testing.T) {
+			err := executeCommand(t,
+				[]string{"varset", "list", "--workspace-name", testWorkspaceName},
+				hostname, token, org,
+			)
+			if err != nil {
+				t.Errorf("Command failed: %v", err)
+			}
+		})
+	} else {
+		t.Run("list variable sets for workspace", func(t *testing.T) {
+			t.Skip("TEST_WORKSPACE_NAME not set — skipping workspace-scoped list test")
+		})
+	}
 }
 
 func TestVariableSetCRUD(t *testing.T) {
 	hostname, token, org := setupTest(t)
 
-	// Create
-	var createdID string
 	t.Run("create variable set", func(t *testing.T) {
 		err := executeCommand(t,
-			[]string{"variable-set", "create", "--name", "tfx-integration-test-varset", "--description", "Created by TFx integration test"},
+			[]string{"variable-set", "create", "--name", integrationVarsetName, "--description", "Created by TFx integration test"},
 			hostname, token, org,
 		)
 		if err != nil {
@@ -57,10 +98,9 @@ func TestVariableSetCRUD(t *testing.T) {
 		}
 	})
 
-	// List to get ID
 	t.Run("list variable sets after create", func(t *testing.T) {
 		err := executeCommand(t,
-			[]string{"variable-set", "list", "--search", "tfx-integration-test-varset"},
+			[]string{"variable-set", "list", "--search", integrationVarsetName},
 			hostname, token, org,
 		)
 		if err != nil {
@@ -68,33 +108,89 @@ func TestVariableSetCRUD(t *testing.T) {
 		}
 	})
 
-	// Show (only if TEST_VARSET_ID is provided)
-	testVarSetID := os.Getenv("TEST_VARSET_ID")
-	if testVarSetID != "" {
-		createdID = testVarSetID
-		t.Run("show variable set", func(t *testing.T) {
-			err := executeCommand(t,
-				[]string{"variable-set", "show", "--id", createdID},
-				hostname, token, org,
-			)
-			if err != nil {
-				t.Errorf("show variable set failed: %v", err)
-			}
-		})
+	t.Run("show variable set by name", func(t *testing.T) {
+		err := executeCommand(t,
+			[]string{"varset", "show", "--name", integrationVarsetName},
+			hostname, token, org,
+		)
+		if err != nil {
+			t.Errorf("show variable set by name failed: %v", err)
+		}
+	})
 
-		// Delete
-		t.Run("delete variable set", func(t *testing.T) {
-			err := executeCommand(t,
-				[]string{"variable-set", "delete", "--id", createdID},
-				hostname, token, org,
-			)
-			if err != nil {
-				t.Errorf("delete variable set failed: %v", err)
-			}
-		})
-	} else {
-		t.Log("TEST_VARSET_ID not set — skipping show and delete tests. Set TEST_VARSET_ID to the ID of a variable set to test these.")
-	}
+	t.Run("delete variable set by name", func(t *testing.T) {
+		err := executeCommand(t,
+			[]string{"varset", "delete", "--name", integrationVarsetName},
+			hostname, token, org,
+		)
+		if err != nil {
+			t.Errorf("delete variable set by name failed: %v", err)
+		}
+	})
+}
+
+func TestVariableSetVariableCRUD(t *testing.T) {
+	hostname, token, org := setupTest(t)
+
+	t.Run("create variable set", func(t *testing.T) {
+		err := executeCommand(t,
+			[]string{"varset", "create", "--name", integrationVarsetName, "--description", "Created by TFx integration test"},
+			hostname, token, org,
+		)
+		if err != nil {
+			t.Fatalf("create variable set failed: %v", err)
+		}
+	})
+
+	t.Run("create variable in variable set", func(t *testing.T) {
+		err := executeCommand(t,
+			[]string{
+				"varset", "variable", "create",
+				"--varset-name", integrationVarsetName,
+				"--key", integrationVarKey,
+				"--value", "integration-test",
+				"--description", "Created by TFx integration test",
+			},
+			hostname, token, org,
+		)
+		if err != nil {
+			t.Fatalf("create variable failed: %v", err)
+		}
+	})
+
+	t.Run("list variables in variable set", func(t *testing.T) {
+		err := executeCommand(t,
+			[]string{"varset", "variable", "list", "--varset-name", integrationVarsetName},
+			hostname, token, org,
+		)
+		if err != nil {
+			t.Errorf("list variables failed: %v", err)
+		}
+	})
+
+	t.Run("delete variable from variable set", func(t *testing.T) {
+		err := executeCommand(t,
+			[]string{
+				"varset", "variable", "delete",
+				"--varset-name", integrationVarsetName,
+				"--key", integrationVarKey,
+			},
+			hostname, token, org,
+		)
+		if err != nil {
+			t.Errorf("delete variable failed: %v", err)
+		}
+	})
+
+	t.Run("delete variable set", func(t *testing.T) {
+		err := executeCommand(t,
+			[]string{"varset", "delete", "--name", integrationVarsetName},
+			hostname, token, org,
+		)
+		if err != nil {
+			t.Errorf("delete variable set failed: %v", err)
+		}
+	})
 }
 
 func TestVariableSetShow(t *testing.T) {
