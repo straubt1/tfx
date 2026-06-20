@@ -98,6 +98,7 @@ func init() {
 	rootCmd.PersistentFlags().String("organization", "", "The name of the TFx Organization. Can also be set with the environment variable TFE_ORGANIZATION.")
 	rootCmd.PersistentFlags().String("token", "", "The API token used to authenticate to TFx. Can also be set with the environment variable TFE_TOKEN.")
 	rootCmd.PersistentFlags().StringP("profile", "p", "", "Named profile to use from the config file. Defaults to \"default\". Can also be set with the environment variable TFX_PROFILE.")
+	rootCmd.PersistentFlags().Bool("ssl-skip-verify", false, "Skip TLS certificate verification. Can also be set with the environment variable TFE_SSL_SKIP_VERIFY or profile ssl_skip_verify.")
 
 	// Add json output option
 	rootCmd.PersistentFlags().BoolP("json", "j", false, "Will output command results as JSON.")
@@ -107,6 +108,7 @@ func init() {
 	viper.BindEnv("organization", "TFE_ORGANIZATION")
 	viper.BindEnv("token", "TFE_TOKEN")
 	viper.BindEnv("profile", "TFX_PROFILE")
+	viper.BindEnv("ssl_skip_verify", "TFE_SSL_SKIP_VERIFY")
 
 	// Hidden flag for VHS tape recording
 	rootCmd.Flags().String("tape", "", "Record TUI input to a .tape file for VHS (e.g. debug/demo.tape)")
@@ -114,6 +116,8 @@ func init() {
 
 	// Turn off completion option
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
+
+	viper.BindPFlag("ssl_skip_verify", rootCmd.PersistentFlags().Lookup("ssl-skip-verify"))
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -175,6 +179,9 @@ func captureUserFlags() {
 			userChangedFlags[f.Name] = true
 		}
 	})
+	if userChangedFlags["ssl-skip-verify"] {
+		userChangedFlags["ssl_skip_verify"] = true
+	}
 }
 
 // resolveProfile loads profile blocks from the config file and merges the
@@ -253,6 +260,12 @@ func resolveProfile() error {
 		}
 		if m.value != "" {
 			viper.Set(m.viperKey, m.value)
+		}
+	}
+
+	if !userChangedFlags["ssl_skip_verify"] && os.Getenv("TFE_SSL_SKIP_VERIFY") == "" {
+		if active.SSLSkipVerify {
+			viper.Set("ssl_skip_verify", true)
 		}
 	}
 

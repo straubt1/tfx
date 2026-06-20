@@ -11,7 +11,7 @@ New commands and capabilities for users.
 - [ ] `tfx team` command group
 - [ ] Cloud Agents support
 - [ ] Sentinel Publishing support
-- [ ] Self-signed certificate support for TFE instances
+- [x] Self-signed certificate support for TFE instances
 - [ ] Download workspace plan as JSON
 - [ ] Plan export command
 - [ ] Update `tfx organization` and `tfx project show` to include agent pool settings

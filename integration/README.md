@@ -71,9 +71,10 @@ For a TFE instance at `local.tfe.rocks`, add a profile to `~/.tfx.hcl`:
 
 ```hcl
 profile "local" {
-  hostname     = "local.tfe.rocks"
-  organization = "your-org"
-  token        = "your-token"
+  hostname        = "local.tfe.rocks"
+  organization    = "your-org"
+  token           = "your-token"
+  ssl_skip_verify = true
 }
 ```
 

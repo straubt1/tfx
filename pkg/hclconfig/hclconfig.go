@@ -35,15 +35,17 @@ const (
 
 // Profile holds configuration for one TFx profile.
 type Profile struct {
-	Name         string // block label — user-editable alias
-	Hostname     string // hostname value; defaults to DefaultHostname if omitted
-	Organization string // organization value; may be empty
-	Token        string // token value
+	Name          string // block label — user-editable alias
+	Hostname      string // hostname value; defaults to DefaultHostname if omitted
+	Organization  string // organization value; may be empty
+	Token         string // token value
+	SSLSkipVerify bool   // when true, skip TLS certificate verification
 }
 
 var (
 	reProfileStart = regexp.MustCompile(`^profile\s+"([^"]+)"\s*\{`)
 	reKeyValue     = regexp.MustCompile(`^\s+(hostname|organization|token)\s*=\s*"([^"]*)"`)
+	reBoolKeyValue = regexp.MustCompile(`^\s+(ssl_skip_verify)\s*=\s*(true|false)`)
 	reBlockEnd     = regexp.MustCompile(`^\}`)
 )
 
@@ -92,6 +94,12 @@ func ListProfiles(path string) ([]Profile, error) {
 				}
 				continue
 			}
+			if m := reBoolKeyValue.FindStringSubmatch(line); m != nil {
+				if m[1] == "ssl_skip_verify" {
+					current.SSLSkipVerify = m[2] == "true"
+				}
+				continue
+			}
 			if reBlockEnd.MatchString(line) {
 				if current.Hostname == "" {
 					current.Hostname = DefaultHostname
@@ -129,15 +137,29 @@ func WriteProfile(path, name, hostname, organization, token string) error {
 
 	stripped := removeProfileBlock(existing, name)
 
+	sslSkipVerify := false
+	if profiles, err := ListProfiles(path); err == nil {
+		for _, p := range profiles {
+			if p.Name == name {
+				sslSkipVerify = p.SSLSkipVerify
+				break
+			}
+		}
+	}
+
 	var orgLine string
 	if organization != "" {
 		orgLine = fmt.Sprintf("  organization = %q", organization)
 	} else {
 		orgLine = `  # organization = "" # set this to your organization name`
 	}
+	var sslLine string
+	if sslSkipVerify {
+		sslLine = "  ssl_skip_verify  = true\n"
+	}
 	block := fmt.Sprintf(
-		"\nprofile %q {\n  hostname     = %q\n%s\n  token        = %q\n}\n",
-		name, hostname, orgLine, token,
+		"\nprofile %q {\n  hostname     = %q\n%s\n  token        = %q\n%s}\n",
+		name, hostname, orgLine, token, sslLine,
 	)
 
 	content := strings.TrimRight(stripped, "\n\t ")

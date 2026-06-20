@@ -31,13 +31,14 @@ func New(hostname, token, organization string) (*TfxClient, error) {
 // HTTP logging is enabled when TFX_LOG or TFX_LOG_PATH is set.
 // To also attach an APIEventBus (TUI inspector), use NewWithContextAndBus.
 func NewWithContext(ctx context.Context, hostname, token, organization string) (*TfxClient, error) {
-	return NewWithContextAndBus(ctx, hostname, token, organization, nil)
+	return NewWithContextAndBus(ctx, hostname, token, organization, nil, false)
 }
 
 // NewWithContextAndBus creates a new TFE client with optional event bus support.
 // When bus is non-nil a LoggingTransport is always installed (regardless of TFX_LOG)
 // so the TUI inspector panel receives every API call.
-func NewWithContextAndBus(ctx context.Context, hostname, token, organization string, bus *APIEventBus) (*TfxClient, error) {
+// When sslSkipVerify is true, TLS certificate verification is disabled.
+func NewWithContextAndBus(ctx context.Context, hostname, token, organization string, bus *APIEventBus, sslSkipVerify bool) (*TfxClient, error) {
 	if hostname == "" {
 		return nil, fmt.Errorf("hostname is required")
 	}
@@ -52,7 +53,7 @@ func NewWithContextAndBus(ctx context.Context, hostname, token, organization str
 	var httpClient *http.Client
 	if IsTFXLogEnabled() || bus != nil {
 		var err error
-		httpClient, _, err = NewHTTPClientWithLogging(bus)
+		httpClient, _, err = NewHTTPClientWithLogging(bus, sslSkipVerify)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create HTTP client with logging: %w", err)
 		}
@@ -61,9 +62,15 @@ func NewWithContextAndBus(ctx context.Context, hostname, token, organization str
 			Token:      token,
 			HTTPClient: httpClient,
 		}
+	} else if sslSkipVerify {
+		httpClient = HTTPClientForTFE(true)
+		config = &tfe.Config{
+			Address:    fmt.Sprintf("https://%s", hostname),
+			Token:      token,
+			HTTPClient: httpClient,
+		}
 	} else {
-		// No logging and no event bus — use a plain HTTP client.
-		httpClient = newHTTPClientNoLogging()
+		httpClient = &http.Client{}
 		config = &tfe.Config{
 			Address: fmt.Sprintf("https://%s", hostname),
 			Token:   token,
@@ -84,10 +91,4 @@ func NewWithContextAndBus(ctx context.Context, hostname, token, organization str
 		EventBus:         bus,
 		HTTPClient:       httpClient,
 	}, nil
-}
-
-// newHTTPClientNoLogging returns a plain http.Client with no transport wrapping.
-// Used when neither logging nor event bus is needed.
-func newHTTPClientNoLogging() *http.Client {
-	return &http.Client{}
 }

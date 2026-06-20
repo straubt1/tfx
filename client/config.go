@@ -19,8 +19,9 @@ func NewFromViperWithContext(ctx context.Context) (*TfxClient, error) {
 	hostname := viper.GetString("hostname")
 	token := viper.GetString("token")
 	organization := viper.GetString("organization")
+	sslSkipVerify := viper.GetBool("ssl_skip_verify")
 
-	return NewWithContext(ctx, hostname, token, organization)
+	return NewWithContextAndBus(ctx, hostname, token, organization, nil, sslSkipVerify)
 }
 
 // NewFromViperForTUI creates a TfxClient for TUI mode.
@@ -30,6 +31,7 @@ func NewFromViperForTUI(bus *APIEventBus) (*TfxClient, error) {
 	hostname := viper.GetString("hostname")
 	token := viper.GetString("token")
 	organization := viper.GetString("organization")
+	sslSkipVerify := viper.GetBool("ssl_skip_verify")
 
-	return NewWithContextAndBus(context.Background(), hostname, token, organization, bus)
+	return NewWithContextAndBus(context.Background(), hostname, token, organization, bus, sslSkipVerify)
 }

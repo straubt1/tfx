@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `tfx varset variable` subcommands: `list`, `create`, `update`, `show`, `delete` (#219)
 * Profile-based local varset lifecycle integration test (`TestVariableSetLocalProfileLifecycle`; set `TFX_INTEGRATION_PROFILE=local`)
 * `TFX_INTEGRATION_NO_CLEANUP` env var to retain varsets/variables after the lifecycle integration test
+* Profile `ssl_skip_verify` setting for self-signed TFE TLS certificates (also `--ssl-skip-verify` / `TFE_SSL_SKIP_VERIFY`)
 
 **Changed**
 

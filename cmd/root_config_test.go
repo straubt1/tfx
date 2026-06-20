@@ -58,6 +58,35 @@ profile "default" {
 	if got := viper.GetString("profile"); got != "default" {
 		t.Errorf("expected profile=default, got %q", got)
 	}
+	if viper.GetBool("ssl_skip_verify") {
+		t.Error("expected ssl_skip_verify=false when absent from profile")
+	}
+}
+
+func TestResolveProfile_SSLSkipVerify_FlagOverridesAbsentProfile(t *testing.T) {
+	resetState(t)
+	path := writeConfig(t, `
+profile "local" {
+  hostname     = "local.tfe.rocks"
+  organization = "local-org"
+  token        = "local-tok"
+}
+`)
+	viper.SetConfigFile(path)
+	viper.ReadInConfig()
+	viper.Set("profile", "local")
+	userChangedFlags["ssl-skip-verify"] = true
+	userChangedFlags["ssl_skip_verify"] = true
+	viper.Set("ssl_skip_verify", true)
+
+	err := resolveProfile()
+	if err != nil {
+		t.Fatalf("resolveProfile() error = %v", err)
+	}
+
+	if !viper.GetBool("ssl_skip_verify") {
+		t.Error("expected --ssl-skip-verify flag to set ssl_skip_verify=true")
+	}
 }
 
 func TestResolveProfile_NamedProfile(t *testing.T) {
@@ -274,5 +303,55 @@ profile "default" {
 	// Token from profile (no flag override)
 	if got := viper.GetString("token"); got != "default-tok" {
 		t.Errorf("expected token=default-tok, got %q", got)
+	}
+}
+
+func TestResolveProfile_SSLSkipVerify(t *testing.T) {
+	resetState(t)
+	path := writeConfig(t, `
+profile "local" {
+  hostname        = "local.tfe.rocks"
+  organization    = "local-org"
+  token           = "local-tok"
+  ssl_skip_verify = true
+}
+`)
+	viper.SetConfigFile(path)
+	viper.ReadInConfig()
+	viper.Set("profile", "local")
+
+	err := resolveProfile()
+	if err != nil {
+		t.Fatalf("resolveProfile() error = %v", err)
+	}
+
+	if !viper.GetBool("ssl_skip_verify") {
+		t.Error("expected ssl_skip_verify=true from profile")
+	}
+}
+
+func TestResolveProfile_SSLSkipVerify_EnvOverridesProfile(t *testing.T) {
+	resetState(t)
+	path := writeConfig(t, `
+profile "local" {
+  hostname        = "local.tfe.rocks"
+  organization    = "local-org"
+  token           = "local-tok"
+  ssl_skip_verify = true
+}
+`)
+	viper.SetConfigFile(path)
+	viper.ReadInConfig()
+	viper.Set("profile", "local")
+	viper.BindEnv("ssl_skip_verify", "TFE_SSL_SKIP_VERIFY")
+	t.Setenv("TFE_SSL_SKIP_VERIFY", "false")
+
+	err := resolveProfile()
+	if err != nil {
+		t.Fatalf("resolveProfile() error = %v", err)
+	}
+
+	if viper.GetBool("ssl_skip_verify") {
+		t.Error("expected env TFE_SSL_SKIP_VERIFY=false to override profile")
 	}
 }
