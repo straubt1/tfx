@@ -17,6 +17,12 @@ export default defineConfig({
       sidebar: [
         { label: 'Getting Started', slug: 'gettingstarted' },
         {
+          label: 'Configuration',
+          items: [
+            { label: 'Self-Signed TLS', slug: 'configuration/self-signed-tls' },
+          ],
+        },
+        {
           label: 'Interactive TUI',
           items: [
             { label: 'Overview', slug: 'tui/overview' },

@@ -113,6 +113,9 @@ func TestListProfiles_SingleProfile(t *testing.T) {
 	if p.Token != "tok123" {
 		t.Errorf("expected token 'tok123', got %q", p.Token)
 	}
+	if p.SSLSkipVerify {
+		t.Error("expected ssl_skip_verify=false when absent from profile")
+	}
 }
 
 func TestListProfiles_MultipleProfiles(t *testing.T) {
@@ -240,5 +243,72 @@ func TestWriteProfile_UpdatesExistingProfile(t *testing.T) {
 	}
 	if profiles[0].Hostname != "new.host" || profiles[0].Token != "tok2" {
 		t.Errorf("profile not updated: %+v", profiles[0])
+	}
+}
+
+func TestListProfiles_SSLSkipVerify(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".tfx.hcl")
+
+	config := `profile "local" {
+  hostname        = "local.tfe.rocks"
+  organization    = "my-org"
+  token           = "tok123"
+  ssl_skip_verify = true
+}
+profile "cloud" {
+  hostname     = "app.terraform.io"
+  organization = "my-org"
+  token        = "tok456"
+  ssl_skip_verify = false
+}
+`
+	os.WriteFile(path, []byte(config), 0600)
+
+	profiles, err := ListProfiles(path)
+	if err != nil {
+		t.Fatalf("ListProfiles() error = %v", err)
+	}
+	if len(profiles) != 2 {
+		t.Fatalf("expected 2 profiles, got %d", len(profiles))
+	}
+	if !profiles[0].SSLSkipVerify {
+		t.Error("expected local profile ssl_skip_verify=true")
+	}
+	if profiles[1].SSLSkipVerify {
+		t.Error("expected cloud profile ssl_skip_verify=false")
+	}
+}
+
+func TestWriteProfile_PreservesSSLSkipVerify(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".tfx.hcl")
+
+	config := `profile "local" {
+  hostname        = "local.tfe.rocks"
+  organization    = "org1"
+  token           = "tok1"
+  ssl_skip_verify = true
+}
+`
+	os.WriteFile(path, []byte(config), 0600)
+
+	err := WriteProfile(path, "local", "local.tfe.rocks", "org2", "tok2")
+	if err != nil {
+		t.Fatalf("WriteProfile() error = %v", err)
+	}
+
+	profiles, err := ListProfiles(path)
+	if err != nil {
+		t.Fatalf("ListProfiles() error = %v", err)
+	}
+	if len(profiles) != 1 {
+		t.Fatalf("expected 1 profile, got %d", len(profiles))
+	}
+	if !profiles[0].SSLSkipVerify {
+		t.Error("expected ssl_skip_verify to be preserved after WriteProfile")
+	}
+	if profiles[0].Organization != "org2" {
+		t.Errorf("expected organization org2, got %q", profiles[0].Organization)
 	}
 }

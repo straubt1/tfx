@@ -225,6 +225,7 @@ The login flow is an **inline** Bubble Tea TUI (no alt-screen) implemented in `t
 | Hostname | `hostname` | `"app.terraform.io"` | — |
 | Organization | `organization` | (commented placeholder) | — |
 | Token | `token` | — | ✓ |
+| Skip TLS verification | `ssl_skip_verify` | `false` | — |
 
 ### HCL Config Format (`pkg/hclconfig/`)
 
@@ -256,7 +257,7 @@ profile "staging" {
 - `hclconfig.DefaultHostname = "app.terraform.io"`
 
 **Key functions:**
-- `Profile` struct: `Name`, `Hostname`, `Organization`, `Token string`
+- `Profile` struct: `Name`, `Hostname`, `Organization`, `Token string`, `SSLSkipVerify bool`
 - `ListProfiles(path string) ([]Profile, error)` — `nil, nil` when file not found or has no profile blocks
 - `WriteProfile(path, name, hostname, organization, token string) error` — name/hostname default to constants when empty
 
@@ -270,8 +271,8 @@ profile "staging" {
 4. If `--profile` not set → look for profile named `"default"`; if not found return nil
 5. Print `Using config file: <path> (profile: <name>)` (suppressed in `--json` mode)
 6. Merge profile values with correct precedence — only set when no higher-priority source exists:
-   - CLI flags (`--hostname`, `--organization`, `--token`) — highest
-   - Environment variables (`TFE_HOSTNAME`, `TFE_ORGANIZATION`, `TFE_TOKEN`)
+   - CLI flags (`--hostname`, `--organization`, `--token`, `--ssl-skip-verify`) — highest
+   - Environment variables (`TFE_HOSTNAME`, `TFE_ORGANIZATION`, `TFE_TOKEN`, `TFE_SSL_SKIP_VERIFY`)
    - Profile values from config file
    - Defaults — lowest
 

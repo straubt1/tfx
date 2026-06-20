@@ -144,7 +144,7 @@ func TestIsTFXLogEnabled(t *testing.T) {
 
 func TestNewHTTPClientWithLogging(t *testing.T) {
 	t.Run("creates client", func(t *testing.T) {
-		client, closer, err := NewHTTPClientWithLogging(nil)
+		client, closer, err := NewHTTPClientWithLogging(nil, false)
 		if err != nil {
 			t.Fatalf("NewHTTPClientWithLogging() error = %v", err)
 		}

@@ -6,6 +6,8 @@ package tui
 import (
 	"context"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 	"charm.land/lipgloss/v2"
 	tfe "github.com/hashicorp/go-tfe"
 
+	"github.com/straubt1/tfx/client"
 	"github.com/straubt1/tfx/pkg/browser"
 	"github.com/straubt1/tfx/pkg/hclconfig"
 )
@@ -50,11 +53,12 @@ func loginTickSpinner() tea.Cmd {
 	}
 }
 
-func loginFetchOrgs(hostname, token string) tea.Cmd {
+func loginFetchOrgs(hostname, token string, sslSkipVerify bool) tea.Cmd {
 	return func() tea.Msg {
 		tfeClient, err := tfe.NewClient(&tfe.Config{
-			Address: "https://" + hostname,
-			Token:   token,
+			Address:    "https://" + hostname,
+			Token:      token,
+			HTTPClient: client.HTTPClientForTFE(sslSkipVerify),
 		})
 		if err != nil {
 			return loginErrMsg{err}
@@ -103,6 +107,7 @@ type LoginModel struct {
 	orgCursor           int
 	selectedOrg         string
 	resolvedToken       string
+	sslSkipVerify       bool
 	spinnerIdx          int
 	err                 error               // fatal write/config error
 	width               int
@@ -195,6 +200,7 @@ func (m LoginModel) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				p := m.profiles[m.profileCursor-1]
 				m.hostname = p.Hostname
 				m.selectedProfileName = p.Name
+				m.sslSkipVerify = p.SSLSkipVerify
 				m.isUpdate = true
 				m.step = stepMenu
 			}
@@ -264,7 +270,7 @@ func (m LoginModel) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 			m.resolvedToken = token
 			m.step = stepValidating
-			return m, tea.Batch(loginFetchOrgs(m.hostname, token), loginTickSpinner())
+			return m, tea.Batch(loginFetchOrgs(m.hostname, token, m.sslSkipVerify), loginTickSpinner())
 		case "backspace":
 			if len(m.tokenRunes) > 0 {
 				m.tokenRunes = m.tokenRunes[:len(m.tokenRunes)-1]
@@ -526,8 +532,6 @@ func (m LoginModel) render() string {
 	return b.String()
 }
 
-// ── Entry point ───────────────────────────────────────────────────────────────
-
 // RunLogin launches the inline login wizard for the given hostname.
 func RunLogin(hostname string) error {
 	configPath, err := hclconfig.DefaultConfigPath()
@@ -543,10 +547,11 @@ func RunLogin(hostname string) error {
 	}
 
 	m := LoginModel{
-		step:       initialStep,
-		hostname:   hostname,
-		configPath: configPath,
-		profiles:   profiles,
+		step:          initialStep,
+		hostname:      hostname,
+		configPath:    configPath,
+		profiles:      profiles,
+		sslSkipVerify: sslSkipVerifyFromEnv(),
 		// Pre-fill profile name with "default" when starting at the name entry step.
 		nameRunes: []rune(hclconfig.DefaultProfileName),
 	}
@@ -560,4 +565,16 @@ func RunLogin(hostname string) error {
 		return nil
 	}
 	return lm.err
+}
+
+func sslSkipVerifyFromEnv() bool {
+	v := os.Getenv("TFE_SSL_SKIP_VERIFY")
+	if v == "" {
+		return false
+	}
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		return false
+	}
+	return b
 }

@@ -109,6 +109,8 @@ profile "production" {
 | Organization | `organization` | _(none)_ | No |
 | Token | `token` | _(none)_ | Yes |
 
+For self-signed or private-CA Terraform Enterprise instances, see [Self-Signed TLS](/configuration/self-signed-tls/) — most users can skip this page.
+
 ### Selecting a profile
 
 By default, TFx uses the profile named `default`. To use a different profile:
@@ -144,9 +146,9 @@ The flag takes precedence over the env var; both override auto-discovery.
 
 When the same setting is specified in multiple places, the highest-precedence source wins:
 
-1. **CLI flags** (`--hostname`, `--organization`, `--token`) — highest
-2. **Environment variables** (`TFE_HOSTNAME`, `TFE_ORGANIZATION`, `TFE_TOKEN`)
+1. **CLI flags** (`--hostname`, `--organization`, `--token`, `--ssl-skip-verify`) — highest
+2. **Environment variables** (`TFE_HOSTNAME`, `TFE_ORGANIZATION`, `TFE_TOKEN`, `TFE_SSL_SKIP_VERIFY`)
 3. **Profile values** from `.tfx.hcl`
-4. **Defaults** (`hostname` defaults to `app.terraform.io`)
+4. **Defaults** (`hostname` defaults to `app.terraform.io`; TLS verification is enabled)
 
 

@@ -310,7 +310,7 @@ func IsTFXLogEnabled() bool {
 // NewHTTPClientWithLogging creates an HTTP client that logs all requests and responses to a file
 // if TFX_LOG_PATH is set, and/or to the terminal if TFX_LOG is set.
 // An optional EventBus may be provided to also publish events for the TUI inspector panel.
-func NewHTTPClientWithLogging(bus *APIEventBus) (*http.Client, io.Closer, error) {
+func NewHTTPClientWithLogging(bus *APIEventBus, sslSkipVerify bool) (*http.Client, io.Closer, error) {
 	var logFile *os.File
 	var err error
 
@@ -340,7 +340,7 @@ func NewHTTPClientWithLogging(bus *APIEventBus) (*http.Client, io.Closer, error)
 	}
 
 	transport := &LoggingTransport{
-		Transport: http.DefaultTransport,
+		Transport: baseTransport(sslSkipVerify),
 		LogFile:   logFile,
 		EventBus:  bus,
 	}
