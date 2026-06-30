@@ -17,7 +17,7 @@ require (
 	github.com/google/go-containerregistry v0.21.7
 	github.com/hashicorp/go-slug v1.0.0
 	github.com/hashicorp/go-tfe v1.109.0
-	github.com/jedib0t/go-pretty/v6 v6.8.1
+	github.com/jedib0t/go-pretty/v6 v6.8.2
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/pkg/errors v0.9.1
