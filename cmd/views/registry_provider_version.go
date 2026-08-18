@@ -45,6 +45,42 @@ func (v *RegistryProviderVersionCreateView) Render(p *tfe.RegistryProviderVersio
 	return v.Output().RenderProperties(props)
 }
 
+// RegistryProviderVersionCreateFromDirectoryResult is the directory-mode create output.
+type RegistryProviderVersionCreateFromDirectoryResult struct {
+	Name            string                          `json:"name"`
+	Version         string                          `json:"version"`
+	KeyID           string                          `json:"key_id"`
+	ProviderCreated bool                            `json:"provider_created"`
+	ProviderVersion *tfe.RegistryProviderVersion    `json:"provider_version"`
+	Platforms       []*tfe.RegistryProviderPlatform `json:"platforms"`
+}
+
+func (v *RegistryProviderVersionCreateView) RenderFromDirectory(result *RegistryProviderVersionCreateFromDirectoryResult) error {
+	if v.IsJSON() {
+		return v.Output().RenderJSON(result)
+	}
+	props := []PropertyPair{
+		{Key: "Name", Value: result.Name},
+		{Key: "Version", Value: result.Version},
+		{Key: "GPG Key ID", Value: result.KeyID},
+		{Key: "Provider Created", Value: result.ProviderCreated},
+		{Key: "ID", Value: result.ProviderVersion.ID},
+		{Key: "Created", Value: result.ProviderVersion.UpdatedAt},
+	}
+	if err := v.Output().RenderProperties(props); err != nil {
+		return err
+	}
+	if len(result.Platforms) == 0 {
+		return nil
+	}
+	headers := []string{"OS", "Arch", "Filename", "ID"}
+	rows := make([][]interface{}, len(result.Platforms))
+	for i, p := range result.Platforms {
+		rows[i] = []interface{}{p.OS, p.Arch, p.Filename, p.ID}
+	}
+	return v.Output().RenderTable(headers, rows)
+}
+
 func (v *RegistryProviderVersionShowView) Render(p *tfe.RegistryProviderVersion, shasums string) error {
 	if v.IsJSON() {
 		return v.Output().RenderJSON(map[string]interface{}{"version": p, "shasums": shasums})

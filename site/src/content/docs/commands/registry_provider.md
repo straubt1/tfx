@@ -137,19 +137,13 @@ Staged layout:
   terraform-provider-azurerm_5.0.0_windows_amd64.zip
 ```
 
-Then upload with the existing commands (the download output prints these with the real paths):
+Then upload with:
 
 ```sh
-tfx registry provider create --name azurerm
-tfx registry provider version create \
-  --name azurerm --version 5.0.0 \
-  --key-id 34365D9472D7468F \
-  --shasums ./providers/azurerm/5.0.0/terraform-provider-azurerm_5.0.0_SHA256SUMS \
-  --shasums-sig ./providers/azurerm/5.0.0/terraform-provider-azurerm_5.0.0_SHA256SUMS.72D7468F.sig
-tfx registry provider version platform create \
-  --name azurerm --version 5.0.0 --os linux --arch amd64 \
-  -f ./providers/azurerm/5.0.0/terraform-provider-azurerm_5.0.0_linux_amd64.zip
+tfx registry provider version create --directory ./providers/azurerm/5.0.0
 ```
+
+The provider is created automatically if it does not already exist. `--directory` uploads the version checksums and every zip in that folder.
 
 ```sh
 $ tfx registry provider download --name azurerm --version 5.0.0 --platforms linux_amd64 --directory ./providers
@@ -167,9 +161,17 @@ List Platforms for a Provider Version in the Registry.
 
 Create a Version for a Provider in the Registry.
 
-`--shasums` Is required to be set to the path to shasums file. This file contains all the SHASUMS for each provider version platform you wish to upload.
+### From a staged download directory
 
-`--shasums-sig` Is required to be set to the path to shasums signature binary file.
+After `tfx registry provider download`, pass the version folder. Name, version, GPG key id, SHA256SUMS, signature, and platform zips are inferred. The provider is created if it does not exist. `--key-id` overrides the inferred GPG key.
+
+```sh
+tfx registry provider version create --directory ./providers/azurerm/5.0.0
+```
+
+### From explicit files
+
+`--shasums` is the path to the SHA256SUMS file. `--shasums-sig` is the path to the signature file. This path creates the version only; upload platforms separately with `tfx registry provider version platform create`.
 
 **SHAMSUM File Content Example:**
 

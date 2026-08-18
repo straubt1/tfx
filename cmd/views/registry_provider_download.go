@@ -81,26 +81,7 @@ func (v *RegistryProviderDownloadView) Render(result *RegistryProviderDownloadRe
 }
 
 func uploadCommands(result *RegistryProviderDownloadResult) []string {
-	cmds := []string{
-		fmt.Sprintf("tfx registry provider create --name %s", result.Name),
-		fmt.Sprintf(
-			"tfx registry provider version create --name %s --version %s --key-id %s --shasums %s --shasums-sig %s",
-			result.Name,
-			result.Version,
-			result.KeyID,
-			result.ShasumsPath,
-			result.ShasumsSigPath,
-		),
+	return []string{
+		fmt.Sprintf("tfx registry provider version create --directory %s", result.Directory),
 	}
-	for _, p := range result.Platforms {
-		cmds = append(cmds, fmt.Sprintf(
-			"tfx registry provider version platform create --name %s --version %s --os %s --arch %s -f %s",
-			result.Name,
-			result.Version,
-			p.OS,
-			p.Arch,
-			p.Path,
-		))
-	}
-	return cmds
 }

@@ -736,7 +736,7 @@ Download a public provider (no TFE token required). Stages files under `<directo
 tfx registry provider download --name random --version 3.6.0 --platforms linux_amd64 --directory /tmp/tfx-providers
 ```
 
-**Expected:** SHA256SUMS, signature, and `linux_amd64` zip are written to `/tmp/tfx-providers/random/3.6.0`. Output includes the GPG key ID and follow-up `version create` / `platform create` commands.
+**Expected:** SHA256SUMS, signature, and `linux_amd64` zip are written to `/tmp/tfx-providers/random/3.6.0`. Output includes the GPG key ID and a follow-up `tfx registry provider version create --directory …` command.
 
 ### 68. List Providers
 

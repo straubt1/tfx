@@ -20,6 +20,7 @@ type RegistryProviderVersionCreateFlags struct {
 	KeyID      string
 	Shasums    string
 	ShasumsSig string
+	Directory  string
 }
 
 // RegistryProviderVersionShowFlags holds flags for provider version show
@@ -41,12 +42,14 @@ func ParseRegistryProviderVersionListFlags(cmd *cobra.Command) (*RegistryProvide
 }
 
 func ParseRegistryProviderVersionCreateFlags(cmd *cobra.Command) (*RegistryProviderVersionCreateFlags, error) {
+	directory, _ := cmd.Flags().GetString("directory")
 	return &RegistryProviderVersionCreateFlags{
 		Name:       viper.GetString("name"),
 		Version:    viper.GetString("version"),
 		KeyID:      viper.GetString("key-id"),
 		Shasums:    viper.GetString("shasums"),
 		ShasumsSig: viper.GetString("shasums-sig"),
+		Directory:  directory,
 	}, nil
 }
 

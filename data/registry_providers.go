@@ -4,7 +4,11 @@
 package data
 
 import (
+	"fmt"
+	"strings"
+
 	tfe "github.com/hashicorp/go-tfe"
+	"github.com/pkg/errors"
 	"github.com/straubt1/tfx/client"
 	"github.com/straubt1/tfx/output"
 )
@@ -197,4 +201,57 @@ func DeleteRegistryProviderPlatform(c *client.TfxClient, orgName, name, version,
 		OS:   os,
 		Arch: arch,
 	})
+}
+
+// EnsureRegistryProvider returns the private-registry provider, creating it if missing.
+func EnsureRegistryProvider(c *client.TfxClient, orgName, name string) (p *tfe.RegistryProvider, created bool, err error) {
+	p, err = ReadRegistryProvider(c, orgName, name)
+	if err == nil {
+		return p, false, nil
+	}
+	if !isNotFound(err) {
+		return nil, false, err
+	}
+	output.Get().Logger().Info("Provider not found, creating", "org", orgName, "name", name)
+	p, err = CreateRegistryProvider(c, orgName, name)
+	if err != nil {
+		return nil, false, err
+	}
+	return p, true, nil
+}
+
+func isNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, tfe.ErrResourceNotFound) {
+		return true
+	}
+	s := strings.ToLower(err.Error())
+	return strings.Contains(s, "not found") || strings.Contains(s, "resource not found")
+}
+
+// UploadRegistryProviderPlatform hashes zipPath, creates the platform record, and PUTs the zip.
+func UploadRegistryProviderPlatform(c *client.TfxClient, orgName, name, version, osName, arch, zipPath string) (*tfe.RegistryProviderPlatform, error) {
+	output.Get().Logger().Debug("Uploading provider platform", "org", orgName, "name", name, "version", version, "os", osName, "arch", arch, "path", zipPath)
+
+	sum, err := fileSHA256(zipPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to hash file")
+	}
+
+	filename := fmt.Sprintf("terraform-provider-%s_%s_%s_%s.zip", name, version, osName, arch)
+	rpp, err := CreateRegistryProviderPlatform(c, orgName, name, version, osName, arch, sum, filename)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create provider version platform")
+	}
+
+	uploadURL, ok := rpp.Links["provider-binary-upload"].(string)
+	if !ok || uploadURL == "" {
+		return nil, errors.New("provider platform is missing provider-binary-upload link")
+	}
+	if err := UploadBinary(uploadURL, zipPath); err != nil {
+		return nil, errors.Wrap(err, "failed to upload binary to provider version platform")
+	}
+	return rpp, nil
 }

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **Added**
 
 * `tfx registry provider download` — stage public-registry provider artifacts (SHA256SUMS, signature, platform zips) under `./providers/<name>/<version>` for later private-registry upload
+* `tfx registry provider version create --directory` — infer name, version, GPG key, checksums, and platforms from a staged download folder and upload them
 
 ## [v0.4.0] - 2026-06-20
 
