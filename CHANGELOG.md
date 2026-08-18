@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.4.1] - Unreleased
+## [v0.4.1] - 2026-08-18
 
 **Added**
 
@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `tfx registry provider version create --directory` — infer namespace, name, version, GPG key, checksums, and platforms from a staged download folder and upload them
 * Directory-mode platform zip uploads run in parallel (`--concurrency`, default 4)
 * Directory-mode create uploads a third-party GPG public key to the private registry when the public-registry namespace is not `hashicorp` and the key is not already present
+* Directory-mode `version create --directory` resumes if the version or platforms already exist (re-run after a partial upload)
 
 ## [v0.4.0] - 2026-06-20
 
@@ -395,8 +396,8 @@ New Commands:
 
 **Removed**
 
-[Unreleased]: https://github.com/straubt1/tfx/compare/v0.4.0...HEAD
-[v0.4.1]: https://github.com/straubt1/tfx/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/straubt1/tfx/compare/v0.4.1...HEAD
+[v0.4.1]: https://github.com/straubt1/tfx/compare/v0.4.0...v0.4.1
 [v0.4.0]: https://github.com/straubt1/tfx/compare/v0.3.3...v0.4.0
 [v0.3.3]: https://github.com/straubt1/tfx/releases/tag/v0.3.3
 [v0.3.2]: https://github.com/straubt1/tfx/releases/tag/v0.3.2

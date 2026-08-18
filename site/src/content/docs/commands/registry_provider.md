@@ -127,7 +127,7 @@ Directory:     ~/example/providers/hashicorp/azurerm/5.0.0
 GPG Key ID:    <hashicorp signing key>
 GPG Public Key: ~/example/providers/hashicorp/azurerm/5.0.0/<KEYID>.asc
 SHA256SUMS:    ~/example/providers/hashicorp/azurerm/5.0.0/terraform-provider-azurerm_5.0.0_SHA256SUMS
-SHA256SUMS.sig: ~/example/providers/hashicorp/azurerm/5.0.0/terraform-provider-azurerm_5.0.0_SHA256SUMS.sig
+SHA256SUMS.sig: ~/example/providers/hashicorp/azurerm/5.0.0/terraform-provider-azurerm_5.0.0_SHA256SUMS.72D7468F.sig
 ```
 
 Staged layout:
@@ -136,7 +136,7 @@ Staged layout:
 ./providers/hashicorp/azurerm/5.0.0/
   <KEYID>.asc
   terraform-provider-azurerm_5.0.0_SHA256SUMS
-  terraform-provider-azurerm_5.0.0_SHA256SUMS.sig
+  terraform-provider-azurerm_5.0.0_SHA256SUMS.72D7468F.sig
   terraform-provider-azurerm_5.0.0_linux_amd64.zip
   terraform-provider-azurerm_5.0.0_darwin_arm64.zip
   terraform-provider-azurerm_5.0.0_darwin_amd64.zip

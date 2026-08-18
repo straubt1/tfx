@@ -33,7 +33,7 @@ Check out our docs site [tfx.rocks](https://tfx.rocks)
 | `tfx registry module` | `list`, `show`, `create`, `delete` |
 | `tfx registry module version` | `list`, `create`, `delete`, `download` |
 | `tfx registry provider` | `list`, `show`, `create`, `delete`, `download` |
-| `tfx registry provider version` | `list`, `show`, `create`, `delete` |
+| `tfx registry provider version` | `list`, `show`, `create` (`--directory`), `delete` |
 | `tfx registry provider version platform` | `list`, `show`, `create`, `delete` |
 | `tfx release tfe` | `list`, `show` |
 | `tfx admin gpg` | `list`, `show`, `create`, `delete` |

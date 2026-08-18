@@ -736,7 +736,24 @@ Download a public provider (no TFE token required). Stages files under `<directo
 tfx registry provider download --name random --version 3.6.0 --platforms linux_amd64 --directory /tmp/tfx-providers
 ```
 
-**Expected:** SHA256SUMS, signature, and `linux_amd64` zip are written to `/tmp/tfx-providers/hashicorp/random/3.6.0`. Output includes the GPG key ID and a follow-up `tfx registry provider version create --directory …` command.
+**Expected:** SHA256SUMS, signature (often `*_SHA256SUMS.<keyid>.sig` for HashiCorp providers), GPG public key `.asc`, and `linux_amd64` zip are written to `/tmp/tfx-providers/hashicorp/random/3.6.0`. Output includes the GPG key ID and a follow-up `tfx registry provider version create --directory …` command.
+
+Publish the staged folder. The provider is created if it does not exist. HashiCorp GPG keys are pre-installed, so no GPG upload. Re-running the same command resumes: existing version and platforms are skipped.
+
+```sh
+tfx registry provider version create --directory /tmp/tfx-providers/hashicorp/random/3.6.0
+```
+
+**Expected:** Version checksums and the `linux_amd64` zip are uploaded. A second run of the same command succeeds without treating the existing version as a hard error.
+
+Third-party providers upload the staged `.asc` when the key is missing. `--concurrency` limits parallel zip uploads (default 4).
+
+```sh
+tfx registry provider download --namespace chainguard-dev --name cosign --version 0.4.16 --platforms darwin_arm64 --directory /tmp/tfx-providers
+tfx registry provider version create --directory /tmp/tfx-providers/chainguard-dev/cosign/0.4.16 --concurrency 2
+```
+
+**Expected:** GPG key is created from the staged `.asc` if it is not already in the organization. Version and platform are uploaded.
 
 ### 68. List Providers
 

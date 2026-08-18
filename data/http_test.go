@@ -52,3 +52,40 @@ func TestUploadBinaryRejectsErrorStatus(t *testing.T) {
 		t.Fatalf("expected 403 error, got %v", err)
 	}
 }
+
+func TestPublicRegistryGetSetsUserAgent(t *testing.T) {
+	var gotUA string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotUA = r.Header.Get("User-Agent")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+
+	resp, err := publicRegistryGet(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if !strings.HasPrefix(gotUA, "tfx/") {
+		t.Fatalf("User-Agent = %q, want tfx/...", gotUA)
+	}
+}
+
+func TestDownloadFileSetsUserAgent(t *testing.T) {
+	var gotUA string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotUA = r.Header.Get("User-Agent")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer server.Close()
+
+	dest := filepath.Join(t.TempDir(), "out.bin")
+	if err := DownloadFile(server.URL, dest); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(gotUA, "tfx/") {
+		t.Fatalf("User-Agent = %q, want tfx/...", gotUA)
+	}
+}

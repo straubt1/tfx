@@ -48,7 +48,7 @@ Staged layout:
 ./providers/hashicorp/azurerm/5.0.0/
   <KEYID>.asc
   terraform-provider-azurerm_5.0.0_SHA256SUMS
-  terraform-provider-azurerm_5.0.0_SHA256SUMS.sig
+  terraform-provider-azurerm_5.0.0_SHA256SUMS.72D7468F.sig
   terraform-provider-azurerm_5.0.0_linux_amd64.zip
   terraform-provider-azurerm_5.0.0_darwin_arm64.zip
   terraform-provider-azurerm_5.0.0_darwin_amd64.zip

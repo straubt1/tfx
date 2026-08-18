@@ -483,7 +483,7 @@ func fileSHA256(path string) (string, error) {
 }
 
 func getJSON(rawURL string, dest interface{}) error {
-	resp, err := http.Get(rawURL)
+	resp, err := publicRegistryGet(rawURL)
 	if err != nil {
 		return errors.Wrap(err, "request failed")
 	}

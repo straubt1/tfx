@@ -5,6 +5,7 @@ package data
 
 import (
 	"os"
+	"strings"
 
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
@@ -91,6 +92,9 @@ func EnsureGPGKey(c *client.TfxClient, orgName, keyID, publicKeyPath string) (*t
 	}
 	key, err := c.Client.GPGKeys.Read(c.Context, gpgKeyID)
 	if err == nil {
+		if err := requireGPGKeyID(key, keyID); err != nil {
+			return nil, false, err
+		}
 		return key, false, nil
 	}
 	if !isNotFound(err) {
@@ -105,7 +109,22 @@ func EnsureGPGKey(c *client.TfxClient, orgName, keyID, publicKeyPath string) (*t
 	if err != nil {
 		return nil, false, err
 	}
+	if err := requireGPGKeyID(key, keyID); err != nil {
+		return nil, false, err
+	}
 	return key, true, nil
+}
+
+func requireGPGKeyID(key *tfe.GPGKey, want string) error {
+	if key == nil {
+		return errors.New("GPG key is nil")
+	}
+	got := strings.TrimSpace(key.KeyID)
+	want = strings.TrimSpace(want)
+	if !strings.EqualFold(got, want) {
+		return errors.Errorf("GPG key id mismatch: registry has %s, expected %s", got, want)
+	}
+	return nil
 }
 
 // DeleteGPGKey deletes a GPG key

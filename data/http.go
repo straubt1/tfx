@@ -7,9 +7,33 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/pkg/errors"
+	"github.com/straubt1/tfx/version"
 )
+
+var publicRegistryHTTPClient = newPublicRegistryHTTPClient()
+
+func newPublicRegistryHTTPClient() *http.Client {
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.TLSHandshakeTimeout = 10 * time.Second
+	tr.ResponseHeaderTimeout = 30 * time.Second
+	return &http.Client{Transport: tr}
+}
+
+func publicRegistryUserAgent() string {
+	return "tfx/" + version.Version
+}
+
+func publicRegistryGet(rawURL string) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", publicRegistryUserAgent())
+	return publicRegistryHTTPClient.Do(req)
+}
 
 // UploadBinary performs a PUT of the file at path to the given pre-signed URL
 func UploadBinary(uploadURL string, path string) error {
@@ -67,7 +91,7 @@ func DownloadTextFile(downloadURL string) (string, error) {
 // DownloadFile streams the content at downloadURL to destPath. It fails on
 // non-200 responses so a failed CDN fetch cannot be mistaken for a valid file.
 func DownloadFile(downloadURL, destPath string) error {
-	resp, err := http.Get(downloadURL)
+	resp, err := publicRegistryGet(downloadURL)
 	if err != nil {
 		return errors.Wrap(err, "download request failed")
 	}

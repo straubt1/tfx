@@ -251,9 +251,9 @@ func registryProviderVersionCreateFromDirectory(cmdConfig *flags.RegistryProvide
 		}
 	}
 
-	p, err := data.CreateRegistryProviderVersion(c, c.OrganizationName, staged.Name, staged.Version, keyID)
+	p, _, err := data.EnsureRegistryProviderVersion(c, c.OrganizationName, staged.Name, staged.Version, keyID)
 	if err != nil {
-		return v.RenderError(errors.Wrap(err, "failed to create provider version"))
+		return v.RenderError(err)
 	}
 	v.Output().Message("Uploading shasums and sig")
 	if err := uploadVersionChecksums(p, staged.Shasums, staged.ShasumsSig); err != nil {
@@ -267,7 +267,7 @@ func registryProviderVersionCreateFromDirectory(cmdConfig *flags.RegistryProvide
 	v.Output().Message("Uploading %d platforms (concurrency %d)", len(staged.Platforms), workers)
 	platforms, err := data.UploadRegistryProviderPlatforms(c, c.OrganizationName, staged.Name, staged.Version, staged.Platforms, cmdConfig.Concurrency)
 	if err != nil {
-		return v.RenderError(err)
+		return v.RenderError(errors.Wrap(err, "failed to upload platforms; re-run the same command to retry remaining platforms"))
 	}
 
 	return v.RenderFromDirectory(&view.RegistryProviderVersionCreateFromDirectoryResult{
@@ -282,19 +282,26 @@ func registryProviderVersionCreateFromDirectory(cmdConfig *flags.RegistryProvide
 }
 
 func uploadVersionChecksums(p *tfe.RegistryProviderVersion, shasums, shasumsSig string) error {
-	shasumsURL, ok := p.Links["shasums-upload"].(string)
-	if !ok || shasumsURL == "" {
-		return errors.New("provider version is missing shasums-upload link")
+	if p.ShasumsUploaded && p.ShasumsSigUploaded {
+		return nil
 	}
-	sigURL, ok := p.Links["shasums-sig-upload"].(string)
-	if !ok || sigURL == "" {
-		return errors.New("provider version is missing shasums-sig-upload link")
+	if !p.ShasumsUploaded {
+		shasumsURL, ok := p.Links["shasums-upload"].(string)
+		if !ok || shasumsURL == "" {
+			return errors.New("provider version is missing shasums-upload link; delete the version and retry if a previous upload failed")
+		}
+		if err := data.UploadBinary(shasumsURL, shasums); err != nil {
+			return errors.Wrap(err, "failed to upload shasums")
+		}
 	}
-	if err := data.UploadBinary(shasumsURL, shasums); err != nil {
-		return errors.Wrap(err, "failed to upload shasums")
-	}
-	if err := data.UploadBinary(sigURL, shasumsSig); err != nil {
-		return errors.Wrap(err, "failed to upload shasums sig")
+	if !p.ShasumsSigUploaded {
+		sigURL, ok := p.Links["shasums-sig-upload"].(string)
+		if !ok || sigURL == "" {
+			return errors.New("provider version is missing shasums-sig-upload link; delete the version and retry if a previous upload failed")
+		}
+		if err := data.UploadBinary(sigURL, shasumsSig); err != nil {
+			return errors.Wrap(err, "failed to upload shasums sig")
+		}
 	}
 	return nil
 }
