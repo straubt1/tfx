@@ -66,7 +66,8 @@ type publicProviderPackage struct {
 	Shasum              string `json:"shasum"`
 	SigningKeys         struct {
 		GPGPublicKeys []struct {
-			KeyID string `json:"key_id"`
+			KeyID      string `json:"key_id"`
+			AsciiArmor string `json:"ascii_armor"`
 		} `json:"gpg_public_keys"`
 	} `json:"signing_keys"`
 }
@@ -190,6 +191,14 @@ func DownloadPublicProvider(cfg PublicProviderDownloadConfig) (*view.RegistryPro
 			result.ShasumsPath = shasumsPath
 			result.ShasumsSigPath = sigPath
 			checksums = sums
+			ascPath, err := writeGPGPublicKey(destDir, pkg)
+			if err != nil {
+				return nil, err
+			}
+			result.GPGPublicKeyPath = ascPath
+			if err := writeStagedProviderMetadata(destDir, cfg.Namespace, cfg.Name, cfg.Version, result.KeyID); err != nil {
+				return nil, err
+			}
 		}
 
 		zipPath := filepath.Join(destDir, pkg.Filename)
@@ -387,10 +396,30 @@ func parseSHA256SUMS(content string) map[string]string {
 }
 
 func packageKeyID(pkg *publicProviderPackage) string {
-	if len(pkg.SigningKeys.GPGPublicKeys) == 0 {
+	if pkg == nil || len(pkg.SigningKeys.GPGPublicKeys) == 0 {
 		return ""
 	}
-	return pkg.SigningKeys.GPGPublicKeys[0].KeyID
+	return strings.ToUpper(strings.TrimSpace(pkg.SigningKeys.GPGPublicKeys[0].KeyID))
+}
+
+func writeGPGPublicKey(destDir string, pkg *publicProviderPackage) (string, error) {
+	if pkg == nil || len(pkg.SigningKeys.GPGPublicKeys) == 0 {
+		return "", nil
+	}
+	keyID := packageKeyID(pkg)
+	armor := strings.TrimSpace(pkg.SigningKeys.GPGPublicKeys[0].AsciiArmor)
+	if keyID == "" || armor == "" {
+		return "", nil
+	}
+	if !strings.HasSuffix(armor, "\n") {
+		armor += "\n"
+	}
+	path := filepath.Join(destDir, keyID+".asc")
+	output.Get().Logger().Debug("Writing GPG public key", "keyID", keyID, "path", path)
+	if err := os.WriteFile(path, []byte(armor), 0644); err != nil {
+		return "", errors.Wrap(err, "failed to write GPG public key")
+	}
+	return path, nil
 }
 
 func fileSHA256(path string) (string, error) {

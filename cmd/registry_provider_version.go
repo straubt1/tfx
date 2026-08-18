@@ -45,7 +45,9 @@ var (
 		Example: `
 tfx registry provider version create --directory ./providers/azurerm/5.0.0
 
-tfx registry provider version create --name azurerm --version 5.0.0 --key-id 34365D9472D7468F --shasums ./SHA256SUMS --shasums-sig ./SHA256SUMS.sig`,
+tfx registry provider version create --directory ./providers/aws/6.60.0 --concurrency 4
+
+tfx registry provider version create --name azurerm --version 5.0.0 --key-id <gpg-key-id> --shasums ./SHA256SUMS --shasums-sig ./SHA256SUMS.sig`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmdConfig, err := flags.ParseRegistryProviderVersionCreateFlags(cmd)
 			if err != nil {
@@ -102,6 +104,7 @@ func init() {
 	registryProviderVersionCreateCmd.Flags().StringP("shasums", "", "", "Path to shasums")
 	registryProviderVersionCreateCmd.Flags().StringP("shasums-sig", "", "", "Path to shasumssig")
 	registryProviderVersionCreateCmd.Flags().StringP("directory", "d", "", "Staged provider directory from tfx registry provider download (infers name, version, GPG key, and platforms)")
+	registryProviderVersionCreateCmd.Flags().Int("concurrency", 4, "Max parallel platform zip uploads (directory mode)")
 
 	// `tfx registry provider version show` arguments
 	registryProviderVersionShowCmd.Flags().StringP("name", "n", "", "Name of the Provider")
@@ -219,6 +222,9 @@ func registryProviderVersionCreateFromDirectory(cmdConfig *flags.RegistryProvide
 	if keyID == "" {
 		return v.RenderError(errors.New("could not infer GPG key id; pass --key-id"))
 	}
+	if cmdConfig.Concurrency < 1 {
+		return v.RenderError(errors.New("concurrency must be at least 1"))
+	}
 
 	c, err := client.NewFromViper()
 	if err != nil {
@@ -226,6 +232,7 @@ func registryProviderVersionCreateFromDirectory(cmdConfig *flags.RegistryProvide
 	}
 	v.PrintCommandHeader("Create Provider Version in Registry for Organization: %s", c.OrganizationName)
 	v.PrintCommandFilter("Directory: %s", cmdConfig.Directory)
+	v.PrintCommandFilter("Public Registry Namespace: %s", staged.Namespace)
 	v.PrintCommandFilter("Provider Name: %s", staged.Name)
 	v.PrintCommandFilter("Version: %s", staged.Version)
 
@@ -237,6 +244,21 @@ func registryProviderVersionCreateFromDirectory(cmdConfig *flags.RegistryProvide
 		v.Output().Message("Created provider %s", staged.Name)
 	}
 
+	var gpgKeyCreated bool
+	if !data.IsHashiCorpPublicNamespace(staged.Namespace) {
+		if staged.GPGPublicKey == "" {
+			return v.RenderError(errors.Errorf("third-party provider %s/%s is signed with GPG key %s, which is not in the private registry; re-run tfx registry provider download so a .asc public key is staged", staged.Namespace, staged.Name, keyID))
+		}
+		_, created, err := data.EnsureGPGKey(c, c.OrganizationName, keyID, staged.GPGPublicKey)
+		if err != nil {
+			return v.RenderError(errors.Wrap(err, "failed to ensure GPG key"))
+		}
+		gpgKeyCreated = created
+		if created {
+			v.Output().Message("Created GPG key %s", keyID)
+		}
+	}
+
 	p, err := data.CreateRegistryProviderVersion(c, c.OrganizationName, staged.Name, staged.Version, keyID)
 	if err != nil {
 		return v.RenderError(errors.Wrap(err, "failed to create provider version"))
@@ -246,14 +268,14 @@ func registryProviderVersionCreateFromDirectory(cmdConfig *flags.RegistryProvide
 		return v.RenderError(err)
 	}
 
-	var platforms []*tfe.RegistryProviderPlatform
-	for _, plat := range staged.Platforms {
-		v.Output().Message("Uploading %s_%s", plat.OS, plat.Arch)
-		rpp, err := data.UploadRegistryProviderPlatform(c, c.OrganizationName, staged.Name, staged.Version, plat.OS, plat.Arch, plat.Path)
-		if err != nil {
-			return v.RenderError(errors.Wrapf(err, "failed to upload platform %s_%s", plat.OS, plat.Arch))
-		}
-		platforms = append(platforms, rpp)
+	workers := cmdConfig.Concurrency
+	if workers > len(staged.Platforms) {
+		workers = len(staged.Platforms)
+	}
+	v.Output().Message("Uploading %d platforms (concurrency %d)", len(staged.Platforms), workers)
+	platforms, err := data.UploadRegistryProviderPlatforms(c, c.OrganizationName, staged.Name, staged.Version, staged.Platforms, cmdConfig.Concurrency)
+	if err != nil {
+		return v.RenderError(err)
 	}
 
 	return v.RenderFromDirectory(&view.RegistryProviderVersionCreateFromDirectoryResult{
@@ -261,6 +283,7 @@ func registryProviderVersionCreateFromDirectory(cmdConfig *flags.RegistryProvide
 		Version:         staged.Version,
 		KeyID:           keyID,
 		ProviderCreated: providerCreated,
+		GPGKeyCreated:   gpgKeyCreated,
 		ProviderVersion: p,
 		Platforms:       platforms,
 	})

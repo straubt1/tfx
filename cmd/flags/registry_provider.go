@@ -57,6 +57,10 @@ func ParseRegistryProviderDeleteFlags(cmd *cobra.Command) (*RegistryProviderDele
 // DefaultPublicProviderDirectory is the staging base for public provider downloads.
 const DefaultPublicProviderDirectory = "./providers"
 
+// PublicRegistryHashiCorpNamespace is the public Terraform Registry namespace
+// for official HashiCorp providers (download --namespace default).
+const PublicRegistryHashiCorpNamespace = "hashicorp"
+
 // DefaultPublicProviderPlatforms are the os_arch values downloaded when --platforms is omitted.
 var DefaultPublicProviderPlatforms = []string{
 	"linux_amd64",
@@ -86,7 +90,7 @@ func ParseRegistryProviderDownloadFlags(cmd *cobra.Command) (*RegistryProviderDo
 	}
 	namespace := viper.GetString("namespace")
 	if namespace == "" {
-		namespace = "hashicorp"
+		namespace = PublicRegistryHashiCorpNamespace
 	}
 	return &RegistryProviderDownloadFlags{
 		Namespace:    namespace,

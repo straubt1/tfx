@@ -6,6 +6,7 @@ package data
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -35,6 +36,11 @@ func TestDownloadPublicProvider(t *testing.T) {
 	shasum := hex.EncodeToString(sum[:])
 	filename := "terraform-provider-azurerm_5.0.0_linux_amd64.zip"
 	shasumsBody := shasum + "  " + filename + "\n"
+	armor := "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\nhashicorp-key\n-----END PGP PUBLIC KEY BLOCK-----"
+	armorJSON, err := json.Marshal(armor)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	var server *httptest.Server
 	mux := http.NewServeMux()
@@ -54,8 +60,8 @@ func TestDownloadPublicProvider(t *testing.T) {
 			"shasums_url":"%s/files/terraform-provider-azurerm_5.0.0_SHA256SUMS",
 			"shasums_signature_url":"%s/files/terraform-provider-azurerm_5.0.0_SHA256SUMS.72D7468F.sig",
 			"shasum":"%s",
-			"signing_keys":{"gpg_public_keys":[{"key_id":"34365D9472D7468F"}]}
-		}`, filename, server.URL, filename, server.URL, server.URL, shasum)
+			"signing_keys":{"gpg_public_keys":[{"key_id":"34365D9472D7468F","ascii_armor":%s}]}
+		}`, filename, server.URL, filename, server.URL, server.URL, shasum, armorJSON)
 	})
 	mux.HandleFunc("/files/"+filename, func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write(zip)
@@ -105,6 +111,112 @@ func TestDownloadPublicProvider(t *testing.T) {
 	}
 	if !strings.HasSuffix(result.ShasumsSigPath, "SHA256SUMS.72D7468F.sig") {
 		t.Fatalf("sig path = %s", result.ShasumsSigPath)
+	}
+
+	wantKey := filepath.Join(wantDir, "34365D9472D7468F.asc")
+	if result.GPGPublicKeyPath != wantKey {
+		t.Fatalf("gpg public key path = %s, want %s", result.GPGPublicKeyPath, wantKey)
+	}
+	gotArmor, err := os.ReadFile(wantKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(gotArmor) != armor+"\n" {
+		t.Fatalf("gpg public key contents = %q", gotArmor)
+	}
+
+	metaBytes, err := os.ReadFile(filepath.Join(wantDir, "tfx-provider.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var meta stagedProviderMetadata
+	if err := json.Unmarshal(metaBytes, &meta); err != nil {
+		t.Fatal(err)
+	}
+	if meta.Namespace != "hashicorp" || meta.Name != "azurerm" || meta.Version != "5.0.0" || meta.KeyID != "34365D9472D7468F" {
+		t.Fatalf("metadata = %+v", meta)
+	}
+}
+
+func TestDownloadPublicProviderWritesPartnerGPGKey(t *testing.T) {
+	zip := []byte("fake-cosign-darwin-arm64-zip")
+	sum := sha256.Sum256(zip)
+	shasum := hex.EncodeToString(sum[:])
+	filename := "terraform-provider-cosign_0.4.16_darwin_arm64.zip"
+	shasumsBody := shasum + "  " + filename + "\n"
+	armor := "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\nchainguard-key\n-----END PGP PUBLIC KEY BLOCK-----"
+	armorJSON, err := json.Marshal(armor)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var server *httptest.Server
+	mux := http.NewServeMux()
+	mux.HandleFunc("/.well-known/terraform.json", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"providers.v1":"/v1/providers/"}`))
+	})
+	mux.HandleFunc("/v1/providers/chainguard-dev/cosign/versions", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"versions":[{"version":"0.4.16","platforms":[{"os":"darwin","arch":"arm64"}]}]}`))
+	})
+	mux.HandleFunc("/v1/providers/chainguard-dev/cosign/0.4.16/download/darwin/arm64", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprintf(w, `{
+			"os":"darwin","arch":"arm64","filename":"%s",
+			"download_url":"%s/files/%s",
+			"shasums_url":"%s/files/terraform-provider-cosign_0.4.16_SHA256SUMS",
+			"shasums_signature_url":"%s/files/terraform-provider-cosign_0.4.16_SHA256SUMS.sig",
+			"shasum":"%s",
+			"signing_keys":{"gpg_public_keys":[{"key_id":"5bbee08f6bf07616","ascii_armor":%s}]}
+		}`, filename, server.URL, filename, server.URL, server.URL, shasum, armorJSON)
+	})
+	mux.HandleFunc("/files/"+filename, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(zip)
+	})
+	mux.HandleFunc("/files/terraform-provider-cosign_0.4.16_SHA256SUMS", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(shasumsBody))
+	})
+	mux.HandleFunc("/files/terraform-provider-cosign_0.4.16_SHA256SUMS.sig", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("fake-sig"))
+	})
+	server = httptest.NewServer(mux)
+	defer server.Close()
+
+	dir := t.TempDir()
+	result, err := DownloadPublicProvider(PublicProviderDownloadConfig{
+		RegistryBaseURL: server.URL,
+		Namespace:       "chainguard-dev",
+		Name:            "cosign",
+		Version:         "0.4.16",
+		Directory:       dir,
+		Platforms:       []string{"darwin_arm64"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.KeyID != "5BBEE08F6BF07616" {
+		t.Fatalf("key id = %s", result.KeyID)
+	}
+	wantKey := filepath.Join(dir, "cosign", "0.4.16", "5BBEE08F6BF07616.asc")
+	if result.GPGPublicKeyPath != wantKey {
+		t.Fatalf("gpg public key path = %s, want %s", result.GPGPublicKeyPath, wantKey)
+	}
+	gotArmor, err := os.ReadFile(wantKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(gotArmor) != armor+"\n" {
+		t.Fatalf("gpg public key contents = %q", gotArmor)
+	}
+
+	metaBytes, err := os.ReadFile(filepath.Join(dir, "cosign", "0.4.16", "tfx-provider.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var meta stagedProviderMetadata
+	if err := json.Unmarshal(metaBytes, &meta); err != nil {
+		t.Fatal(err)
+	}
+	if meta.Namespace != "chainguard-dev" || meta.Name != "cosign" || meta.Version != "0.4.16" || meta.KeyID != "5BBEE08F6BF07616" {
+		t.Fatalf("metadata = %+v", meta)
 	}
 }
 

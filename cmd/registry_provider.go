@@ -125,7 +125,7 @@ func init() {
 	registryProviderDeleteCmd.MarkFlagRequired("name")
 
 	// `tfx registry provider download` arguments
-	registryProviderDownloadCmd.Flags().String("namespace", "hashicorp", "Public registry namespace")
+	registryProviderDownloadCmd.Flags().String("namespace", flags.PublicRegistryHashiCorpNamespace, "Public registry namespace")
 	registryProviderDownloadCmd.Flags().StringP("name", "n", "", "Name of the Provider")
 	registryProviderDownloadCmd.Flags().StringP("version", "v", "", "Version of Provider (i.e. 5.0.0)")
 	registryProviderDownloadCmd.Flags().StringSlice("platforms", flags.DefaultPublicProviderPlatforms, "Platforms to download as os_arch (comma separated)")

@@ -100,11 +100,13 @@ Download a provider from the public Terraform Registry and stage the files local
 
 This command does **not** require a TFE/HCP Terraform token. It uses the public registry protocol (`registry.terraform.io`) and follows the same URLs Terraform uses during `terraform init`.
 
-`--directory` is the base path (default `./providers`). Files are always written to `<directory>/<name>/<version>/`.
+`--directory` is the base path (default `./providers`). Files are always written to `<directory>/<name>/<version>/`. The public-registry namespace (who published the provider on `registry.terraform.io`) is stored in `tfx-provider.json`. Official providers use `--namespace hashicorp` (the default). Third-party providers use their publisher, e.g. `--namespace chainguard-dev`.
 
 Default platforms: `linux_amd64`, `darwin_arm64`, `darwin_amd64`, `windows_amd64`. Use `--platforms` to choose a subset, or `--all-platforms` to fetch every published zip.
 
-After upload, Terraform configs must source the provider as `<hostname>/<organization>/azurerm` — not `hashicorp/azurerm`. Official HashiCorp providers are signed with GPG key `34365D9472D7468F`, which is pre-installed on Terraform Enterprise v202309-1 and newer. Older TFE needs `tfx admin gpg create` with HashiCorp's public key first.
+The GPG public key is always saved as `<KEYID>.asc`, including for the `hashicorp` namespace. Official HashiCorp providers are signed with HashiCorp's public GPG keys, which are publicly available and pre-installed on Terraform Enterprise v202309-1 and newer. Third-party providers use their own keys, which are **not** pre-installed; `tfx registry provider version create --directory` uploads them to the private registry (the TFE/HCP organization) when missing.
+
+After upload, Terraform configs must source the provider as `<hostname>/<organization>/azurerm` — not `hashicorp/azurerm`.
 
 Unlike `tfx registry module version download` (from the private registry), this command downloads **from the public registry**.
 
@@ -119,18 +121,21 @@ Downloading provider artifacts...
 Namespace:     hashicorp
 Name:          azurerm
 Version:       5.0.0
-Directory:     /Users/tstraub/Projects/example/providers/azurerm/5.0.0
-GPG Key ID:    34365D9472D7468F
-SHA256SUMS:    /Users/tstraub/Projects/example/providers/azurerm/5.0.0/terraform-provider-azurerm_5.0.0_SHA256SUMS
-SHA256SUMS.sig: /Users/tstraub/Projects/example/providers/azurerm/5.0.0/terraform-provider-azurerm_5.0.0_SHA256SUMS.72D7468F.sig
+Directory:     ~/example/providers/azurerm/5.0.0
+GPG Key ID:    <hashicorp signing key>
+GPG Public Key: ~/example/providers/azurerm/5.0.0/<KEYID>.asc
+SHA256SUMS:    ~/example/providers/azurerm/5.0.0/terraform-provider-azurerm_5.0.0_SHA256SUMS
+SHA256SUMS.sig: ~/example/providers/azurerm/5.0.0/terraform-provider-azurerm_5.0.0_SHA256SUMS.sig
 ```
 
 Staged layout:
 
 ```
 ./providers/azurerm/5.0.0/
+  tfx-provider.json
+  <KEYID>.asc
   terraform-provider-azurerm_5.0.0_SHA256SUMS
-  terraform-provider-azurerm_5.0.0_SHA256SUMS.72D7468F.sig
+  terraform-provider-azurerm_5.0.0_SHA256SUMS.sig
   terraform-provider-azurerm_5.0.0_linux_amd64.zip
   terraform-provider-azurerm_5.0.0_darwin_arm64.zip
   terraform-provider-azurerm_5.0.0_darwin_amd64.zip
@@ -149,6 +154,19 @@ The provider is created automatically if it does not already exist. `--directory
 $ tfx registry provider download --name azurerm --version 5.0.0 --platforms linux_amd64 --directory ./providers
 ```
 
+### Third-party providers
+
+Third-party publishers use their own GPG keys. Download with `--namespace` set to the public-registry publisher (not `hashicorp`):
+
+```sh
+tfx registry provider download --namespace chainguard-dev --name cosign --version 0.4.16
+tfx registry provider version create --directory ./providers/cosign/0.4.16
+```
+
+`version create --directory` reads the public-registry namespace from `tfx-provider.json`. When it is not `hashicorp`, the command checks whether that provider's GPG key already exists in the private registry (the TFE/HCP organization) and creates it from the staged `.asc` file if missing.
+
+A provider is in the HashiCorp namespace only when that stored public-registry namespace equals `hashicorp` (case-insensitive). The provider name and the GPG key ID are not used for this decision.
+
 ## `tfx registry provider version list`
 
 List Versions for a Provider in the Registry.
@@ -163,10 +181,11 @@ Create a Version for a Provider in the Registry.
 
 ### From a staged download directory
 
-After `tfx registry provider download`, pass the version folder. Name, version, GPG key id, SHA256SUMS, signature, and platform zips are inferred. The provider is created if it does not exist. `--key-id` overrides the inferred GPG key.
+After `tfx registry provider download`, pass the version folder. Name, version, GPG key id, SHA256SUMS, signature, and platform zips are inferred. The provider is created if it does not exist. For third-party providers (public-registry namespace is not `hashicorp`), the GPG public key is uploaded to the organization if it is not already present. `--key-id` overrides the inferred GPG key. Platform zips upload in parallel; `--concurrency` defaults to 4.
 
 ```sh
 tfx registry provider version create --directory ./providers/azurerm/5.0.0
+tfx registry provider version create --directory ./providers/aws/6.60.0 --concurrency 4
 ```
 
 ### From explicit files
@@ -190,12 +209,12 @@ d0df94d3112a25de609dfb55c5e3b0d119dea519a2bdd8099e64a8d63f22b683  terraform-prov
 ```
 
 ```sh
-$ tfx registry provider version create --name random --version 4.3.0 --key-id 51852D87348FFC4C --shasums ./terraform-provider-random_3.1.0_SHA256SUMS --shasums-sig=./terraform-provider-random_3.1.0_SHA256SUMS.sig
+$ tfx registry provider version create --name random --version 4.3.0 --key-id <gpg-key-id> --shasums ./terraform-provider-random_3.1.0_SHA256SUMS --shasums-sig=./terraform-provider-random_3.1.0_SHA256SUMS.sig
 Using config file: /Users/tstraub/.tfx.hcl
 Create Provider Version in Registry for Organization: firefly
 Provider Name: random
 Uploading shasums and sig 
-/Users/tstraub/Projects/hashicorp-services.github.com/pmr-providers-guide/providers/random/3.1.0/terraform-provider-random_3.1.0_SHA256SUMS /Users/tstraub/Projects/hashicorp-services.github.com/pmr-providers-guide/providers/random/3.1.0/terraform-provider-random_3.1.0_SHA256SUMS.sig 2022-08-20T18:27:13.859Z
+~/hashicorp-services.github.com/pmr-providers-guide/providers/random/3.1.0/terraform-provider-random_3.1.0_SHA256SUMS ~/hashicorp-services.github.com/pmr-providers-guide/providers/random/3.1.0/terraform-provider-random_3.1.0_SHA256SUMS.sig 2022-08-20T18:27:13.859Z
 Provider Version Created 
 Name:    random
 ID:      provver-ujrSC8txwA62a1uz

@@ -15,12 +15,13 @@ type RegistryProviderVersionListFlags struct {
 
 // RegistryProviderVersionCreateFlags holds flags for provider version create
 type RegistryProviderVersionCreateFlags struct {
-	Name       string
-	Version    string
-	KeyID      string
-	Shasums    string
-	ShasumsSig string
-	Directory  string
+	Name        string
+	Version     string
+	KeyID       string
+	Shasums     string
+	ShasumsSig  string
+	Directory   string
+	Concurrency int
 }
 
 // RegistryProviderVersionShowFlags holds flags for provider version show
@@ -43,13 +44,15 @@ func ParseRegistryProviderVersionListFlags(cmd *cobra.Command) (*RegistryProvide
 
 func ParseRegistryProviderVersionCreateFlags(cmd *cobra.Command) (*RegistryProviderVersionCreateFlags, error) {
 	directory, _ := cmd.Flags().GetString("directory")
+	concurrency, _ := cmd.Flags().GetInt("concurrency")
 	return &RegistryProviderVersionCreateFlags{
-		Name:       viper.GetString("name"),
-		Version:    viper.GetString("version"),
-		KeyID:      viper.GetString("key-id"),
-		Shasums:    viper.GetString("shasums"),
-		ShasumsSig: viper.GetString("shasums-sig"),
-		Directory:  directory,
+		Name:        viper.GetString("name"),
+		Version:     viper.GetString("version"),
+		KeyID:       viper.GetString("key-id"),
+		Shasums:     viper.GetString("shasums"),
+		ShasumsSig:  viper.GetString("shasums-sig"),
+		Directory:   directory,
+		Concurrency: concurrency,
 	}, nil
 }
 

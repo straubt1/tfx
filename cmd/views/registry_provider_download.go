@@ -25,6 +25,7 @@ type RegistryProviderDownloadResult struct {
 	Name             string                               `json:"name"`
 	Version          string                               `json:"version"`
 	KeyID            string                               `json:"key_id"`
+	GPGPublicKeyPath string                               `json:"gpg_public_key,omitempty"`
 	ShasumsPath      string                               `json:"shasums"`
 	ShasumsSigPath   string                               `json:"shasums_sig"`
 	Platforms        []RegistryProviderDownloadedPlatform `json:"platforms"`
@@ -51,9 +52,14 @@ func (v *RegistryProviderDownloadView) Render(result *RegistryProviderDownloadRe
 		{Key: "Version", Value: result.Version},
 		{Key: "Directory", Value: result.Directory},
 		{Key: "GPG Key ID", Value: result.KeyID},
-		{Key: "SHA256SUMS", Value: result.ShasumsPath},
-		{Key: "SHA256SUMS.sig", Value: result.ShasumsSigPath},
 	}
+	if result.GPGPublicKeyPath != "" {
+		props = append(props, PropertyPair{Key: "GPG Public Key", Value: result.GPGPublicKeyPath})
+	}
+	props = append(props,
+		PropertyPair{Key: "SHA256SUMS", Value: result.ShasumsPath},
+		PropertyPair{Key: "SHA256SUMS.sig", Value: result.ShasumsSigPath},
+	)
 	if err := v.Output().RenderProperties(props); err != nil {
 		return err
 	}

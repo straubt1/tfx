@@ -4,21 +4,42 @@
 package data
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/coreos/go-semver/semver"
 	"github.com/pkg/errors"
+	"github.com/straubt1/tfx/cmd/flags"
 	"github.com/straubt1/tfx/output"
 	"github.com/straubt1/tfx/pkg/file"
 )
+
+// PublicRegistryHashiCorpNamespace is flags.PublicRegistryHashiCorpNamespace.
+const PublicRegistryHashiCorpNamespace = flags.PublicRegistryHashiCorpNamespace
+
+const stagedProviderMetadataFilename = "tfx-provider.json"
 
 // HashiCorp GPG short IDs (8 hex) as used in SHA256SUMS.<id>.sig filenames,
 // mapped to the 16-hex long IDs TFE expects for --key-id.
 var hashicorpGPGShortIDs = map[string]string{
 	"72D7468F": "34365D9472D7468F",
 	"348FFC4C": "51852D87348FFC4C",
+}
+
+// IsHashiCorpPublicNamespace reports whether namespace is the official
+// public-registry publisher "hashicorp" (case-insensitive). Provider name
+// and GPG key ID are not part of this check.
+func IsHashiCorpPublicNamespace(namespace string) bool {
+	return strings.EqualFold(namespace, PublicRegistryHashiCorpNamespace)
+}
+
+type stagedProviderMetadata struct {
+	Namespace string `json:"namespace"`
+	Name      string `json:"name"`
+	Version   string `json:"version"`
+	KeyID     string `json:"key_id"`
 }
 
 // StagedProviderPlatform is one zip found in a staged provider directory.
@@ -32,12 +53,15 @@ type StagedProviderPlatform struct {
 
 // StagedProviderDirectory is the inferred contents of a download-staged folder.
 type StagedProviderDirectory struct {
-	Name       string
-	Version    string
-	KeyID      string
-	Shasums    string
-	ShasumsSig string
-	Platforms  []StagedProviderPlatform
+	// Namespace is the public Terraform Registry publisher (e.g. hashicorp, chainguard-dev).
+	Namespace    string
+	Name         string
+	Version      string
+	KeyID        string
+	GPGPublicKey string
+	Shasums      string
+	ShasumsSig   string
+	Platforms    []StagedProviderPlatform
 }
 
 // ReadStagedProviderDirectory inspects a directory produced by
@@ -75,6 +99,35 @@ func ReadStagedProviderDirectory(dir string) (*StagedProviderDirectory, error) {
 	keyID, err := inferKeyIDFromSigFilename(filepath.Base(sig))
 	if err != nil {
 		return nil, err
+	}
+
+	meta, err := readStagedProviderMetadata(abs)
+	if err != nil {
+		return nil, err
+	}
+	namespace := ""
+	if meta != nil {
+		namespace = strings.TrimSpace(meta.Namespace)
+		if meta.KeyID != "" {
+			keyID = strings.ToUpper(strings.TrimSpace(meta.KeyID))
+		}
+		if meta.Name != "" && meta.Name != name {
+			return nil, errors.Errorf("tfx-provider.json name %s does not match %s", meta.Name, name)
+		}
+		if meta.Version != "" && meta.Version != version {
+			return nil, errors.Errorf("tfx-provider.json version %s does not match %s", meta.Version, version)
+		}
+	}
+
+	ascPath, err := findGPGPublicKey(abs, keyID)
+	if err != nil {
+		return nil, err
+	}
+	if keyID == "" && ascPath != "" {
+		keyID = keyIDFromAscPath(ascPath)
+	}
+	if namespace == "" && isHashiCorpGPGKeyID(keyID) {
+		namespace = PublicRegistryHashiCorpNamespace
 	}
 
 	b, err := os.ReadFile(shasums)
@@ -118,15 +171,93 @@ func ReadStagedProviderDirectory(dir string) (*StagedProviderDirectory, error) {
 		return nil, errors.New("no provider zip files found in directory")
 	}
 
-	log.Debug("Staged provider directory read", "name", name, "version", version, "keyID", keyID, "platforms", len(platforms))
+	log.Debug("Staged provider directory read", "namespace", namespace, "name", name, "version", version, "keyID", keyID, "platforms", len(platforms))
 	return &StagedProviderDirectory{
-		Name:       name,
-		Version:    version,
-		KeyID:      keyID,
-		Shasums:    shasums,
-		ShasumsSig: sig,
-		Platforms:  platforms,
+		Namespace:    namespace,
+		Name:         name,
+		Version:      version,
+		KeyID:        keyID,
+		GPGPublicKey: ascPath,
+		Shasums:      shasums,
+		ShasumsSig:   sig,
+		Platforms:    platforms,
 	}, nil
+}
+
+func writeStagedProviderMetadata(dir, namespace, name, version, keyID string) error {
+	meta := stagedProviderMetadata{
+		Namespace: namespace,
+		Name:      name,
+		Version:   version,
+		KeyID:     keyID,
+	}
+	b, err := json.MarshalIndent(meta, "", "  ")
+	if err != nil {
+		return errors.Wrap(err, "failed to encode tfx-provider.json")
+	}
+	b = append(b, '\n')
+	path := filepath.Join(dir, stagedProviderMetadataFilename)
+	if err := os.WriteFile(path, b, 0644); err != nil {
+		return errors.Wrap(err, "failed to write tfx-provider.json")
+	}
+	return nil
+}
+
+func readStagedProviderMetadata(dir string) (*stagedProviderMetadata, error) {
+	path := filepath.Join(dir, stagedProviderMetadataFilename)
+	b, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, errors.Wrap(err, "failed to read tfx-provider.json")
+	}
+	var meta stagedProviderMetadata
+	if err := json.Unmarshal(b, &meta); err != nil {
+		return nil, errors.Wrap(err, "failed to parse tfx-provider.json")
+	}
+	return &meta, nil
+}
+
+func findGPGPublicKey(dir, keyID string) (string, error) {
+	if keyID != "" {
+		p := filepath.Join(dir, strings.ToUpper(keyID)+".asc")
+		if file.IsFile(p) {
+			return p, nil
+		}
+	}
+	matches, err := filepath.Glob(filepath.Join(dir, "*.asc"))
+	if err != nil {
+		return "", errors.Wrap(err, "failed to list GPG public key files")
+	}
+	var hexMatches []string
+	for _, m := range matches {
+		base := strings.TrimSuffix(filepath.Base(m), ".asc")
+		if len(base) == 16 && isHex(strings.ToUpper(base)) {
+			hexMatches = append(hexMatches, m)
+		}
+	}
+	if len(hexMatches) == 0 {
+		return "", nil
+	}
+	if len(hexMatches) > 1 {
+		return "", errors.New("multiple GPG public key .asc files found")
+	}
+	return hexMatches[0], nil
+}
+
+func keyIDFromAscPath(path string) string {
+	return strings.ToUpper(strings.TrimSuffix(filepath.Base(path), ".asc"))
+}
+
+func isHashiCorpGPGKeyID(keyID string) bool {
+	id := strings.ToUpper(strings.TrimSpace(keyID))
+	for _, v := range hashicorpGPGShortIDs {
+		if v == id {
+			return true
+		}
+	}
+	return false
 }
 
 func globOne(dir, pattern string) (string, error) {

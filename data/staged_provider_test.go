@@ -58,6 +58,9 @@ func TestReadStagedProviderDirectory(t *testing.T) {
 	if got.KeyID != "34365D9472D7468F" {
 		t.Fatalf("key id = %s", got.KeyID)
 	}
+	if got.Namespace != PublicRegistryHashiCorpNamespace {
+		t.Fatalf("namespace = %s (expected hashicorp fallback from GPG key id)", got.Namespace)
+	}
 	if len(got.Platforms) != 2 {
 		t.Fatalf("platforms = %d", len(got.Platforms))
 	}
@@ -143,5 +146,82 @@ func TestInferKeyIDFromSigFilename(t *testing.T) {
 
 	if _, err := inferKeyIDFromSigFilename("terraform-provider-foo_1.0.0_SHA256SUMS.DEADBEEF.sig"); err == nil {
 		t.Fatal("expected error for unknown short id")
+	}
+}
+
+func TestIsHashiCorpPublicNamespace(t *testing.T) {
+	if !IsHashiCorpPublicNamespace("hashicorp") {
+		t.Fatal("hashicorp")
+	}
+	if !IsHashiCorpPublicNamespace("HashiCorp") {
+		t.Fatal("HashiCorp")
+	}
+	if IsHashiCorpPublicNamespace("chainguard-dev") {
+		t.Fatal("chainguard-dev should not be hashicorp")
+	}
+	if IsHashiCorpPublicNamespace("") {
+		t.Fatal("empty should not be hashicorp")
+	}
+}
+
+func TestReadStagedProviderDirectoryPartnerLayout(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "cosign", "0.4.16")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	writeStagedFiles(t, dir, "cosign", "0.4.16", "", map[string][]byte{
+		"terraform-provider-cosign_0.4.16_darwin_arm64.zip": []byte("darwin-zip"),
+	})
+	if err := os.WriteFile(filepath.Join(dir, "5BBEE08F6BF07616.asc"), []byte("-----BEGIN PGP PUBLIC KEY BLOCK-----\n\npartner\n-----END PGP PUBLIC KEY BLOCK-----\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeStagedProviderMetadata(dir, "chainguard-dev", "cosign", "0.4.16", "5BBEE08F6BF07616"); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := ReadStagedProviderDirectory(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Namespace != "chainguard-dev" {
+		t.Fatalf("namespace = %s", got.Namespace)
+	}
+	if got.KeyID != "5BBEE08F6BF07616" {
+		t.Fatalf("key id = %s", got.KeyID)
+	}
+	if got.GPGPublicKey != filepath.Join(dir, "5BBEE08F6BF07616.asc") {
+		t.Fatalf("gpg public key = %s", got.GPGPublicKey)
+	}
+	if IsHashiCorpPublicNamespace(got.Namespace) {
+		t.Fatal("partner namespace should not skip GPG upload")
+	}
+}
+
+func TestReadStagedProviderDirectoryPartnerWithoutSidecar(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "cosign", "0.4.16")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	writeStagedFiles(t, dir, "cosign", "0.4.16", "", map[string][]byte{
+		"terraform-provider-cosign_0.4.16_darwin_arm64.zip": []byte("darwin-zip"),
+	})
+	if err := os.WriteFile(filepath.Join(dir, "5BBEE08F6BF07616.asc"), []byte("-----BEGIN PGP PUBLIC KEY BLOCK-----\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := ReadStagedProviderDirectory(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.KeyID != "5BBEE08F6BF07616" {
+		t.Fatalf("key id = %s", got.KeyID)
+	}
+	if got.Namespace != "" {
+		t.Fatalf("namespace = %s, want empty so it is treated as partner", got.Namespace)
+	}
+	if IsHashiCorpPublicNamespace(got.Namespace) {
+		t.Fatal("missing sidecar with partner key should not be treated as hashicorp")
 	}
 }

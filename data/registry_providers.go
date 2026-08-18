@@ -255,3 +255,16 @@ func UploadRegistryProviderPlatform(c *client.TfxClient, orgName, name, version,
 	}
 	return rpp, nil
 }
+
+// UploadRegistryProviderPlatforms uploads each staged zip concurrently, limited
+// by concurrency. Results are in input order. After the first error, no new
+// uploads are started; in-flight PUTs are allowed to finish.
+func UploadRegistryProviderPlatforms(c *client.TfxClient, orgName, name, version string, platforms []StagedProviderPlatform, concurrency int) ([]*tfe.RegistryProviderPlatform, error) {
+	return mapConcurrent(concurrency, platforms, func(plat StagedProviderPlatform) (*tfe.RegistryProviderPlatform, error) {
+		rpp, err := UploadRegistryProviderPlatform(c, orgName, name, version, plat.OS, plat.Arch, plat.Path)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to upload platform %s_%s", plat.OS, plat.Arch)
+		}
+		return rpp, nil
+	})
+}

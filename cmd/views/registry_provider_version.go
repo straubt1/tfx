@@ -51,6 +51,7 @@ type RegistryProviderVersionCreateFromDirectoryResult struct {
 	Version         string                          `json:"version"`
 	KeyID           string                          `json:"key_id"`
 	ProviderCreated bool                            `json:"provider_created"`
+	GPGKeyCreated   bool                            `json:"gpg_key_created"`
 	ProviderVersion *tfe.RegistryProviderVersion    `json:"provider_version"`
 	Platforms       []*tfe.RegistryProviderPlatform `json:"platforms"`
 }
@@ -64,6 +65,7 @@ func (v *RegistryProviderVersionCreateView) RenderFromDirectory(result *Registry
 		{Key: "Version", Value: result.Version},
 		{Key: "GPG Key ID", Value: result.KeyID},
 		{Key: "Provider Created", Value: result.ProviderCreated},
+		{Key: "GPG Key Created", Value: result.GPGKeyCreated},
 		{Key: "ID", Value: result.ProviderVersion.ID},
 		{Key: "Created", Value: result.ProviderVersion.UpdatedAt},
 	}
