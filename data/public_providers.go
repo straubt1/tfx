@@ -31,7 +31,7 @@ type PublicProviderDownloadConfig struct {
 	Name            string
 	Version         string
 	// Directory is the staging base directory. Files are written to
-	// <Directory>/<Name>/<Version>/. Created if missing.
+	// <Directory>/<Namespace>/<Name>/<Version>/. Created if missing.
 	Directory string
 	// Platforms are os_arch values such as linux_amd64. Ignored when AllPlatforms is true.
 	Platforms    []string
@@ -88,7 +88,7 @@ func platformKey(osName, arch string) string {
 
 // DownloadPublicProvider fetches provider artifacts from the public registry
 // protocol (service discovery → versions → package metadata → files) and
-// writes them under <Directory>/<Name>/<Version>/.
+// writes them under <Directory>/<Namespace>/<Name>/<Version>/.
 func DownloadPublicProvider(cfg PublicProviderDownloadConfig) (*view.RegistryProviderDownloadResult, error) {
 	log := output.Get().Logger()
 	log.Debug("Downloading public provider",
@@ -148,7 +148,7 @@ func DownloadPublicProvider(cfg PublicProviderDownloadConfig) (*view.RegistryPro
 		return nil, err
 	}
 
-	destDir, err := filepath.Abs(filepath.Join(cfg.Directory, cfg.Name, cfg.Version))
+	destDir, err := filepath.Abs(filepath.Join(cfg.Directory, cfg.Namespace, cfg.Name, cfg.Version))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to resolve staging directory")
 	}
@@ -196,9 +196,6 @@ func DownloadPublicProvider(cfg PublicProviderDownloadConfig) (*view.RegistryPro
 				return nil, err
 			}
 			result.GPGPublicKeyPath = ascPath
-			if err := writeStagedProviderMetadata(destDir, cfg.Namespace, cfg.Name, cfg.Version, result.KeyID); err != nil {
-				return nil, err
-			}
 		}
 
 		zipPath := filepath.Join(destDir, pkg.Filename)

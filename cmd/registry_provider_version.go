@@ -41,11 +41,11 @@ var (
 	registryProviderVersionCreateCmd = &cobra.Command{
 		Use:   "create",
 		Short: "Create a Provider Version in a Private Registry",
-		Long:  "Create a Provider Version for a Provider in a Private Registry of a TFx Organization. Pass --directory to infer name, version, GPG key, checksums, and platforms from a folder staged by tfx registry provider download.",
+		Long:  "Create a Provider Version for a Provider in a Private Registry of a TFx Organization. Pass --directory to infer namespace, name, version, GPG key, checksums, and platforms from a folder staged by tfx registry provider download.",
 		Example: `
-tfx registry provider version create --directory ./providers/azurerm/5.0.0
+tfx registry provider version create --directory ./providers/hashicorp/azurerm/5.0.0
 
-tfx registry provider version create --directory ./providers/aws/6.60.0 --concurrency 4
+tfx registry provider version create --directory ./providers/hashicorp/aws/6.60.0 --concurrency 4
 
 tfx registry provider version create --name azurerm --version 5.0.0 --key-id <gpg-key-id> --shasums ./SHA256SUMS --shasums-sig ./SHA256SUMS.sig`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -103,7 +103,7 @@ func init() {
 	registryProviderVersionCreateCmd.Flags().StringP("key-id", "", "", "GPG Key Id")
 	registryProviderVersionCreateCmd.Flags().StringP("shasums", "", "", "Path to shasums")
 	registryProviderVersionCreateCmd.Flags().StringP("shasums-sig", "", "", "Path to shasumssig")
-	registryProviderVersionCreateCmd.Flags().StringP("directory", "d", "", "Staged provider directory from tfx registry provider download (infers name, version, GPG key, and platforms)")
+	registryProviderVersionCreateCmd.Flags().StringP("directory", "d", "", "Staged provider directory from tfx registry provider download (infers namespace, name, version, GPG key, and platforms)")
 	registryProviderVersionCreateCmd.Flags().Int("concurrency", 4, "Max parallel platform zip uploads (directory mode)")
 
 	// `tfx registry provider version show` arguments

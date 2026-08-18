@@ -730,13 +730,13 @@ tfx registry module delete \
 Provider registration requires a GPG key. Complete the [Admin — GPG Keys](#admin-gpg-keys) section first if you intend to test provider version creation.
 :::
 
-Download a public provider (no TFE token required). Stages files under `<directory>/<name>/<version>/`.
+Download a public provider (no TFE token required). Stages files under `<directory>/<namespace>/<name>/<version>/`.
 
 ```sh
 tfx registry provider download --name random --version 3.6.0 --platforms linux_amd64 --directory /tmp/tfx-providers
 ```
 
-**Expected:** SHA256SUMS, signature, and `linux_amd64` zip are written to `/tmp/tfx-providers/random/3.6.0`. Output includes the GPG key ID and a follow-up `tfx registry provider version create --directory …` command.
+**Expected:** SHA256SUMS, signature, and `linux_amd64` zip are written to `/tmp/tfx-providers/hashicorp/random/3.6.0`. Output includes the GPG key ID and a follow-up `tfx registry provider version create --directory …` command.
 
 ### 68. List Providers
 

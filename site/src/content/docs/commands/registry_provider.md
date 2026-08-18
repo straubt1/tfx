@@ -100,7 +100,7 @@ Download a provider from the public Terraform Registry and stage the files local
 
 This command does **not** require a TFE/HCP Terraform token. It uses the public registry protocol (`registry.terraform.io`) and follows the same URLs Terraform uses during `terraform init`.
 
-`--directory` is the base path (default `./providers`). Files are always written to `<directory>/<name>/<version>/`. The public-registry namespace (who published the provider on `registry.terraform.io`) is stored in `tfx-provider.json`. Official providers use `--namespace hashicorp` (the default). Third-party providers use their publisher, e.g. `--namespace chainguard-dev`.
+`--directory` is the base path (default `./providers`). Files are always written to `<directory>/<namespace>/<name>/<version>/`. The public-registry namespace (who published the provider on `registry.terraform.io`) is a folder in that path. Official providers use `--namespace hashicorp` (the default). Third-party providers use their publisher, e.g. `--namespace chainguard-dev`.
 
 Default platforms: `linux_amd64`, `darwin_arm64`, `darwin_amd64`, `windows_amd64`. Use `--platforms` to choose a subset, or `--all-platforms` to fetch every published zip.
 
@@ -121,18 +121,17 @@ Downloading provider artifacts...
 Namespace:     hashicorp
 Name:          azurerm
 Version:       5.0.0
-Directory:     ~/example/providers/azurerm/5.0.0
+Directory:     ~/example/providers/hashicorp/azurerm/5.0.0
 GPG Key ID:    <hashicorp signing key>
-GPG Public Key: ~/example/providers/azurerm/5.0.0/<KEYID>.asc
-SHA256SUMS:    ~/example/providers/azurerm/5.0.0/terraform-provider-azurerm_5.0.0_SHA256SUMS
-SHA256SUMS.sig: ~/example/providers/azurerm/5.0.0/terraform-provider-azurerm_5.0.0_SHA256SUMS.sig
+GPG Public Key: ~/example/providers/hashicorp/azurerm/5.0.0/<KEYID>.asc
+SHA256SUMS:    ~/example/providers/hashicorp/azurerm/5.0.0/terraform-provider-azurerm_5.0.0_SHA256SUMS
+SHA256SUMS.sig: ~/example/providers/hashicorp/azurerm/5.0.0/terraform-provider-azurerm_5.0.0_SHA256SUMS.sig
 ```
 
 Staged layout:
 
 ```
-./providers/azurerm/5.0.0/
-  tfx-provider.json
+./providers/hashicorp/azurerm/5.0.0/
   <KEYID>.asc
   terraform-provider-azurerm_5.0.0_SHA256SUMS
   terraform-provider-azurerm_5.0.0_SHA256SUMS.sig
@@ -145,7 +144,7 @@ Staged layout:
 Then upload with:
 
 ```sh
-tfx registry provider version create --directory ./providers/azurerm/5.0.0
+tfx registry provider version create --directory ./providers/hashicorp/azurerm/5.0.0
 ```
 
 The provider is created automatically if it does not already exist. `--directory` uploads the version checksums and every zip in that folder.
@@ -160,12 +159,12 @@ Third-party publishers use their own GPG keys. Download with `--namespace` set t
 
 ```sh
 tfx registry provider download --namespace chainguard-dev --name cosign --version 0.4.16
-tfx registry provider version create --directory ./providers/cosign/0.4.16
+tfx registry provider version create --directory ./providers/chainguard-dev/cosign/0.4.16
 ```
 
-`version create --directory` reads the public-registry namespace from `tfx-provider.json`. When it is not `hashicorp`, the command checks whether that provider's GPG key already exists in the private registry (the TFE/HCP organization) and creates it from the staged `.asc` file if missing.
+`version create --directory` reads the public-registry namespace from the staged folder path (`<namespace>/<name>/<version>`). When it is not `hashicorp`, the command checks whether that provider's GPG key already exists in the private registry (the TFE/HCP organization) and creates it from the staged `.asc` file if missing.
 
-A provider is in the HashiCorp namespace only when that stored public-registry namespace equals `hashicorp` (case-insensitive). The provider name and the GPG key ID are not used for this decision.
+A provider is in the HashiCorp namespace only when that path namespace equals `hashicorp` (case-insensitive). The provider name and the GPG key ID are not used for this decision.
 
 ## `tfx registry provider version list`
 
@@ -181,11 +180,11 @@ Create a Version for a Provider in the Registry.
 
 ### From a staged download directory
 
-After `tfx registry provider download`, pass the version folder. Name, version, GPG key id, SHA256SUMS, signature, and platform zips are inferred. The provider is created if it does not exist. For third-party providers (public-registry namespace is not `hashicorp`), the GPG public key is uploaded to the organization if it is not already present. `--key-id` overrides the inferred GPG key. Platform zips upload in parallel; `--concurrency` defaults to 4.
+After `tfx registry provider download`, pass the version folder. Namespace, name, version, GPG key id, SHA256SUMS, signature, and platform zips are inferred. The provider is created if it does not exist. For third-party providers (public-registry namespace is not `hashicorp`), the GPG public key is uploaded to the organization if it is not already present. `--key-id` overrides the inferred GPG key. Platform zips upload in parallel; `--concurrency` defaults to 4.
 
 ```sh
-tfx registry provider version create --directory ./providers/azurerm/5.0.0
-tfx registry provider version create --directory ./providers/aws/6.60.0 --concurrency 4
+tfx registry provider version create --directory ./providers/hashicorp/azurerm/5.0.0
+tfx registry provider version create --directory ./providers/hashicorp/aws/6.60.0 --concurrency 4
 ```
 
 ### From explicit files

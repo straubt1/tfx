@@ -88,7 +88,7 @@ func TestDownloadPublicProvider(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	wantDir := filepath.Join(dir, "azurerm", "5.0.0")
+	wantDir := filepath.Join(dir, "hashicorp", "azurerm", "5.0.0")
 	if result.Directory != wantDir {
 		t.Fatalf("directory = %s, want %s", result.Directory, wantDir)
 	}
@@ -125,16 +125,8 @@ func TestDownloadPublicProvider(t *testing.T) {
 		t.Fatalf("gpg public key contents = %q", gotArmor)
 	}
 
-	metaBytes, err := os.ReadFile(filepath.Join(wantDir, "tfx-provider.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var meta stagedProviderMetadata
-	if err := json.Unmarshal(metaBytes, &meta); err != nil {
-		t.Fatal(err)
-	}
-	if meta.Namespace != "hashicorp" || meta.Name != "azurerm" || meta.Version != "5.0.0" || meta.KeyID != "34365D9472D7468F" {
-		t.Fatalf("metadata = %+v", meta)
+	if _, err := os.Stat(filepath.Join(wantDir, "tfx-provider.json")); !os.IsNotExist(err) {
+		t.Fatalf("tfx-provider.json should not be written, stat err = %v", err)
 	}
 }
 
@@ -195,7 +187,7 @@ func TestDownloadPublicProviderWritesPartnerGPGKey(t *testing.T) {
 	if result.KeyID != "5BBEE08F6BF07616" {
 		t.Fatalf("key id = %s", result.KeyID)
 	}
-	wantKey := filepath.Join(dir, "cosign", "0.4.16", "5BBEE08F6BF07616.asc")
+	wantKey := filepath.Join(dir, "chainguard-dev", "cosign", "0.4.16", "5BBEE08F6BF07616.asc")
 	if result.GPGPublicKeyPath != wantKey {
 		t.Fatalf("gpg public key path = %s, want %s", result.GPGPublicKeyPath, wantKey)
 	}
@@ -207,16 +199,8 @@ func TestDownloadPublicProviderWritesPartnerGPGKey(t *testing.T) {
 		t.Fatalf("gpg public key contents = %q", gotArmor)
 	}
 
-	metaBytes, err := os.ReadFile(filepath.Join(dir, "cosign", "0.4.16", "tfx-provider.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var meta stagedProviderMetadata
-	if err := json.Unmarshal(metaBytes, &meta); err != nil {
-		t.Fatal(err)
-	}
-	if meta.Namespace != "chainguard-dev" || meta.Name != "cosign" || meta.Version != "0.4.16" || meta.KeyID != "5BBEE08F6BF07616" {
-		t.Fatalf("metadata = %+v", meta)
+	if _, err := os.Stat(filepath.Join(dir, "chainguard-dev", "cosign", "0.4.16", "tfx-provider.json")); !os.IsNotExist(err) {
+		t.Fatalf("tfx-provider.json should not be written, stat err = %v", err)
 	}
 }
 

@@ -4,7 +4,6 @@
 package data
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,8 +18,6 @@ import (
 // PublicRegistryHashiCorpNamespace is flags.PublicRegistryHashiCorpNamespace.
 const PublicRegistryHashiCorpNamespace = flags.PublicRegistryHashiCorpNamespace
 
-const stagedProviderMetadataFilename = "tfx-provider.json"
-
 // HashiCorp GPG short IDs (8 hex) as used in SHA256SUMS.<id>.sig filenames,
 // mapped to the 16-hex long IDs TFE expects for --key-id.
 var hashicorpGPGShortIDs = map[string]string{
@@ -33,13 +30,6 @@ var hashicorpGPGShortIDs = map[string]string{
 // and GPG key ID are not part of this check.
 func IsHashiCorpPublicNamespace(namespace string) bool {
 	return strings.EqualFold(namespace, PublicRegistryHashiCorpNamespace)
-}
-
-type stagedProviderMetadata struct {
-	Namespace string `json:"namespace"`
-	Name      string `json:"name"`
-	Version   string `json:"version"`
-	KeyID     string `json:"key_id"`
 }
 
 // StagedProviderPlatform is one zip found in a staged provider directory.
@@ -65,8 +55,9 @@ type StagedProviderDirectory struct {
 }
 
 // ReadStagedProviderDirectory inspects a directory produced by
-// `tfx registry provider download` and infers name, version, GPG key id,
+// `tfx registry provider download` and infers namespace, name, version, GPG key id,
 // SHA256SUMS/sig paths, and platform zips present on disk.
+// Namespace is taken from a <namespace>/<name>/<version> path.
 func ReadStagedProviderDirectory(dir string) (*StagedProviderDirectory, error) {
 	log := output.Get().Logger()
 	log.Debug("Reading staged provider directory", "dir", dir)
@@ -92,31 +83,14 @@ func ReadStagedProviderDirectory(dir string) (*StagedProviderDirectory, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := matchPathNameVersion(abs, name, version); err != nil {
+	namespace, err := matchPathNameVersion(abs, name, version)
+	if err != nil {
 		return nil, err
 	}
 
 	keyID, err := inferKeyIDFromSigFilename(filepath.Base(sig))
 	if err != nil {
 		return nil, err
-	}
-
-	meta, err := readStagedProviderMetadata(abs)
-	if err != nil {
-		return nil, err
-	}
-	namespace := ""
-	if meta != nil {
-		namespace = strings.TrimSpace(meta.Namespace)
-		if meta.KeyID != "" {
-			keyID = strings.ToUpper(strings.TrimSpace(meta.KeyID))
-		}
-		if meta.Name != "" && meta.Name != name {
-			return nil, errors.Errorf("tfx-provider.json name %s does not match %s", meta.Name, name)
-		}
-		if meta.Version != "" && meta.Version != version {
-			return nil, errors.Errorf("tfx-provider.json version %s does not match %s", meta.Version, version)
-		}
 	}
 
 	ascPath, err := findGPGPublicKey(abs, keyID)
@@ -182,41 +156,6 @@ func ReadStagedProviderDirectory(dir string) (*StagedProviderDirectory, error) {
 		ShasumsSig:   sig,
 		Platforms:    platforms,
 	}, nil
-}
-
-func writeStagedProviderMetadata(dir, namespace, name, version, keyID string) error {
-	meta := stagedProviderMetadata{
-		Namespace: namespace,
-		Name:      name,
-		Version:   version,
-		KeyID:     keyID,
-	}
-	b, err := json.MarshalIndent(meta, "", "  ")
-	if err != nil {
-		return errors.Wrap(err, "failed to encode tfx-provider.json")
-	}
-	b = append(b, '\n')
-	path := filepath.Join(dir, stagedProviderMetadataFilename)
-	if err := os.WriteFile(path, b, 0644); err != nil {
-		return errors.Wrap(err, "failed to write tfx-provider.json")
-	}
-	return nil
-}
-
-func readStagedProviderMetadata(dir string) (*stagedProviderMetadata, error) {
-	path := filepath.Join(dir, stagedProviderMetadataFilename)
-	b, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, errors.Wrap(err, "failed to read tfx-provider.json")
-	}
-	var meta stagedProviderMetadata
-	if err := json.Unmarshal(b, &meta); err != nil {
-		return nil, errors.Wrap(err, "failed to parse tfx-provider.json")
-	}
-	return &meta, nil
 }
 
 func findGPGPublicKey(dir, keyID string) (string, error) {
@@ -323,19 +262,27 @@ func parseProviderZipFilename(name, version, base string) (osName, arch string, 
 	return osName, arch, nil
 }
 
-func matchPathNameVersion(abs, name, version string) error {
+func matchPathNameVersion(abs, name, version string) (namespace string, err error) {
 	base := filepath.Base(abs)
 	parent := filepath.Base(filepath.Dir(abs))
 	if _, err := semver.NewVersion(base); err != nil {
-		return nil
+		return "", nil
 	}
-	if parent == "." || parent == string(filepath.Separator) || parent == "" {
-		return nil
+	if isEmptyPathComponent(parent) {
+		return "", nil
 	}
 	if parent != name || base != version {
-		return errors.Errorf("directory %s/%s does not match provider %s version %s", parent, base, name, version)
+		return "", errors.Errorf("directory %s/%s does not match provider %s version %s", parent, base, name, version)
 	}
-	return nil
+	namespace = filepath.Base(filepath.Dir(filepath.Dir(abs)))
+	if isEmptyPathComponent(namespace) {
+		return "", errors.New("directory must be <namespace>/<name>/<version>; could not infer public-registry namespace")
+	}
+	return namespace, nil
+}
+
+func isEmptyPathComponent(s string) bool {
+	return s == "." || s == string(filepath.Separator) || s == ""
 }
 
 func inferKeyIDFromSigFilename(base string) (string, error) {
