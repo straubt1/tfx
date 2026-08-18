@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Directory-mode platform zip uploads run in parallel (`--concurrency`, default 4)
 * Directory-mode create uploads a third-party GPG public key to the private registry when the public-registry namespace is not `hashicorp` and the key is not already present
 * Directory-mode `version create --directory` resumes if the version or platforms already exist (re-run after a partial upload)
+* Docs: guide for syncing public-registry providers into a private registry
+
+**Changed**
+
+* Homebrew install docs: trust `straubt1/tap/tfx` before `brew install` (#264)
+* Go toolchain 1.26.6 and dependency upgrades (including go-tfe, Bubble Tea, Lip Gloss)
 
 ## [v0.4.0] - 2026-06-20
 
