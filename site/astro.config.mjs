@@ -5,6 +5,9 @@ import starlight from '@astrojs/starlight';
 
 export default defineConfig({
   site: 'https://tfx.rocks',
+  redirects: {
+    '/configuration/self-signed-tls': '/guides/self-signed-tls',
+  },
   integrations: [
     starlight({
       title: 'TFx',
@@ -17,9 +20,10 @@ export default defineConfig({
       sidebar: [
         { label: 'Getting Started', slug: 'gettingstarted' },
         {
-          label: 'Configuration',
+          label: 'Guides',
           items: [
-            { label: 'Self-Signed TLS', slug: 'configuration/self-signed-tls' },
+            { label: 'Sync Providers', slug: 'guides/sync-providers' },
+            { label: 'Self-Signed TLS', slug: 'guides/self-signed-tls' },
           ],
         },
         {

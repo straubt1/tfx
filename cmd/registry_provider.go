@@ -5,7 +5,9 @@ package cmd
 
 import (
 	"math"
+	"strings"
 
+	"github.com/coreos/go-semver/semver"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/straubt1/tfx/client"
@@ -80,6 +82,29 @@ var (
 			return registryProviderDelete(cmdConfig)
 		},
 	}
+
+	// `tfx registry provider download` command
+	registryProviderDownloadCmd = &cobra.Command{
+		Use:   "download",
+		Short: "Download a Provider from the Public Registry",
+		Long:  "Download provider binaries, SHA256SUMS, and signature from the public Terraform Registry and stage them for upload to a private registry.",
+		Example: `
+tfx registry provider download --name azurerm --version 5.0.0
+
+tfx registry provider download --name azurerm --version 5.0.0 --platforms linux_amd64
+
+tfx registry provider download --namespace hashicorp --name azurerm --version 5.0.0 --directory ./providers`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmdConfig, err := flags.ParseRegistryProviderDownloadFlags(cmd)
+			if err != nil {
+				return err
+			}
+			if _, err := semver.NewVersion(cmdConfig.Version); err != nil {
+				return errors.New("invalid semantic version")
+			}
+			return registryProviderDownload(cmdConfig)
+		},
+	}
 )
 
 func init() {
@@ -99,11 +124,22 @@ func init() {
 	registryProviderDeleteCmd.Flags().StringP("name", "n", "", "Name of the Provider")
 	registryProviderDeleteCmd.MarkFlagRequired("name")
 
+	// `tfx registry provider download` arguments
+	registryProviderDownloadCmd.Flags().String("namespace", flags.PublicRegistryHashiCorpNamespace, "Public registry namespace")
+	registryProviderDownloadCmd.Flags().StringP("name", "n", "", "Name of the Provider")
+	registryProviderDownloadCmd.Flags().StringP("version", "v", "", "Version of Provider (i.e. 5.0.0)")
+	registryProviderDownloadCmd.Flags().StringSlice("platforms", flags.DefaultPublicProviderPlatforms, "Platforms to download as os_arch (comma separated)")
+	registryProviderDownloadCmd.Flags().Bool("all-platforms", false, "Download every platform published for this version")
+	registryProviderDownloadCmd.Flags().StringP("directory", "d", "", "Base directory to stage files into (<directory>/<namespace>/<name>/<version>; default ./providers)")
+	registryProviderDownloadCmd.MarkFlagRequired("name")
+	registryProviderDownloadCmd.MarkFlagRequired("version")
+
 	registryCmd.AddCommand(registryProviderCmd)
 	registryProviderCmd.AddCommand(registryProviderListCmd)
 	registryProviderCmd.AddCommand(registryProviderCreateCmd)
 	registryProviderCmd.AddCommand(registryProviderShowCmd)
 	registryProviderCmd.AddCommand(registryProviderDeleteCmd)
+	registryProviderCmd.AddCommand(registryProviderDownloadCmd)
 }
 
 func registryProviderList(cmdConfig *flags.RegistryProviderListFlags) error {
@@ -159,4 +195,29 @@ func registryProviderDelete(cmdConfig *flags.RegistryProviderDeleteFlags) error 
 		return v.RenderError(errors.Wrap(err, "failed to delete provider"))
 	}
 	return v.Render(cmdConfig.Name)
+}
+
+func registryProviderDownload(cmdConfig *flags.RegistryProviderDownloadFlags) error {
+	v := view.NewRegistryProviderDownloadView()
+	v.PrintCommandHeader("Download Provider from Public Registry")
+	v.PrintCommandFilter("Provider: %s/%s %s", cmdConfig.Namespace, cmdConfig.Name, cmdConfig.Version)
+	if cmdConfig.AllPlatforms {
+		v.PrintCommandFilter("Platforms: all")
+	} else {
+		v.PrintCommandFilter("Platforms: %s", strings.Join(cmdConfig.Platforms, ", "))
+	}
+	v.Output().Message("Downloading provider artifacts...")
+
+	result, err := data.DownloadPublicProvider(data.PublicProviderDownloadConfig{
+		Namespace:    cmdConfig.Namespace,
+		Name:         cmdConfig.Name,
+		Version:      cmdConfig.Version,
+		Directory:    cmdConfig.Directory,
+		Platforms:    cmdConfig.Platforms,
+		AllPlatforms: cmdConfig.AllPlatforms,
+	})
+	if err != nil {
+		return v.RenderError(errors.Wrap(err, "failed to download public provider"))
+	}
+	return v.Render(result)
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/logrusorgru/aurora"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"github.com/straubt1/tfx/cmd/flags"
 	"github.com/straubt1/tfx/output"
 	"github.com/straubt1/tfx/pkg/hclconfig"
 	"github.com/straubt1/tfx/tui"
@@ -56,11 +57,12 @@ var rootCmd = &cobra.Command{
 		return tui.Run(tapePath)
 	},
 	// PersistentPreRunE binds flags to viper, resolves the active profile, then
-	// validates that credentials are present for all commands except 'login'.
+	// validates that credentials are present for all commands except 'login'
+	// and public-registry-only commands that do not talk to TFE.
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		bindPFlags(cmd, args)
 
-		if cmd.Name() == "login" {
+		if skipsCredentialCheck(cmd) {
 			return nil
 		}
 
@@ -88,6 +90,14 @@ func Execute() {
 	if err != nil {
 		log.Fatal(aurora.Red(err))
 	}
+}
+
+// skipsCredentialCheck reports commands that do not call the TFE API.
+func skipsCredentialCheck(cmd *cobra.Command) bool {
+	if cmd.Name() == "login" {
+		return true
+	}
+	return cmd.CommandPath() == "tfx registry provider download"
 }
 
 func init() {
@@ -162,6 +172,7 @@ func initConfig() {
 	// command line. Must happen BEFORE postInitCommands, which calls
 	// cmd.Flags().Set() and marks flags as Changed even for config-file values.
 	captureUserFlags()
+	flags.CaptureCommandFlagChanges(rootCmd)
 
 	// Some hacking here to let viper use the cobra required flags, simplifies this checking
 	// in one place rather than each command
@@ -286,6 +297,12 @@ func postInitCommands(commands []*cobra.Command) {
 func presetRequiredFlags(cmd *cobra.Command) {
 	viper.BindPFlags(cmd.Flags())
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		// Shared flag names (especially --directory) collide across commands in
+		// one Viper instance. Copying them onto every command activates the
+		// wrong default (e.g. download's ./providers on version create).
+		if f.Name == "directory" {
+			return
+		}
 		if viper.IsSet(f.Name) && viper.GetString(f.Name) != "" {
 			cmd.Flags().Set(f.Name, viper.GetString(f.Name))
 		}

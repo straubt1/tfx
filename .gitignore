@@ -45,3 +45,4 @@ site/node_modules/
 site/dist/
 site/.astro/
 .cursor/*.log
+providers/

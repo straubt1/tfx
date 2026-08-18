@@ -9,7 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/straubt1/tfx/cmd/flags"
 )
 
 // writeConfig writes content to a temp .tfx.hcl and returns its path.
@@ -28,6 +30,7 @@ func resetState(t *testing.T) {
 	t.Helper()
 	viper.Reset()
 	userChangedFlags = make(map[string]bool)
+	flags.ResetCapturedFlagChanges()
 }
 
 func TestResolveProfile_DefaultProfile(t *testing.T) {
@@ -353,5 +356,24 @@ profile "local" {
 
 	if viper.GetBool("ssl_skip_verify") {
 		t.Error("expected env TFE_SSL_SKIP_VERIFY=false to override profile")
+	}
+}
+
+func TestPresetRequiredFlagsDoesNotCopyDirectory(t *testing.T) {
+	resetState(t)
+	viper.Set("directory", "./providers")
+
+	cmd := &cobra.Command{Use: "create"}
+	cmd.Flags().String("directory", "", "")
+	cmd.Flags().String("name", "", "")
+	viper.Set("name", "azurerm")
+
+	presetRequiredFlags(cmd)
+
+	if got, _ := cmd.Flags().GetString("directory"); got != "" {
+		t.Fatalf("directory leaked onto command: %q", got)
+	}
+	if got, _ := cmd.Flags().GetString("name"); got != "azurerm" {
+		t.Fatalf("name = %q, want azurerm (non-directory flags still copy)", got)
 	}
 }

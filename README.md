@@ -1,7 +1,7 @@
 # HCP Terraform/Terraform Enterprise CLI
 
 [![main](https://github.com/straubt1/tfx/actions/workflows/main.yml/badge.svg)](https://github.com/straubt1/tfx/actions/workflows/main.yml)
-![Go Version](https://img.shields.io/badge/go%20version-%3E=1.26.4-61CFDD.svg?style=flat-square)
+![Go Version](https://img.shields.io/badge/go%20version-%3E=1.26.6-61CFDD.svg?style=flat-square)
 
 _tfx_ is a standalone CLI for HCP Terraform and Terraform Enterprise.
 
@@ -32,8 +32,8 @@ Check out our docs site [tfx.rocks](https://tfx.rocks)
 | `tfx workspace variable` | `list`, `show`, `create`, `update`, `delete` |
 | `tfx registry module` | `list`, `show`, `create`, `delete` |
 | `tfx registry module version` | `list`, `create`, `delete`, `download` |
-| `tfx registry provider` | `list`, `show`, `create`, `delete` |
-| `tfx registry provider version` | `list`, `show`, `create`, `delete` |
+| `tfx registry provider` | `list`, `show`, `create`, `delete`, `download` |
+| `tfx registry provider version` | `list`, `show`, `create` (`--directory`), `delete` |
 | `tfx registry provider version platform` | `list`, `show`, `create`, `delete` |
 | `tfx release tfe` | `list`, `show` |
 | `tfx admin gpg` | `list`, `show`, `create`, `delete` |

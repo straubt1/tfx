@@ -5,6 +5,7 @@ package data
 
 import (
 	"os"
+	"strings"
 
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/pkg/errors"
@@ -76,6 +77,54 @@ func CreateGPGKey(c *client.TfxClient, registryName tfe.RegistryName, namespace 
 
 	output.Get().Logger().Debug("GPG key created successfully", "namespace", namespace, "keyID", key.KeyID)
 	return key, nil
+}
+
+// EnsureGPGKey returns the private-registry GPG key for orgName, creating it from
+// publicKeyPath when missing. orgName is the private-registry GPG namespace (the
+// TFE/HCP organization), not the public-registry publisher.
+func EnsureGPGKey(c *client.TfxClient, orgName, keyID, publicKeyPath string) (*tfe.GPGKey, bool, error) {
+	output.Get().Logger().Debug("Ensuring GPG key", "namespace", orgName, "keyID", keyID)
+
+	gpgKeyID := tfe.GPGKeyID{
+		RegistryName: tfe.PrivateRegistry,
+		Namespace:    orgName,
+		KeyID:        keyID,
+	}
+	key, err := c.Client.GPGKeys.Read(c.Context, gpgKeyID)
+	if err == nil {
+		if err := requireGPGKeyID(key, keyID); err != nil {
+			return nil, false, err
+		}
+		return key, false, nil
+	}
+	if !isNotFound(err) {
+		return nil, false, errors.Wrap(err, "failed to read GPG key")
+	}
+	if publicKeyPath == "" {
+		return nil, false, errors.Errorf("GPG key %s is not in the private registry and no .asc public key was found in the staged directory", keyID)
+	}
+
+	output.Get().Logger().Info("GPG key not found, creating", "namespace", orgName, "keyID", keyID)
+	key, err = CreateGPGKey(c, tfe.PrivateRegistry, orgName, publicKeyPath)
+	if err != nil {
+		return nil, false, err
+	}
+	if err := requireGPGKeyID(key, keyID); err != nil {
+		return nil, false, err
+	}
+	return key, true, nil
+}
+
+func requireGPGKeyID(key *tfe.GPGKey, want string) error {
+	if key == nil {
+		return errors.New("GPG key is nil")
+	}
+	got := strings.TrimSpace(key.KeyID)
+	want = strings.TrimSpace(want)
+	if !strings.EqualFold(got, want) {
+		return errors.Errorf("GPG key id mismatch: registry has %s, expected %s", got, want)
+	}
+	return nil
 }
 
 // DeleteGPGKey deletes a GPG key

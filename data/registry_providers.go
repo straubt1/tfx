@@ -4,7 +4,11 @@
 package data
 
 import (
+	"fmt"
+	"strings"
+
 	tfe "github.com/hashicorp/go-tfe"
+	"github.com/pkg/errors"
 	"github.com/straubt1/tfx/client"
 	"github.com/straubt1/tfx/output"
 )
@@ -196,5 +200,124 @@ func DeleteRegistryProviderPlatform(c *client.TfxClient, orgName, name, version,
 		},
 		OS:   os,
 		Arch: arch,
+	})
+}
+
+// EnsureRegistryProvider returns the private-registry provider, creating it if missing.
+func EnsureRegistryProvider(c *client.TfxClient, orgName, name string) (p *tfe.RegistryProvider, created bool, err error) {
+	p, err = ReadRegistryProvider(c, orgName, name)
+	if err == nil {
+		return p, false, nil
+	}
+	if !isNotFound(err) {
+		return nil, false, err
+	}
+	output.Get().Logger().Info("Provider not found, creating", "org", orgName, "name", name)
+	p, err = CreateRegistryProvider(c, orgName, name)
+	if err != nil {
+		return nil, false, err
+	}
+	return p, true, nil
+}
+
+func isNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, tfe.ErrResourceNotFound) {
+		return true
+	}
+	s := strings.ToLower(err.Error())
+	return strings.Contains(s, "not found") || strings.Contains(s, "resource not found")
+}
+
+func isConflict(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := strings.ToLower(err.Error())
+	return strings.Contains(s, "already exists") ||
+		strings.Contains(s, "already been taken") ||
+		strings.Contains(s, "conflict")
+}
+
+// EnsureRegistryProviderVersion returns the private-registry provider version,
+// creating it if missing. If it already exists, the existing version is read
+// so checksum and platform uploads can resume.
+func EnsureRegistryProviderVersion(c *client.TfxClient, orgName, name, version, keyID string) (*tfe.RegistryProviderVersion, bool, error) {
+	p, err := CreateRegistryProviderVersion(c, orgName, name, version, keyID)
+	if err == nil {
+		return p, true, nil
+	}
+	if !isConflict(err) {
+		return nil, false, errors.Wrap(err, "failed to create provider version")
+	}
+	output.Get().Logger().Info("Provider version already exists, resuming", "org", orgName, "name", name, "version", version)
+	p, err = ReadRegistryProviderVersion(c, orgName, name, version)
+	if err != nil {
+		return nil, false, errors.Wrap(err, "provider version already exists but could not be read; delete the version and retry")
+	}
+	return p, false, nil
+}
+
+func skipExistingPlatform(existing *tfe.RegistryProviderPlatform, sum string) (bool, error) {
+	if existing == nil || !existing.ProviderBinaryUploaded {
+		return false, nil
+	}
+	if existing.Shasum != "" && !strings.EqualFold(existing.Shasum, sum) {
+		return false, errors.Errorf("platform %s_%s already exists with a different shasum", existing.OS, existing.Arch)
+	}
+	return true, nil
+}
+
+// UploadRegistryProviderPlatform hashes zipPath, creates the platform record, and PUTs the zip.
+func UploadRegistryProviderPlatform(c *client.TfxClient, orgName, name, version, osName, arch, zipPath string) (*tfe.RegistryProviderPlatform, error) {
+	output.Get().Logger().Debug("Uploading provider platform", "org", orgName, "name", name, "version", version, "os", osName, "arch", arch, "path", zipPath)
+
+	sum, err := fileSHA256(zipPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to hash file")
+	}
+
+	filename := fmt.Sprintf("terraform-provider-%s_%s_%s_%s.zip", name, version, osName, arch)
+	rpp, err := CreateRegistryProviderPlatform(c, orgName, name, version, osName, arch, sum, filename)
+	if err != nil {
+		if !isConflict(err) {
+			return nil, errors.Wrap(err, "failed to create provider version platform")
+		}
+		rpp, err = ReadRegistryProviderPlatform(c, orgName, name, version, osName, arch)
+		if err != nil {
+			return nil, errors.Wrap(err, "platform already exists but could not be read; delete the platform or version and retry")
+		}
+		skip, skipErr := skipExistingPlatform(rpp, sum)
+		if skipErr != nil {
+			return nil, skipErr
+		}
+		if skip {
+			output.Get().Logger().Info("Platform already uploaded, skipping", "os", osName, "arch", arch)
+			return rpp, nil
+		}
+	}
+
+	uploadURL, ok := rpp.Links["provider-binary-upload"].(string)
+	if !ok || uploadURL == "" {
+		return nil, errors.New("provider platform is missing provider-binary-upload link; delete the platform and retry")
+	}
+	if err := UploadBinary(uploadURL, zipPath); err != nil {
+		return nil, errors.Wrap(err, "failed to upload binary to provider version platform")
+	}
+	return rpp, nil
+}
+
+// UploadRegistryProviderPlatforms uploads each staged zip concurrently, limited
+// by concurrency. Results are in input order. After the first error, no new
+// uploads are started; in-flight PUTs are allowed to finish.
+func UploadRegistryProviderPlatforms(c *client.TfxClient, orgName, name, version string, platforms []StagedProviderPlatform, concurrency int) ([]*tfe.RegistryProviderPlatform, error) {
+	return mapConcurrent(concurrency, platforms, func(plat StagedProviderPlatform) (*tfe.RegistryProviderPlatform, error) {
+		rpp, err := UploadRegistryProviderPlatform(c, orgName, name, version, plat.OS, plat.Arch, plat.Path)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to upload platform %s_%s", plat.OS, plat.Arch)
+		}
+		return rpp, nil
 	})
 }

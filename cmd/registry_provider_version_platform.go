@@ -4,12 +4,6 @@
 package cmd
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"fmt"
-	"io"
-	"os"
-
 	"github.com/coreos/go-semver/semver"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -169,37 +163,11 @@ func registryProviderVersionPlatformCreate(cmdConfig *flags.RegistryProviderVers
 		return v.RenderError(err)
 	}
 	v.PrintCommandHeader("Create Provider Platform in Registry for Organization: %s", c.OrganizationName)
-	f, err := os.Open(cmdConfig.Filename)
+	v.Output().Message("Uploading Provider Version Platform...")
+	rpp, err := data.UploadRegistryProviderPlatform(c, c.OrganizationName, cmdConfig.Name, cmdConfig.Version, cmdConfig.OS, cmdConfig.Arch, cmdConfig.Filename)
 	if err != nil {
-		return v.RenderError(errors.Wrap(err, "failed to open provider file"))
+		return v.RenderError(err)
 	}
-	defer f.Close()
-
-	v.Renderer().Message("Hashing Provider File")
-	hash := sha256.New()
-	if _, err := io.Copy(hash, f); err != nil {
-		return v.RenderError(errors.Wrap(err, "Failed to Hash File"))
-	}
-	sum := hex.EncodeToString(hash.Sum(nil))
-
-	filename := fmt.Sprintf("terraform-provider-%s_%s_%s_%s.zip",
-		cmdConfig.Name,
-		cmdConfig.Version,
-		cmdConfig.OS,
-		cmdConfig.Arch)
-	v.Renderer().Message("Building Provider Filename: %s", filename)
-
-	rpp, err := data.CreateRegistryProviderPlatform(c, c.OrganizationName, cmdConfig.Name, cmdConfig.Version, cmdConfig.OS, cmdConfig.Arch, sum, filename)
-	if err != nil {
-		return v.RenderError(errors.Wrap(err, "failed to create provider version platform"))
-	}
-
-	v.Renderer().Message("Uploading Provider Version Platform...")
-	err = data.UploadBinary(rpp.Links["provider-binary-upload"].(string), cmdConfig.Filename)
-	if err != nil {
-		return v.RenderError(errors.Wrap(err, "failed to upload binary to provider version platform"))
-	}
-
 	return v.Render(rpp)
 }
 

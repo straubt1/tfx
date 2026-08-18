@@ -5,7 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.4.0] - Unreleased
+## [v0.4.1] - 2026-08-18
+
+**Added**
+
+* `tfx registry provider download` — stage public-registry provider artifacts (SHA256SUMS, signature, GPG public key `.asc`, platform zips) under `./providers/<namespace>/<name>/<version>` for later private-registry upload
+* `tfx registry provider version create --directory` — infer namespace, name, version, GPG key, checksums, and platforms from a staged download folder and upload them
+* Directory-mode platform zip uploads run in parallel (`--concurrency`, default 4)
+* Directory-mode create uploads a third-party GPG public key to the private registry when the public-registry namespace is not `hashicorp` and the key is not already present
+* Directory-mode `version create --directory` resumes if the version or platforms already exist (re-run after a partial upload)
+* Docs: guide for syncing public-registry providers into a private registry
+
+**Changed**
+
+* Homebrew install docs: trust `straubt1/tap/tfx` before `brew install` (#264)
+* Go toolchain 1.26.6 and dependency upgrades (including go-tfe, Bubble Tea, Lip Gloss)
+
+## [v0.4.0] - 2026-06-20
 
 **Added**
 
@@ -386,7 +402,8 @@ New Commands:
 
 **Removed**
 
-[Unreleased]: https://github.com/straubt1/tfx/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/straubt1/tfx/compare/v0.4.1...HEAD
+[v0.4.1]: https://github.com/straubt1/tfx/compare/v0.4.0...v0.4.1
 [v0.4.0]: https://github.com/straubt1/tfx/compare/v0.3.3...v0.4.0
 [v0.3.3]: https://github.com/straubt1/tfx/releases/tag/v0.3.3
 [v0.3.2]: https://github.com/straubt1/tfx/releases/tag/v0.3.2
