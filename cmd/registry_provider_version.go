@@ -151,14 +151,6 @@ func registryProviderVersionCreate(cmdConfig *flags.RegistryProviderVersionCreat
 }
 
 func useDirectoryMode(cmdConfig *flags.RegistryProviderVersionCreateFlags) bool {
-	// postInitCommands binds every command's flags into one Viper instance, so a
-	// sibling --directory default (e.g. download's ./providers) can leak onto this
-	// flag. Prefer the explicit five-flag path when it is fully specified.
-	explicit := cmdConfig.Name != "" && cmdConfig.Version != "" && cmdConfig.KeyID != "" &&
-		cmdConfig.Shasums != "" && cmdConfig.ShasumsSig != ""
-	if explicit {
-		return false
-	}
 	return cmdConfig.Directory != ""
 }
 

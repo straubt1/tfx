@@ -198,7 +198,10 @@ func DownloadPublicProvider(cfg PublicProviderDownloadConfig) (*view.RegistryPro
 			result.GPGPublicKeyPath = ascPath
 		}
 
-		zipPath := filepath.Join(destDir, pkg.Filename)
+		zipPath, err := safeJoin(destDir, pkg.Filename)
+		if err != nil {
+			return nil, errors.Wrapf(err, "invalid package filename for %s", key)
+		}
 		log.Debug("Downloading provider zip", "platform", key, "url", pkg.DownloadURL, "path", zipPath)
 		if err := DownloadFile(pkg.DownloadURL, zipPath); err != nil {
 			return nil, errors.Wrapf(err, "failed to download %s", key)
@@ -211,7 +214,14 @@ func DownloadPublicProvider(cfg PublicProviderDownloadConfig) (*view.RegistryPro
 		if pkg.Shasum != "" && !strings.EqualFold(sum, pkg.Shasum) {
 			return nil, errors.Errorf("checksum mismatch for %s: got %s want %s", pkg.Filename, sum, pkg.Shasum)
 		}
-		if expected, ok := checksums[pkg.Filename]; ok && !strings.EqualFold(sum, expected) {
+		expected, ok := checksums[pkg.Filename]
+		if !ok {
+			expected, ok = checksums[filepath.Base(pkg.Filename)]
+		}
+		if !ok {
+			return nil, errors.Errorf("zip %s is not listed in SHA256SUMS", pkg.Filename)
+		}
+		if !strings.EqualFold(sum, expected) {
 			return nil, errors.Errorf("checksum mismatch for %s vs SHA256SUMS: got %s want %s", pkg.Filename, sum, expected)
 		}
 
@@ -351,13 +361,49 @@ func filenameFromURL(raw string) string {
 	return path.Base(u.Path)
 }
 
+// safeJoin joins dir and name so the result stays under dir. name must be a
+// single path component (no separators, not absolute, not "." or "..").
+func safeJoin(dir, name string) (string, error) {
+	if name == "" {
+		return "", errors.New("empty filename")
+	}
+	cleaned := filepath.Clean(name)
+	base := filepath.Base(cleaned)
+	if base == "." || base == ".." || base == string(filepath.Separator) {
+		return "", errors.Errorf("invalid filename %q", name)
+	}
+	if filepath.IsAbs(cleaned) || filepath.Dir(cleaned) != "." {
+		return "", errors.Errorf("invalid filename %q, must be a basename", name)
+	}
+
+	parent, err := filepath.Abs(dir)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to resolve directory")
+	}
+	dest := filepath.Join(parent, base)
+	rel, err := filepath.Rel(parent, dest)
+	if err != nil {
+		return "", err
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", errors.Errorf("filename %q escapes staging directory", name)
+	}
+	return dest, nil
+}
+
 func downloadChecksumFiles(destDir string, pkg *publicProviderPackage) (shasumsPath, sigPath string, checksums map[string]string, err error) {
 	if pkg.ShasumsURL == "" || pkg.ShasumsSignatureURL == "" {
 		return "", "", nil, errors.New("package metadata is missing shasums URLs")
 	}
 
-	shasumsPath = filepath.Join(destDir, filenameFromURL(pkg.ShasumsURL))
-	sigPath = filepath.Join(destDir, filenameFromURL(pkg.ShasumsSignatureURL))
+	shasumsPath, err = safeJoin(destDir, filenameFromURL(pkg.ShasumsURL))
+	if err != nil {
+		return "", "", nil, errors.Wrap(err, "invalid SHA256SUMS filename")
+	}
+	sigPath, err = safeJoin(destDir, filenameFromURL(pkg.ShasumsSignatureURL))
+	if err != nil {
+		return "", "", nil, errors.Wrap(err, "invalid SHA256SUMS signature filename")
+	}
 
 	output.Get().Logger().Debug("Downloading SHA256SUMS", "url", pkg.ShasumsURL, "path", shasumsPath)
 	if err := DownloadFile(pkg.ShasumsURL, shasumsPath); err != nil {
@@ -411,12 +457,15 @@ func writeGPGPublicKey(destDir string, pkg *publicProviderPackage) (string, erro
 	if !strings.HasSuffix(armor, "\n") {
 		armor += "\n"
 	}
-	path := filepath.Join(destDir, keyID+".asc")
-	output.Get().Logger().Debug("Writing GPG public key", "keyID", keyID, "path", path)
-	if err := os.WriteFile(path, []byte(armor), 0644); err != nil {
+	ascPath, err := safeJoin(destDir, keyID+".asc")
+	if err != nil {
+		return "", errors.Wrap(err, "invalid GPG public key filename")
+	}
+	output.Get().Logger().Debug("Writing GPG public key", "keyID", keyID, "path", ascPath)
+	if err := os.WriteFile(ascPath, []byte(armor), 0644); err != nil {
 		return "", errors.Wrap(err, "failed to write GPG public key")
 	}
-	return path, nil
+	return ascPath, nil
 }
 
 func fileSHA256(path string) (string, error) {

@@ -130,7 +130,7 @@ func init() {
 	registryProviderDownloadCmd.Flags().StringP("version", "v", "", "Version of Provider (i.e. 5.0.0)")
 	registryProviderDownloadCmd.Flags().StringSlice("platforms", flags.DefaultPublicProviderPlatforms, "Platforms to download as os_arch (comma separated)")
 	registryProviderDownloadCmd.Flags().Bool("all-platforms", false, "Download every platform published for this version")
-	registryProviderDownloadCmd.Flags().StringP("directory", "d", flags.DefaultPublicProviderDirectory, "Base directory to stage files into (<directory>/<namespace>/<name>/<version>)")
+	registryProviderDownloadCmd.Flags().StringP("directory", "d", "", "Base directory to stage files into (<directory>/<namespace>/<name>/<version>; default ./providers)")
 	registryProviderDownloadCmd.MarkFlagRequired("name")
 	registryProviderDownloadCmd.MarkFlagRequired("version")
 

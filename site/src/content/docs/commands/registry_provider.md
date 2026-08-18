@@ -5,6 +5,8 @@ title: Private Registry Provider Commands
 The ability to manage Providers within an Organization was added to Terraform Enterprise in release v202206-1.
 These commands make the management of these providers via the API (the only way to manage said providers) easier.
 
+To copy a provider from the public Terraform Registry into a private registry, see [Syncing Providers to a Private Registry](/guides/sync-providers/).
+
 > Note: Create, show, list, and delete operate on **private** registry providers. `tfx registry provider download` fetches artifacts from the **public** Terraform Registry so they can be staged and then uploaded with the existing create commands.
 
 There are several "resources" needed to create a Provider in the Registry that have a dependency hierarchy.

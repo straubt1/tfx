@@ -29,7 +29,14 @@ func UploadBinary(uploadURL string, path string) error {
 		return err
 	}
 	defer res.Body.Close()
-	return nil
+	_, _ = io.Copy(io.Discard, res.Body)
+
+	switch res.StatusCode {
+	case http.StatusOK, http.StatusCreated, http.StatusNoContent:
+		return nil
+	default:
+		return errors.Errorf("upload failed: %s returned %d", uploadURL, res.StatusCode)
+	}
 }
 
 // DownloadTextFile fetches the content at downloadURL and returns it as a string

@@ -14,6 +14,7 @@ import (
 	"github.com/logrusorgru/aurora"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"github.com/straubt1/tfx/cmd/flags"
 	"github.com/straubt1/tfx/output"
 	"github.com/straubt1/tfx/pkg/hclconfig"
 	"github.com/straubt1/tfx/tui"
@@ -171,6 +172,7 @@ func initConfig() {
 	// command line. Must happen BEFORE postInitCommands, which calls
 	// cmd.Flags().Set() and marks flags as Changed even for config-file values.
 	captureUserFlags()
+	flags.CaptureCommandFlagChanges(rootCmd)
 
 	// Some hacking here to let viper use the cobra required flags, simplifies this checking
 	// in one place rather than each command
@@ -295,6 +297,12 @@ func postInitCommands(commands []*cobra.Command) {
 func presetRequiredFlags(cmd *cobra.Command) {
 	viper.BindPFlags(cmd.Flags())
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		// Shared flag names (especially --directory) collide across commands in
+		// one Viper instance. Copying them onto every command activates the
+		// wrong default (e.g. download's ./providers on version create).
+		if f.Name == "directory" {
+			return
+		}
 		if viper.IsSet(f.Name) && viper.GetString(f.Name) != "" {
 			cmd.Flags().Set(f.Name, viper.GetString(f.Name))
 		}

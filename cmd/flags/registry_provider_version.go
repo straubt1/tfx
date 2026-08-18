@@ -43,7 +43,10 @@ func ParseRegistryProviderVersionListFlags(cmd *cobra.Command) (*RegistryProvide
 }
 
 func ParseRegistryProviderVersionCreateFlags(cmd *cobra.Command) (*RegistryProviderVersionCreateFlags, error) {
-	directory, _ := cmd.Flags().GetString("directory")
+	directory := ""
+	if UserPassed(cmd, "directory") {
+		directory, _ = cmd.Flags().GetString("directory")
+	}
 	concurrency, _ := cmd.Flags().GetInt("concurrency")
 	return &RegistryProviderVersionCreateFlags{
 		Name:        viper.GetString("name"),

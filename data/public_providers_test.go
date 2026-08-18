@@ -251,3 +251,121 @@ func TestDownloadPublicProviderChecksumMismatch(t *testing.T) {
 		t.Fatalf("expected checksum mismatch, got %v", err)
 	}
 }
+
+func TestDownloadPublicProviderZipMissingFromSHA256SUMS(t *testing.T) {
+	zip := []byte("zip-bytes")
+	sum := sha256.Sum256(zip)
+	shasum := hex.EncodeToString(sum[:])
+	filename := "terraform-provider-azurerm_5.0.0_linux_amd64.zip"
+
+	var server *httptest.Server
+	mux := http.NewServeMux()
+	mux.HandleFunc("/.well-known/terraform.json", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"providers.v1":"/v1/providers/"}`))
+	})
+	mux.HandleFunc("/v1/providers/hashicorp/azurerm/versions", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"versions":[{"version":"5.0.0","platforms":[{"os":"linux","arch":"amd64"}]}]}`))
+	})
+	mux.HandleFunc("/v1/providers/hashicorp/azurerm/5.0.0/download/linux/amd64", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprintf(w, `{
+			"os":"linux","arch":"amd64","filename":"%s",
+			"download_url":"%s/files/%s",
+			"shasums_url":"%s/files/SHA256SUMS",
+			"shasums_signature_url":"%s/files/SHA256SUMS.sig",
+			"shasum":"%s",
+			"signing_keys":{"gpg_public_keys":[{"key_id":"ABC"}]}
+		}`, filename, server.URL, filename, server.URL, server.URL, shasum)
+	})
+	mux.HandleFunc("/files/"+filename, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(zip)
+	})
+	mux.HandleFunc("/files/SHA256SUMS", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprintf(w, "%s  other-file.zip\n", shasum)
+	})
+	mux.HandleFunc("/files/SHA256SUMS.sig", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("sig"))
+	})
+	server = httptest.NewServer(mux)
+	defer server.Close()
+
+	_, err := DownloadPublicProvider(PublicProviderDownloadConfig{
+		RegistryBaseURL: server.URL,
+		Namespace:       "hashicorp",
+		Name:            "azurerm",
+		Version:         "5.0.0",
+		Directory:       t.TempDir(),
+		Platforms:       []string{"linux_amd64"},
+	})
+	if err == nil || !strings.Contains(err.Error(), "not listed in SHA256SUMS") {
+		t.Fatalf("expected missing SHA256SUMS entry, got %v", err)
+	}
+}
+
+func TestSafeJoin(t *testing.T) {
+	dir := t.TempDir()
+
+	got, err := safeJoin(dir, "terraform-provider-azurerm_5.0.0_linux_amd64.zip")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(dir, "terraform-provider-azurerm_5.0.0_linux_amd64.zip")
+	if got != want {
+		t.Fatalf("got %s, want %s", got, want)
+	}
+
+	rejects := []string{"", ".", "..", "/etc/passwd", "../evil.zip", "foo/bar.zip"}
+	for _, name := range rejects {
+		if _, err := safeJoin(dir, name); err == nil {
+			t.Errorf("expected error for %q", name)
+		}
+	}
+}
+
+func TestDownloadPublicProviderRejectsPathTraversalFilename(t *testing.T) {
+	zip := []byte("zip-bytes")
+	sum := sha256.Sum256(zip)
+	shasum := hex.EncodeToString(sum[:])
+	filename := "../evil.zip"
+
+	var server *httptest.Server
+	mux := http.NewServeMux()
+	mux.HandleFunc("/.well-known/terraform.json", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"providers.v1":"/v1/providers/"}`))
+	})
+	mux.HandleFunc("/v1/providers/hashicorp/azurerm/versions", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"versions":[{"version":"5.0.0","platforms":[{"os":"linux","arch":"amd64"}]}]}`))
+	})
+	mux.HandleFunc("/v1/providers/hashicorp/azurerm/5.0.0/download/linux/amd64", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprintf(w, `{
+			"os":"linux","arch":"amd64","filename":"%s",
+			"download_url":"%s/files/ok.zip",
+			"shasums_url":"%s/files/SHA256SUMS",
+			"shasums_signature_url":"%s/files/SHA256SUMS.sig",
+			"shasum":"%s",
+			"signing_keys":{"gpg_public_keys":[{"key_id":"ABC"}]}
+		}`, filename, server.URL, server.URL, server.URL, shasum)
+	})
+	mux.HandleFunc("/files/ok.zip", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(zip)
+	})
+	mux.HandleFunc("/files/SHA256SUMS", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprintf(w, "%s  ok.zip\n", shasum)
+	})
+	mux.HandleFunc("/files/SHA256SUMS.sig", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("sig"))
+	})
+	server = httptest.NewServer(mux)
+	defer server.Close()
+
+	_, err := DownloadPublicProvider(PublicProviderDownloadConfig{
+		RegistryBaseURL: server.URL,
+		Namespace:       "hashicorp",
+		Name:            "azurerm",
+		Version:         "5.0.0",
+		Directory:       t.TempDir(),
+		Platforms:       []string{"linux_amd64"},
+	})
+	if err == nil || !strings.Contains(err.Error(), "invalid") {
+		t.Fatalf("expected invalid filename error, got %v", err)
+	}
+}

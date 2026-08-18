@@ -84,9 +84,11 @@ func ParseRegistryProviderDownloadFlags(cmd *cobra.Command) (*RegistryProviderDo
 	if len(platforms) == 0 {
 		platforms = append([]string{}, DefaultPublicProviderPlatforms...)
 	}
-	directory := viper.GetString("directory")
-	if directory == "" {
-		directory = DefaultPublicProviderDirectory
+	directory := DefaultPublicProviderDirectory
+	if UserPassed(cmd, "directory") {
+		if d, err := cmd.Flags().GetString("directory"); err == nil && d != "" {
+			directory = d
+		}
 	}
 	namespace := viper.GetString("namespace")
 	if namespace == "" {
