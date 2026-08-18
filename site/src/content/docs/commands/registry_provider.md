@@ -5,7 +5,7 @@ title: Private Registry Provider Commands
 The ability to manage Providers within an Organization was added to Terraform Enterprise in release v202206-1.
 These commands make the management of these providers via the API (the only way to manage said providers) easier.
 
-> Note: These commands only work with the "private" Providers.
+> Note: Create, show, list, and delete operate on **private** registry providers. `tfx registry provider download` fetches artifacts from the **public** Terraform Registry so they can be staged and then uploaded with the existing create commands.
 
 There are several "resources" needed to create a Provider in the Registry that have a dependency hierarchy.
 
@@ -92,6 +92,67 @@ Using config file: /Users/tstraub/.tfx.hcl
 Delete Provider in Registry for Organization: firefly
 Provider Deleted: google
 Status: Success
+```
+
+## `tfx registry provider download`
+
+Download a provider from the public Terraform Registry and stage the files locally for a later private-registry upload.
+
+This command does **not** require a TFE/HCP Terraform token. It uses the public registry protocol (`registry.terraform.io`) and follows the same URLs Terraform uses during `terraform init`.
+
+`--directory` is the base path (default `./providers`). Files are always written to `<directory>/<name>/<version>/`.
+
+Default platforms: `linux_amd64`, `darwin_arm64`, `darwin_amd64`, `windows_amd64`. Use `--platforms` to choose a subset, or `--all-platforms` to fetch every published zip.
+
+After upload, Terraform configs must source the provider as `<hostname>/<organization>/azurerm` — not `hashicorp/azurerm`. Official HashiCorp providers are signed with GPG key `34365D9472D7468F`, which is pre-installed on Terraform Enterprise v202309-1 and newer. Older TFE needs `tfx admin gpg create` with HashiCorp's public key first.
+
+Unlike `tfx registry module version download` (from the private registry), this command downloads **from the public registry**.
+
+**Example:**
+
+```sh
+$ tfx registry provider download --name azurerm --version 5.0.0
+Download Provider from Public Registry
+Provider: hashicorp/azurerm 5.0.0
+Platforms: linux_amd64, darwin_arm64, darwin_amd64, windows_amd64
+Downloading provider artifacts...
+Namespace:     hashicorp
+Name:          azurerm
+Version:       5.0.0
+Directory:     /Users/tstraub/Projects/example/providers/azurerm/5.0.0
+GPG Key ID:    34365D9472D7468F
+SHA256SUMS:    /Users/tstraub/Projects/example/providers/azurerm/5.0.0/terraform-provider-azurerm_5.0.0_SHA256SUMS
+SHA256SUMS.sig: /Users/tstraub/Projects/example/providers/azurerm/5.0.0/terraform-provider-azurerm_5.0.0_SHA256SUMS.72D7468F.sig
+```
+
+Staged layout:
+
+```
+./providers/azurerm/5.0.0/
+  terraform-provider-azurerm_5.0.0_SHA256SUMS
+  terraform-provider-azurerm_5.0.0_SHA256SUMS.72D7468F.sig
+  terraform-provider-azurerm_5.0.0_linux_amd64.zip
+  terraform-provider-azurerm_5.0.0_darwin_arm64.zip
+  terraform-provider-azurerm_5.0.0_darwin_amd64.zip
+  terraform-provider-azurerm_5.0.0_windows_amd64.zip
+```
+
+Then upload with the existing commands (the download output prints these with the real paths):
+
+```sh
+tfx registry provider create --name azurerm
+tfx registry provider version create \
+  --name azurerm --version 5.0.0 \
+  --key-id 34365D9472D7468F \
+  --shasums ./providers/azurerm/5.0.0/terraform-provider-azurerm_5.0.0_SHA256SUMS \
+  --shasums-sig ./providers/azurerm/5.0.0/terraform-provider-azurerm_5.0.0_SHA256SUMS.72D7468F.sig
+tfx registry provider version platform create \
+  --name azurerm --version 5.0.0 --os linux --arch amd64 \
+  -f ./providers/azurerm/5.0.0/terraform-provider-azurerm_5.0.0_linux_amd64.zip
+```
+
+```sh
+$ tfx registry provider download --name azurerm --version 5.0.0 --platforms linux_amd64 --directory ./providers
 ```
 
 ## `tfx registry provider version list`

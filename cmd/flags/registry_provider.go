@@ -53,3 +53,47 @@ func ParseRegistryProviderDeleteFlags(cmd *cobra.Command) (*RegistryProviderDele
 		Name: viper.GetString("name"),
 	}, nil
 }
+
+// DefaultPublicProviderDirectory is the staging base for public provider downloads.
+const DefaultPublicProviderDirectory = "./providers"
+
+// DefaultPublicProviderPlatforms are the os_arch values downloaded when --platforms is omitted.
+var DefaultPublicProviderPlatforms = []string{
+	"linux_amd64",
+	"darwin_arm64",
+	"darwin_amd64",
+	"windows_amd64",
+}
+
+// RegistryProviderDownloadFlags holds flags for public registry provider download
+type RegistryProviderDownloadFlags struct {
+	Namespace    string
+	Name         string
+	Version      string
+	Directory    string
+	Platforms    []string
+	AllPlatforms bool
+}
+
+func ParseRegistryProviderDownloadFlags(cmd *cobra.Command) (*RegistryProviderDownloadFlags, error) {
+	platforms := viper.GetStringSlice("platforms")
+	if len(platforms) == 0 {
+		platforms = append([]string{}, DefaultPublicProviderPlatforms...)
+	}
+	directory := viper.GetString("directory")
+	if directory == "" {
+		directory = DefaultPublicProviderDirectory
+	}
+	namespace := viper.GetString("namespace")
+	if namespace == "" {
+		namespace = "hashicorp"
+	}
+	return &RegistryProviderDownloadFlags{
+		Namespace:    namespace,
+		Name:         viper.GetString("name"),
+		Version:      viper.GetString("version"),
+		Directory:    directory,
+		Platforms:    platforms,
+		AllPlatforms: viper.GetBool("all-platforms"),
+	}, nil
+}

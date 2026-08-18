@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+
+	"github.com/pkg/errors"
 )
 
 // UploadBinary performs a PUT of the file at path to the given pre-signed URL
@@ -44,9 +46,38 @@ func DownloadTextFile(downloadURL string) (string, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return "", errors.Errorf("download failed: %s returned %d", downloadURL, resp.StatusCode)
+	}
+
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
 	return string(b), nil
+}
+
+// DownloadFile streams the content at downloadURL to destPath. It fails on
+// non-200 responses so a failed CDN fetch cannot be mistaken for a valid file.
+func DownloadFile(downloadURL, destPath string) error {
+	resp, err := http.Get(downloadURL)
+	if err != nil {
+		return errors.Wrap(err, "download request failed")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return errors.Errorf("download failed: %s returned %d", downloadURL, resp.StatusCode)
+	}
+
+	f, err := os.Create(destPath)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create %s", destPath)
+	}
+	defer f.Close()
+
+	if _, err := io.Copy(f, resp.Body); err != nil {
+		return errors.Wrapf(err, "failed to write %s", destPath)
+	}
+	return nil
 }

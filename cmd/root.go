@@ -56,11 +56,12 @@ var rootCmd = &cobra.Command{
 		return tui.Run(tapePath)
 	},
 	// PersistentPreRunE binds flags to viper, resolves the active profile, then
-	// validates that credentials are present for all commands except 'login'.
+	// validates that credentials are present for all commands except 'login'
+	// and public-registry-only commands that do not talk to TFE.
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		bindPFlags(cmd, args)
 
-		if cmd.Name() == "login" {
+		if skipsCredentialCheck(cmd) {
 			return nil
 		}
 
@@ -88,6 +89,14 @@ func Execute() {
 	if err != nil {
 		log.Fatal(aurora.Red(err))
 	}
+}
+
+// skipsCredentialCheck reports commands that do not call the TFE API.
+func skipsCredentialCheck(cmd *cobra.Command) bool {
+	if cmd.Name() == "login" {
+		return true
+	}
+	return cmd.CommandPath() == "tfx registry provider download"
 }
 
 func init() {
