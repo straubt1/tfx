@@ -199,7 +199,7 @@ func registryProviderVersionCreateExplicit(cmdConfig *flags.RegistryProviderVers
 	if err != nil {
 		return v.RenderError(errors.Wrap(err, "failed to create provider version"))
 	}
-	v.Renderer().Message("Uploading shasums and sig")
+	v.Output().Message("Uploading shasums and sig")
 	if err := uploadVersionChecksums(p, cmdConfig.Shasums, cmdConfig.ShasumsSig); err != nil {
 		return v.RenderError(err)
 	}
@@ -234,21 +234,21 @@ func registryProviderVersionCreateFromDirectory(cmdConfig *flags.RegistryProvide
 		return v.RenderError(errors.Wrap(err, "failed to ensure provider"))
 	}
 	if providerCreated {
-		v.Renderer().Message("Created provider %s", staged.Name)
+		v.Output().Message("Created provider %s", staged.Name)
 	}
 
 	p, err := data.CreateRegistryProviderVersion(c, c.OrganizationName, staged.Name, staged.Version, keyID)
 	if err != nil {
 		return v.RenderError(errors.Wrap(err, "failed to create provider version"))
 	}
-	v.Renderer().Message("Uploading shasums and sig")
+	v.Output().Message("Uploading shasums and sig")
 	if err := uploadVersionChecksums(p, staged.Shasums, staged.ShasumsSig); err != nil {
 		return v.RenderError(err)
 	}
 
 	var platforms []*tfe.RegistryProviderPlatform
 	for _, plat := range staged.Platforms {
-		v.Renderer().Message("Uploading %s_%s", plat.OS, plat.Arch)
+		v.Output().Message("Uploading %s_%s", plat.OS, plat.Arch)
 		rpp, err := data.UploadRegistryProviderPlatform(c, c.OrganizationName, staged.Name, staged.Version, plat.OS, plat.Arch, plat.Path)
 		if err != nil {
 			return v.RenderError(errors.Wrapf(err, "failed to upload platform %s_%s", plat.OS, plat.Arch))

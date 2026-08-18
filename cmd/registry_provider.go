@@ -206,7 +206,7 @@ func registryProviderDownload(cmdConfig *flags.RegistryProviderDownloadFlags) er
 	} else {
 		v.PrintCommandFilter("Platforms: %s", strings.Join(cmdConfig.Platforms, ", "))
 	}
-	v.Renderer().Message("Downloading provider artifacts...")
+	v.Output().Message("Downloading provider artifacts...")
 
 	result, err := data.DownloadPublicProvider(data.PublicProviderDownloadConfig{
 		Namespace:    cmdConfig.Namespace,

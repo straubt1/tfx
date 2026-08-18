@@ -163,7 +163,7 @@ func registryProviderVersionPlatformCreate(cmdConfig *flags.RegistryProviderVers
 		return v.RenderError(err)
 	}
 	v.PrintCommandHeader("Create Provider Platform in Registry for Organization: %s", c.OrganizationName)
-	v.Renderer().Message("Uploading Provider Version Platform...")
+	v.Output().Message("Uploading Provider Version Platform...")
 	rpp, err := data.UploadRegistryProviderPlatform(c, c.OrganizationName, cmdConfig.Name, cmdConfig.Version, cmdConfig.OS, cmdConfig.Arch, cmdConfig.Filename)
 	if err != nil {
 		return v.RenderError(err)
