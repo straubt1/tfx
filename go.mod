@@ -3,7 +3,7 @@ module github.com/straubt1/tfx
 go 1.26.6
 
 require (
-	charm.land/bubbletea/v2 v2.0.8
+	charm.land/bubbletea/v2 v2.0.9
 	charm.land/lipgloss/v2 v2.0.6
 	code.cloudfoundry.org/bytefmt v0.86.0
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
