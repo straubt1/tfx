@@ -14,7 +14,7 @@ require (
 	github.com/epilande/go-devicons v0.0.0-20250505162540-0661cab71a28
 	github.com/fatih/color v1.19.0
 	github.com/go-viper/encoding/hcl v0.1.0
-	github.com/google/go-containerregistry v0.21.9
+	github.com/google/go-containerregistry v0.22.0
 	github.com/hashicorp/go-slug v1.0.0
 	github.com/hashicorp/go-tfe v1.110.0
 	github.com/jedib0t/go-pretty/v6 v6.8.3
