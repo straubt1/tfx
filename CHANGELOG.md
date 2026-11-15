@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v0.4.2] - Unreleased
 
+**Added**
+
+* `tfx workspace assessments enable|disable` — toggle health assessments (drift detection) on one or more workspaces by `--name` (#117)
+* `tfx workspace assessments enable|disable all` — toggle health assessments across an organization, with `--search`, `--wildcard-name`, `--project-id`, `--tags`, and `--exclude-tags` filters (#117)
+* `tfx workspace show` now includes the `Health Assessments` setting
+
 **Changed**
 
 * Upgraded Go to 1.27.4 and refreshed module dependencies

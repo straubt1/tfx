@@ -51,6 +51,7 @@ export default defineConfig({
                 { label: 'Configuration Versions', slug: 'commands/workspace_configurationversion' },
                 { label: 'Team', slug: 'commands/workspace_team' },
                 { label: 'Lock', slug: 'commands/workspace_lock' },
+                { label: 'Health Assessments', slug: 'commands/workspace_assessments' },
                 { label: 'State Versions', slug: 'commands/workspace_stateversion' },
               ],
             },

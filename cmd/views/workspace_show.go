@@ -31,6 +31,7 @@ type workspaceShowOutput struct {
 	AutoApply          bool     `json:"autoApply"`
 	WorkingDirectory   string   `json:"workingDirectory"`
 	Locked             bool     `json:"locked"`
+	AssessmentsEnabled bool     `json:"assessmentsEnabled"`
 	GlobalRemoteState  bool     `json:"globalRemoteState"`
 	CurrentRun         *runInfo `json:"currentRun,omitempty"`
 	TeamAccess         []string `json:"teamAccess,omitempty"`
@@ -58,16 +59,17 @@ func (v *WorkspaceShowView) Render(
 	if v.IsJSON() {
 		// JSON mode: convert to JSON-safe structure
 		output := workspaceShowOutput{
-			Organization:      orgName,
-			Name:              workspace.Name,
-			ID:                workspace.ID,
-			ResourceCount:     workspace.ResourceCount,
-			TerraformVersion:  workspace.TerraformVersion,
-			ExecutionMode:     workspace.ExecutionMode,
-			AutoApply:         workspace.AutoApply,
-			WorkingDirectory:  workspace.WorkingDirectory,
-			Locked:            workspace.Locked,
-			GlobalRemoteState: workspace.GlobalRemoteState,
+			Organization:       orgName,
+			Name:               workspace.Name,
+			ID:                 workspace.ID,
+			ResourceCount:      workspace.ResourceCount,
+			TerraformVersion:   workspace.TerraformVersion,
+			ExecutionMode:      workspace.ExecutionMode,
+			AutoApply:          workspace.AutoApply,
+			WorkingDirectory:   workspace.WorkingDirectory,
+			Locked:             workspace.Locked,
+			AssessmentsEnabled: workspace.AssessmentsEnabled,
+			GlobalRemoteState:  workspace.GlobalRemoteState,
 		}
 
 		// Add current run if present
@@ -107,6 +109,7 @@ func (v *WorkspaceShowView) Render(
 		{Key: "Auto Apply", Value: workspace.AutoApply},
 		{Key: "Working Directory", Value: workspace.WorkingDirectory},
 		{Key: "Locked", Value: workspace.Locked},
+		{Key: "Health Assessments", Value: workspace.AssessmentsEnabled},
 		{Key: "Global State Sharing", Value: workspace.GlobalRemoteState},
 	}
 
