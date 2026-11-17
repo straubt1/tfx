@@ -267,3 +267,41 @@ func SetWorkspaceLock(c *client.TfxClient, orgName, workspaceName string, lockSe
 	}
 	return "Unlocked", nil
 }
+
+// SetWorkspaceAssessmentsByName enables or disables health assessments
+// (drift detection and continuous validation) for a workspace by name
+func SetWorkspaceAssessmentsByName(c *client.TfxClient, orgName, workspaceName string, enabled bool) (string, error) {
+	output.Get().Logger().Debug("Setting workspace health assessments", "organization", orgName, "workspaceName", workspaceName, "enabled", enabled)
+
+	w, err := c.Client.Workspaces.Read(c.Context, orgName, workspaceName)
+	if err != nil {
+		output.Get().Logger().Error("Failed to read workspace", "organization", orgName, "workspaceName", workspaceName, "error", err)
+		return "", err
+	}
+
+	return SetWorkspaceAssessments(c, w, enabled)
+}
+
+// SetWorkspaceAssessments enables or disables health assessments for an already-fetched workspace.
+// The update is skipped when the workspace is already in the requested state.
+func SetWorkspaceAssessments(c *client.TfxClient, w *tfe.Workspace, enabled bool) (string, error) {
+	if w.AssessmentsEnabled == enabled {
+		if enabled {
+			return "Already enabled", nil
+		}
+		return "Already disabled", nil
+	}
+
+	_, err := c.Client.Workspaces.UpdateByID(c.Context, w.ID, tfe.WorkspaceUpdateOptions{
+		AssessmentsEnabled: tfe.Bool(enabled),
+	})
+	if err != nil {
+		output.Get().Logger().Error("Failed to update workspace health assessments", "workspaceID", w.ID, "enabled", enabled, "error", err)
+		return "", err
+	}
+
+	if enabled {
+		return "Enabled", nil
+	}
+	return "Disabled", nil
+}

@@ -25,6 +25,7 @@ Check out our docs site [tfx.rocks](https://tfx.rocks)
 | `tfx workspace configuration-version` | `list`, `show`, `create`, `download` |
 | `tfx workspace lock` | `all` |
 | `tfx workspace unlock` | `all` |
+| `tfx workspace assessments` | `enable`, `enable all`, `disable`, `disable all` |
 | `tfx workspace plan` | `show`, `logs`, `jsonoutput`, `create` |
 | `tfx workspace run` | `list`, `show`, `create`, `cancel`, `discard` |
 | `tfx workspace state-version` | `list`, `show`, `create`, `download` |

@@ -73,7 +73,7 @@ func init() {
 }
 
 // printActiveFilters displays which filters are currently set
-func printActiveFilters(v *view.WorkspaceListView, cmdConfig *flags.WorkspaceListFlags) {
+func printActiveFilters(v *view.BaseView, cmdConfig *flags.WorkspaceListFlags) {
 	var filtersSet []string
 	if cmdConfig.ProjectID != "" {
 		filtersSet = append(filtersSet, "project-id: "+cmdConfig.ProjectID)
@@ -119,7 +119,7 @@ func workspaceList(cmdConfig *flags.WorkspaceListFlags) error {
 	}
 
 	// Show which filters are set
-	printActiveFilters(v, cmdConfig)
+	printActiveFilters(v.BaseView, cmdConfig)
 
 	// Fetch workspaces with appropriate scope
 	workspaces, err := data.FetchWorkspacesWithOrgScope(c, c.OrganizationName, cmdConfig)
